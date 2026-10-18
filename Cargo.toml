@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/cli"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/cyberchitta/selfcast"
+rust-version = "1.85"
+
+[workspace.dependencies]
+selfcast-core = { path = "crates/core", version = "0.0.1" }
+clap = { version = "4", features = ["derive", "env"] }
+flate2 = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tar = "0.4"
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "time"] }

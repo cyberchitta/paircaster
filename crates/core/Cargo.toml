@@ -1,0 +1,14 @@
+[package]
+name = "selfcast-core"
+description = "Higher-level Farcaster API over your own Snapchain node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

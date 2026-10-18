@@ -1,0 +1,26 @@
+use serde::Deserialize;
+
+/// Errors from talking to a Snapchain node.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("invalid node URL {url:?}: {reason}")]
+    BadNodeUrl { url: String, reason: String },
+    #[error("could not reach node: {0}")]
+    Transport(#[from] reqwest::Error),
+    #[error("node returned HTTP {status}: {error}: {detail}")]
+    Node {
+        status: u16,
+        error: String,
+        detail: String,
+    },
+    #[error("node returned HTTP {status} with an unrecognised body: {body}")]
+    UnexpectedResponse { status: u16, body: String },
+}
+
+/// The JSON error body Snapchain returns for failed lookups. Query-parsing
+/// errors come back as plain text instead and land in `UnexpectedResponse`.
+#[derive(Debug, Deserialize)]
+pub(crate) struct NodeErrorBody {
+    pub error: String,
+    pub error_detail: String,
+}
