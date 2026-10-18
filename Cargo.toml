@@ -11,8 +11,13 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 selfcast-core = { path = "crates/core", version = "0.0.1" }
+base64 = "0.22"
+blake3 = "1"
 clap = { version = "4", features = ["derive", "env"] }
+ed25519-dalek = "2"
 flate2 = "1"
+hex = "0.4"
+prost = "0.14"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
