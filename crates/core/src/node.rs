@@ -4,7 +4,7 @@ use reqwest::{Client, Url};
 use serde_json::Value;
 
 use crate::build::SignedMessage;
-use crate::cast::{Cast, MessageHash, Reaction};
+use crate::cast::{Cast, CastRef, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
 use crate::profile::UserDatum;
@@ -141,12 +141,13 @@ impl Node {
         kind: ReactionType,
         page: &PageRequest,
     ) -> Result<Page<Reaction>, Error> {
-        let kind = match kind {
-            ReactionType::Like => "Like",
-            ReactionType::Recast => "Recast",
-            ReactionType::None => return Err(Error::Malformed("reaction type NONE".to_owned())),
-        };
-        let query = with_page(&[fid_param(fid), ("reaction_type", kind.to_owned())], page);
+        let query = with_page(
+            &[
+                fid_param(fid),
+                ("reaction_type", reaction_type_name(kind)?.to_owned()),
+            ],
+            page,
+        );
         parse::reactions(self.get("v1/reactionsByFid", &query).await?)
     }
 
@@ -178,10 +179,71 @@ impl Node {
 
     /// `POST /v1/submitMessage` with `message`'s bytes exactly as signed.
     pub async fn submit_message(&self, message: &SignedMessage) -> Result<Submitted, Error> {
-        let url = self
-            .base
-            .join("v1/submitMessage")
-            .expect("static relative URL");
+        let (status, body) = self.post_message("v1/submitMessage", message).await?;
+        parse::submitted(status, &body, message.hash())
+    }
+
+    /// `POST /v1/validateMessage`: whether the node would take `message` as
+    /// built. Nothing is sent on. It does not check that the signing key is
+    /// registered to the account.
+    pub async fn validate_message(&self, message: &SignedMessage) -> Result<bool, Error> {
+        let (status, body) = self.post_message("v1/validateMessage", message).await?;
+        parse::validated(status, &body)
+    }
+
+    /// `GET /v1/castById`: the hash of the cast at `cast`, or `None` if the
+    /// node holds none there.
+    pub async fn cast_hash(&self, cast: &CastRef) -> Result<Option<MessageHash>, Error> {
+        let query = [fid_param(cast.fid), ("hash", cast.hash.to_string())];
+        self.lookup_hash("v1/castById", &query).await
+    }
+
+    /// `GET /v1/reactionById`: the hash of `fid`'s current `kind` reaction
+    /// to `cast`, or `None` if it has none.
+    pub async fn reaction_hash(
+        &self,
+        fid: u64,
+        kind: ReactionType,
+        cast: &CastRef,
+    ) -> Result<Option<MessageHash>, Error> {
+        let query = [
+            fid_param(fid),
+            ("reaction_type", reaction_type_name(kind)?.to_owned()),
+            ("target_fid", cast.fid.to_string()),
+            ("target_hash", cast.hash.to_string()),
+        ];
+        self.lookup_hash("v1/reactionById", &query).await
+    }
+
+    /// `GET /v1/linkById`: the hash of `fid`'s current follow of `target`,
+    /// or `None` if it does not follow it.
+    pub async fn follow_hash(&self, fid: u64, target: u64) -> Result<Option<MessageHash>, Error> {
+        let query = [
+            fid_param(fid),
+            ("target_fid", target.to_string()),
+            ("link_type", "follow".to_owned()),
+        ];
+        self.lookup_hash("v1/linkById", &query).await
+    }
+
+    async fn lookup_hash(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> Result<Option<MessageHash>, Error> {
+        match self.get(path, query).await {
+            Ok(value) => parse::message_hash(value).map(Some),
+            Err(e) if parse::is_not_found(&e) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn post_message(
+        &self,
+        path: &str,
+        message: &SignedMessage,
+    ) -> Result<(u16, String), Error> {
+        let url = self.base.join(path).expect("static relative URL");
         let resp = self
             .http
             .post(url)
@@ -190,7 +252,7 @@ impl Node {
             .send()
             .await?;
         let status = resp.status().as_u16();
-        parse::submitted(status, &resp.text().await?, message.hash())
+        Ok((status, resp.text().await?))
     }
 
     async fn all_pages<T, F, Fut>(&self, read: F) -> Result<Vec<T>, Error>
@@ -225,6 +287,15 @@ impl Node {
         } else {
             Err(node_error(status.as_u16(), body))
         }
+    }
+}
+
+/// How the node's query strings name a reaction type.
+fn reaction_type_name(kind: ReactionType) -> Result<&'static str, Error> {
+    match kind {
+        ReactionType::Like => Ok("Like"),
+        ReactionType::Recast => Ok("Recast"),
+        ReactionType::None => Err(Error::Malformed("reaction type NONE".to_owned())),
     }
 }
 

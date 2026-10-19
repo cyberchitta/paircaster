@@ -50,6 +50,28 @@ pub fn submitted(status: u16, body: &str, sent: MessageHash) -> Result<Submitted
     }
 }
 
+/// A `POST /v1/validateMessage` reply: `{ "valid": bool, "message": … }`
+/// (snapchain v0.14.3 `src/network/server.rs`, `validate_message`).
+pub fn validated(status: u16, body: &str) -> Result<bool, Error> {
+    if !(200..300).contains(&status) {
+        return Err(node_error(status, body.to_owned()));
+    }
+    #[derive(Deserialize)]
+    struct Validated {
+        valid: bool,
+    }
+    serde_json::from_str::<Validated>(body)
+        .map(|v| v.valid)
+        .map_err(|_| unexpected(status, body.to_owned()))
+}
+
+/// The hash of the one message a `castById`, `reactionById` or `linkById`
+/// lookup returns.
+pub fn message_hash(value: Value) -> Result<MessageHash, Error> {
+    let message = message_from_json(value)?;
+    MessageHash::from_bytes(&message.hash).ok_or_else(|| bad("hash is not 20 bytes"))
+}
+
 /// A `castsByFid` page. Cast removes in it are skipped.
 pub fn casts(page: Value) -> Result<Page<Cast>, Error> {
     messages(page)?.try_filter_map(|m| match message_type(&m)? {
