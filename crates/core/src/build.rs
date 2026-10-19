@@ -7,13 +7,14 @@
 
 use ed25519_dalek::{Signer as _, SigningKey};
 use prost::Message as _;
+use zeroize::Zeroizing;
 
 use crate::cast::{Mention, MessageHash, SignerKey, Target};
 use crate::message::{VerifyError, hash_data, verify};
 use crate::proto::{
     Body, CastAddBody, CastId, CastParent, CastRemoveBody, CastType, Embed, EmbedTarget,
-    FarcasterNetwork, HashScheme, LinkBody, LinkTarget, Message, MessageData, MessageType,
-    ReactionBody, ReactionTarget, ReactionType, SignatureScheme,
+    FarcasterNetwork, HashScheme, KeyAddBody, LinkBody, LinkTarget, Message, MessageData,
+    MessageType, ReactionBody, ReactionTarget, ReactionType, SignatureScheme,
 };
 use crate::time::Timestamp;
 
@@ -25,6 +26,11 @@ impl AppKey {
     /// The caller zeroes its own copy of `secret`.
     pub fn from_secret(secret: &[u8; 32]) -> Self {
         Self(SigningKey::from_bytes(secret))
+    }
+
+    /// The secret, to save the key; zeroed when dropped.
+    pub fn to_secret(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.0.to_bytes())
     }
 
     pub fn public(&self) -> SignerKey {
@@ -60,6 +66,9 @@ pub enum Action {
     /// Follow an account (a `follow` link).
     FollowAdd(u64),
     FollowRemove(u64),
+    /// Register the signing key itself as an app key, with a body from
+    /// [`crate::key_add::authorize`].
+    KeyAdd(KeyAddBody),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -70,6 +79,8 @@ pub enum BuildError {
     NoNetwork,
     #[error("reaction must be a like or a recast")]
     NoReactionType,
+    #[error("a KEY_ADD must be signed by the key it adds")]
+    KeyAddNotSelfSigned,
 }
 
 /// A signed message, ready to send. `data_bytes` are the bytes that were
@@ -158,6 +169,11 @@ pub fn sign(
     envelope: &Envelope,
     action: &Action,
 ) -> Result<SignedMessage, BuildError> {
+    if let Action::KeyAdd(body) = action
+        && body.key != key.public().as_bytes()
+    {
+        return Err(BuildError::KeyAddNotSelfSigned);
+    }
     let data_bytes = message_data(envelope, action)?.encode_to_vec();
     let hash = MessageHash::from_bytes(&hash_data(&data_bytes)).expect("hash_data gives 20 bytes");
     let signature = key.0.sign(hash.as_bytes()).to_bytes();
@@ -202,6 +218,7 @@ fn body(action: &Action) -> Result<(MessageType, Body), BuildError> {
         }
         Action::FollowAdd(fid) => (MessageType::LinkAdd, follow(*fid)),
         Action::FollowRemove(fid) => (MessageType::LinkRemove, follow(*fid)),
+        Action::KeyAdd(body) => (MessageType::KeyAdd, Body::KeyAdd(body.clone())),
     })
 }
 

@@ -185,6 +185,7 @@ fn body_for(json: &JsonData) -> Result<Body, Error> {
             .as_ref()
             .map(user_data)
             .ok_or_else(missing),
+        MessageType::KeyAdd => Err(bad("KEY_ADD messages are not read")),
         MessageType::None => Err(bad("message type is NONE")),
     }
 }

@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::build::SignedMessage;
 use crate::cast::{Cast, MessageHash, Reaction};
+use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
 use crate::profile::UserDatum;
 use crate::proto::ReactionType;
@@ -156,6 +157,23 @@ impl Node {
             parse::signers(self.get("v1/signersByFid", &query).await?)
         })
         .await
+    }
+
+    /// `GET /v1/signersByFid`'s `currentUserNonce`: a `KEY_ADD` must carry
+    /// a higher nonce than this.
+    pub async fn user_nonce(&self, fid: u64) -> Result<u32, Error> {
+        parse::user_nonce(self.get("v1/signersByFid", &[fid_param(fid)]).await?)
+    }
+
+    /// `GET /v1/onChainIdRegistryEventByAddress`: the account whose custody
+    /// address is `address`, or `None` if it has none.
+    pub async fn fid_of_custody(&self, address: &EthAddress) -> Result<Option<u64>, Error> {
+        let query = [("address", format!("0x{}", hex::encode(address.as_bytes())))];
+        match self.get("v1/onChainIdRegistryEventByAddress", &query).await {
+            Ok(event) => parse::id_register(event, address).map(Some),
+            Err(e) if parse::is_not_found(&e) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     /// `POST /v1/submitMessage` with `message`'s bytes exactly as signed.

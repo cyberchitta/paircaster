@@ -2,8 +2,10 @@
 
 pub mod build;
 pub mod cast;
+pub mod custody;
 pub mod error;
 pub mod feed;
+pub mod key_add;
 pub mod message;
 pub mod node;
 pub mod profile;

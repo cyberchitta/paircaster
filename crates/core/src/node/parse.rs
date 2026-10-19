@@ -12,6 +12,7 @@ use serde_json::Value;
 use super::{Page, ShardSync, Submitted, SyncState, node_error, unexpected};
 use crate::Error;
 use crate::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
+use crate::custody::EthAddress;
 use crate::profile::UserDatum;
 use crate::proto::json::message_from_json;
 use crate::proto::{
@@ -118,6 +119,45 @@ pub fn signers(page: Value) -> Result<Page<Signer>, Error> {
         .map(signer)
         .collect::<Result<_, _>>()?;
     Ok(Page::new(items, raw.next_page_token))
+}
+
+/// The `currentUserNonce` of a `signersByFid` page (snapchain v0.14.3
+/// `http_server.rs:1195`).
+pub fn user_nonce(page: Value) -> Result<u32, Error> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Raw {
+        current_user_nonce: u32,
+    }
+    from_value::<Raw>(page).map(|r| r.current_user_nonce)
+}
+
+/// An `onChainIdRegistryEventByAddress` reply, as the FID it registers,
+/// checked to name `address` as its custody address.
+pub fn id_register(event: Value, address: &EthAddress) -> Result<u64, Error> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Raw {
+        fid: u64,
+        id_register_event_body: RawIdRegister,
+    }
+    #[derive(Deserialize)]
+    struct RawIdRegister {
+        to: String,
+    }
+    let raw: Raw = from_value(event)?;
+    let to = hex_bytes(&raw.id_register_event_body.to)?;
+    match EthAddress::from_bytes(&to) {
+        Some(a) if a == *address => Ok(raw.fid),
+        _ => Err(bad("id registry event for a different custody address")),
+    }
+}
+
+/// Whether `e` is the node's "no such record" reply: HTTP 400 with a gRPC
+/// `NotFound` status inside `error_detail` (observed on `crackle`,
+/// 2026-10-19, for `onChainIdRegistryEventByAddress`).
+pub fn is_not_found(e: &Error) -> bool {
+    matches!(e, Error::Node { status: 400, detail, .. } if detail.contains("status: NotFound"))
 }
 
 /// A `GET /v1/info` reply. `blockDelay` is the node's clock minus the
@@ -279,17 +319,19 @@ fn parent(p: &CastParent) -> Result<Target, Error> {
     }
 }
 
+fn hex_bytes(text: &str) -> Result<Vec<u8>, Error> {
+    text.strip_prefix("0x")
+        .and_then(|h| hex::decode(h).ok())
+        .ok_or_else(|| bad(&format!("not 0x-prefixed hex: {text:?}")))
+}
+
 fn cast_ref(fid: u64, hash: &[u8]) -> Result<CastRef, Error> {
     let hash = MessageHash::from_bytes(hash).ok_or_else(|| bad("hash is not 20 bytes"))?;
     Ok(CastRef { fid, hash })
 }
 
 fn signer(raw: RawSigner) -> Result<Signer, Error> {
-    let key_bytes = raw
-        .key
-        .strip_prefix("0x")
-        .and_then(|h| hex::decode(h).ok())
-        .ok_or_else(|| bad("signer key is not 0x-prefixed hex"))?;
+    let key_bytes = hex_bytes(&raw.key)?;
     let key = SignerKey::from_bytes(&key_bytes).ok_or_else(|| bad("signer key is not 32 bytes"))?;
     let app_fid = match (raw.source.as_str(), raw.request_fid, raw.on_chain_event) {
         ("SIGNER_SOURCE_OFFCHAIN", Some(fid), _) => Some(fid),

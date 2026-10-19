@@ -52,7 +52,7 @@ pub struct MessageData {
     pub timestamp: u32,
     #[prost(enumeration = "FarcasterNetwork", tag = "4")]
     pub network: i32,
-    #[prost(oneof = "Body", tags = "5, 6, 7, 12, 14")]
+    #[prost(oneof = "Body", tags = "5, 6, 7, 12, 14, 19")]
     pub body: Option<Body>,
 }
 
@@ -70,6 +70,8 @@ pub enum Body {
     UserData(UserDataBody),
     #[prost(message, tag = "14")]
     Link(LinkBody),
+    #[prost(message, tag = "19")]
+    KeyAdd(KeyAddBody),
 }
 
 /// `message.proto:56`.
@@ -118,6 +120,8 @@ pub enum MessageType {
     LinkRemove = 6,
     #[serde(rename = "MESSAGE_TYPE_USER_DATA_ADD")]
     UserDataAdd = 11,
+    #[serde(rename = "MESSAGE_TYPE_KEY_ADD")]
+    KeyAdd = 16,
 }
 
 /// `message.proto:96`.
@@ -304,4 +308,39 @@ pub struct LinkBody {
 pub enum LinkTarget {
     #[prost(uint64, tag = "3")]
     Fid(u64),
+}
+
+/// Registers an app key, authorised by the account's custody key: the
+/// gasless `KEY_ADD`. `message.proto:244`.
+#[derive(Clone, PartialEq, Eq, prost::Message)]
+pub struct KeyAddBody {
+    /// The Ed25519 public key being added.
+    #[prost(bytes = "vec", tag = "1")]
+    pub key: Vec<u8>,
+    /// 1 for Ed25519, the only type defined.
+    #[prost(uint32, tag = "2")]
+    pub key_type: u32,
+    /// EIP-712 `KeyAdd` signature by the custody key, 65 bytes.
+    #[prost(bytes = "vec", tag = "3")]
+    pub custody_signature: Vec<u8>,
+    /// Seconds since 2021-01-01 UTC after which the custody signature lapses.
+    #[prost(uint32, tag = "4")]
+    pub deadline: u32,
+    /// Must exceed the account's `currentUserNonce`.
+    #[prost(uint32, tag = "5")]
+    pub nonce: u32,
+    /// ABI-encoded `SignedKeyRequestMetadata`.
+    #[prost(bytes = "vec", tag = "6")]
+    pub metadata: Vec<u8>,
+    /// 1 for `SignedKeyRequest`, the only type defined.
+    #[prost(uint32, tag = "7")]
+    pub metadata_type: u32,
+    #[prost(bytes = "vec", tag = "8")]
+    pub registration_tx_hash: Vec<u8>,
+    /// The [`MessageType`]s the key may sign.
+    #[prost(int32, repeated, tag = "9")]
+    pub scopes: Vec<i32>,
+    /// Sliding expiry in seconds, refreshed by use; at most 90 days.
+    #[prost(uint32, tag = "10")]
+    pub ttl: u32,
 }
