@@ -1,5 +1,6 @@
 mod reads;
 mod snapshot;
+mod status;
 
 use std::process::ExitCode;
 
@@ -46,6 +47,9 @@ enum NodeCommand {
     /// Download the mainnet snapshot so the node can start from it.
     /// Pausable: stop with Ctrl-C and run again to resume.
     FetchSnapshot(snapshot::FetchArgs),
+    /// Show which phase the node is in (downloading the snapshot, unpacking,
+    /// stopped, syncing, ready) and how far along it is.
+    Status(status::StatusArgs),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -74,6 +78,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Profile { fid } => reads::profile(&Node::new(&cli.node)?, fid, cli.json).await?,
         Command::Feed(args) => reads::feed(&Node::new(&cli.node)?, &args, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
+        Command::Node(NodeCommand::Status(args)) => status::run(&cli.node, args, cli.json).await?,
     }
     Ok(())
 }

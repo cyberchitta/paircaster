@@ -45,6 +45,29 @@ pub enum Submitted {
     AlreadyKnown,
 }
 
+/// The node's version and how far behind each of its shards is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncState {
+    pub version: String,
+    pub shards: Vec<ShardSync>,
+}
+
+/// One shard: shard 0 holds the block chain, the others hold messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShardSync {
+    pub id: u32,
+    pub height: u64,
+    /// Seconds between the node's clock and the shard's newest block.
+    pub seconds_behind: u64,
+}
+
+impl SyncState {
+    /// The furthest any shard is behind, in seconds; `None` with no shards.
+    pub fn seconds_behind(&self) -> Option<u64> {
+        self.shards.iter().map(|s| s.seconds_behind).max()
+    }
+}
+
 /// A connection to one Snapchain node's HTTP API.
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -70,6 +93,11 @@ impl Node {
     /// `GET /v1/info`: node version and per-shard sync state.
     pub async fn info(&self) -> Result<Value, Error> {
         self.get("v1/info", &[]).await
+    }
+
+    /// `GET /v1/info`, as how far behind each shard is.
+    pub async fn sync_state(&self) -> Result<SyncState, Error> {
+        parse::sync_state(self.info().await?)
     }
 
     /// `GET /v1/castsByFid`, newest first.

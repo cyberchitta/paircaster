@@ -242,3 +242,23 @@ fn request_fid_rejects_short_or_oversized_metadata() {
     oversized[0] = 1;
     assert!(parse::request_fid(&[word(32), oversized].concat()).is_err());
 }
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn sync_state_takes_each_shards_height_and_lag() {
+    let state = parse::sync_state(fixture("info.json")).expect("info parses");
+    assert_eq!(state.version, "0.14.2");
+    let ids: Vec<u32> = state.shards.iter().map(|s| s.id).collect();
+    assert_eq!(ids, [0, 1, 2]);
+    assert_eq!(state.shards[1].height, 49_015_571);
+    assert_eq!(state.seconds_behind(), Some(1));
+}
+
+#[test]
+fn sync_state_without_block_delay_is_an_error() {
+    let info = serde_json::json!({
+        "version": "0.14.2",
+        "shardInfos": [{ "shardId": 1, "maxHeight": 7 }],
+    });
+    assert!(parse::sync_state(info).is_err());
+}

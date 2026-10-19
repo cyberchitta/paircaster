@@ -17,6 +17,7 @@ clap.workspace = true
 flate2.workspace = true
 reqwest.workspace = true
 serde.workspace = true
+rustix.workspace = true
 serde_json.workspace = true
 tar.workspace = true
 thiserror.workspace = true

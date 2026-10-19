@@ -1094,6 +1094,7 @@ dependencies = [
  "clap",
  "flate2",
  "reqwest",
+ "rustix",
  "selfcast-core",
  "serde",
  "serde_json",

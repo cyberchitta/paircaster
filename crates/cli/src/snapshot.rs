@@ -7,7 +7,10 @@
 
 mod fetch;
 mod index;
+mod progress;
 mod unpack;
+
+pub use progress::{Chunk, Download, Observed, Unpack};
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -128,7 +131,32 @@ pub async fn run(args: FetchArgs) -> Result<(), SnapshotError> {
         .map(|paths| report_done(&paths, index_total))
 }
 
-fn install_dir(dir: Option<PathBuf>) -> Result<PathBuf, SnapshotError> {
+/// The snapshot state in the install directory `dir`.
+pub fn observe(dir: &Path) -> Result<Observed, SnapshotError> {
+    progress::observe(&Paths::new(dir.to_path_buf()))
+}
+
+/// Space on the filesystem holding `dir`, in bytes.
+#[derive(Debug, Clone, Copy)]
+pub struct Disk {
+    pub free: u64,
+    pub total: u64,
+}
+
+/// Space on the filesystem holding `dir`; `None` if `dir` does not exist.
+pub fn disk(dir: &Path) -> Result<Option<Disk>, SnapshotError> {
+    match rustix::fs::statvfs(dir) {
+        Ok(s) => Ok(Some(Disk {
+            free: s.f_bavail.saturating_mul(s.f_frsize),
+            total: s.f_blocks.saturating_mul(s.f_frsize),
+        })),
+        Err(rustix::io::Errno::NOENT) => Ok(None),
+        Err(e) => Err(SnapshotError::io(dir)(e.into())),
+    }
+}
+
+/// `dir`, or `~/snapchain` when `None`.
+pub fn install_dir(dir: Option<PathBuf>) -> Result<PathBuf, SnapshotError> {
     match dir {
         Some(d) => Ok(d),
         None => std::env::var_os("HOME")
@@ -138,10 +166,16 @@ fn install_dir(dir: Option<PathBuf>) -> Result<PathBuf, SnapshotError> {
 }
 
 fn refuse_if_db_present(db: &Path) -> Result<(), SnapshotError> {
+    match db_filled(db)? {
+        true => Err(SnapshotError::DbExists(db.to_path_buf())),
+        false => Ok(()),
+    }
+}
+
+fn db_filled(db: &Path) -> Result<bool, SnapshotError> {
     match std::fs::read_dir(db).map(|mut entries| entries.next().is_some()) {
-        Ok(true) => Err(SnapshotError::DbExists(db.to_path_buf())),
-        Ok(false) => Ok(()),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Ok(filled) => Ok(filled),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(SnapshotError::io(db)(e)),
     }
 }

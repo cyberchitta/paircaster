@@ -111,6 +111,15 @@ pub async fn load_or_fetch(
     }
 }
 
+/// The pinned index at `path`, or `None` if no download has started.
+pub fn load_pinned(path: &Path) -> Result<Option<Index>, SnapshotError> {
+    match std::fs::read(path) {
+        Ok(bytes) => parse_pinned(&bytes, path).map(Some),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(SnapshotError::io(path)(e)),
+    }
+}
+
 fn parse_pinned(bytes: &[u8], path: &Path) -> Result<Index, SnapshotError> {
     let index: Index = serde_json::from_slice(bytes).map_err(|e| SnapshotError::BadIndex {
         origin: path.display().to_string(),

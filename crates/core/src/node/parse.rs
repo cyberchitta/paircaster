@@ -9,7 +9,7 @@ use base64::prelude::*;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::{Page, Submitted, node_error, unexpected};
+use super::{Page, ShardSync, Submitted, SyncState, node_error, unexpected};
 use crate::Error;
 use crate::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::profile::UserDatum;
@@ -118,6 +118,43 @@ pub fn signers(page: Value) -> Result<Page<Signer>, Error> {
         .map(signer)
         .collect::<Result<_, _>>()?;
     Ok(Page::new(items, raw.next_page_token))
+}
+
+/// A `GET /v1/info` reply. `blockDelay` is the node's clock minus the
+/// shard's newest block time, in seconds (snapchain v0.14.3
+/// `src/network/server.rs` lines 1588 and 1637).
+pub fn sync_state(value: Value) -> Result<SyncState, Error> {
+    let raw: RawInfo = from_value(value)?;
+    let shards = raw
+        .shard_infos
+        .into_iter()
+        .map(|s| ShardSync {
+            id: s.shard_id,
+            height: s.max_height,
+            seconds_behind: s.block_delay,
+        })
+        .collect();
+    Ok(SyncState {
+        version: raw.version,
+        shards,
+    })
+}
+
+/// `InfoResponse` at `http_server.rs:455`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawInfo {
+    version: String,
+    shard_infos: Vec<RawShardInfo>,
+}
+
+/// `ShardInfo` at `http_server.rs:480`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawShardInfo {
+    shard_id: u32,
+    max_height: u64,
+    block_delay: u64,
 }
 
 #[derive(Deserialize)]
