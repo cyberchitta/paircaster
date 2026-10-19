@@ -1,3 +1,4 @@
+mod reads;
 mod snapshot;
 
 use std::process::ExitCode;
@@ -28,6 +29,13 @@ struct Cli {
 enum Command {
     /// Show the node's version and sync status.
     Info,
+    /// Show an account's profile.
+    Profile {
+        /// The account's FID.
+        fid: u64,
+    },
+    /// Show recent casts from the accounts an account follows, newest first.
+    Feed(reads::FeedArgs),
     /// Set up and manage the Snapchain node itself.
     #[command(subcommand)]
     Node(NodeCommand),
@@ -63,6 +71,8 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Command::Info => print(&Node::new(&cli.node)?.info().await?, cli.json),
+        Command::Profile { fid } => reads::profile(&Node::new(&cli.node)?, fid, cli.json).await?,
+        Command::Feed(args) => reads::feed(&Node::new(&cli.node)?, &args, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
     }
     Ok(())

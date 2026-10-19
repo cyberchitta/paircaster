@@ -1,8 +1,10 @@
 use serde::Deserialize;
 
-/// Errors from talking to a Snapchain node.
+/// Errors from talking to a Snapchain node or reading what it returns.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("malformed response from node: {0}")]
+    Malformed(String),
     #[error("invalid node URL {url:?}: {reason}")]
     BadNodeUrl { url: String, reason: String },
     #[error("could not reach node: {0}")]
