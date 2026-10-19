@@ -4,8 +4,9 @@
 //! The running download is the process holding the download lock
 //! (`snapshot::holder`). Pausing interrupts it; everything downloaded stays
 //! on disk, including the part of each chunk in flight. Resuming starts
-//! `fetch-snapshot` detached, in its own process group, so closing the
-//! terminal or session that started it does not stop it. On macOS it runs
+//! `fetch-snapshot` detached, in its own process group, so a Ctrl-C in the
+//! terminal that started it does not reach it. Whether it outlives that
+//! terminal or session closing is untested. On macOS it runs
 //! under `caffeinate -i`, so the machine does not sleep while it works.
 //!
 //! The unpack is not paused: it is local, and stopping it midway is
