@@ -3,10 +3,12 @@ mod control;
 mod invocation;
 mod key_add;
 mod keystore;
+mod outbox;
 mod reads;
 mod snapshot;
 mod status;
 mod tty;
+mod write;
 
 use std::process::ExitCode;
 
@@ -43,6 +45,20 @@ enum Command {
     },
     /// Show recent casts from the accounts an account follows, newest first.
     Feed(reads::FeedArgs),
+    /// Post a cast, or a reply with --reply-to.
+    Cast(write::CastArgs),
+    /// Delete one of the account's casts.
+    Delete(write::DeleteArgs),
+    /// Like or recast a cast.
+    React(write::ReactArgs),
+    /// Undo a like or a recast.
+    Unreact(write::ReactArgs),
+    /// Follow an account.
+    Follow(write::FollowArgs),
+    /// Unfollow an account.
+    Unfollow(write::FollowArgs),
+    /// Send again any message an earlier write saved but did not see sent.
+    Resend,
     /// Manage the account's app keys.
     #[command(subcommand)]
     Key(KeyCommand),
@@ -83,6 +99,8 @@ enum CliError {
     KeyAdd(#[from] key_add::KeyAddCliError),
     #[error(transparent)]
     Control(#[from] control::ControlError),
+    #[error(transparent)]
+    Write(#[from] write::WriteError),
 }
 
 #[tokio::main]
@@ -102,6 +120,13 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Info => print(&Node::new(&cli.node)?.info().await?, cli.json),
         Command::Profile { fid } => reads::profile(&Node::new(&cli.node)?, fid, cli.json).await?,
         Command::Feed(args) => reads::feed(&Node::new(&cli.node)?, &args, cli.json).await?,
+        Command::Cast(args) => send(&cli.node, args.into_parts(), cli.json).await?,
+        Command::Delete(args) => send(&cli.node, args.into_parts(), cli.json).await?,
+        Command::React(args) => send(&cli.node, args.into_parts(false), cli.json).await?,
+        Command::Unreact(args) => send(&cli.node, args.into_parts(true), cli.json).await?,
+        Command::Follow(args) => send(&cli.node, args.into_parts(false), cli.json).await?,
+        Command::Unfollow(args) => send(&cli.node, args.into_parts(true), cli.json).await?,
+        Command::Resend => write::resend(&Node::new(&cli.node)?, cli.json).await?,
         Command::Key(KeyCommand::Add) => key_add::run(&Node::new(&cli.node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
         Command::Node(NodeCommand::Status(args)) => status::run(&cli.node, args, cli.json).await?,
@@ -109,6 +134,14 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Node(NodeCommand::Resume(args)) => control::resume(args).await?,
     }
     Ok(())
+}
+
+async fn send(
+    node: &str,
+    (action, flags): (selfcast_core::build::Action, write::WriteFlags),
+    json: bool,
+) -> Result<(), CliError> {
+    write::send(&Node::new(node)?, action, flags, json).await
 }
 
 fn print(value: &serde_json::Value, json: bool) {
