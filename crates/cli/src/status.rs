@@ -12,6 +12,7 @@ use selfcast_core::node::SyncState;
 use serde::Serialize;
 
 use crate::CliError;
+use crate::invocation;
 use crate::snapshot::{self, Chunk, Download, Observed, Unpack};
 
 /// Download speed is measured over the chunks finished this recently.
@@ -248,10 +249,11 @@ fn age(now: SystemTime, then: SystemTime) -> Duration {
 
 fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
     let dir = dir.display();
+    let selfcast = invocation::selfcast();
     match phase {
         Phase::NotStarted => format!(
             "No snapshot download started, and no node answers at {node_url}.\n\
-             Start with: selfcast node fetch-snapshot"
+             Start with: {selfcast} node fetch-snapshot"
         ),
         Phase::Downloading {
             running,
@@ -267,7 +269,7 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
             );
             let tail = match running {
                 true => download_tail(*bytes_per_second, *eta_seconds, *seconds_since_write),
-                false => "Paused. To resume: selfcast node resume".to_owned(),
+                false => format!("Paused. To resume: {selfcast} node resume"),
             };
             format!("{head}\n{tail}")
         }
@@ -282,7 +284,7 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
             match running {
                 true => head,
                 false => format!(
-                    "{head}\nInterrupted. To finish (the current shard starts over): selfcast node resume"
+                    "{head}\nInterrupted. To finish (the current shard starts over): {selfcast} node resume"
                 ),
             }
         }

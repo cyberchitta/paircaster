@@ -26,6 +26,7 @@ use serde::Serialize;
 use zeroize::Zeroizing;
 
 use crate::CliError;
+use crate::invocation;
 use crate::keystore::{self, KeyStore, KeyStoreError};
 use crate::tty::{Tty, TtyError};
 
@@ -68,11 +69,11 @@ pub enum KeyAddCliError {
     #[error("{path} is not a saved KEY_ADD: {reason}")]
     BadPending { path: PathBuf, reason: String },
     #[error(
-        "sent, but the node did not list the key within a minute. Run `selfcast key add` again \
+        "sent, but the node did not list the key within a minute. Run `{selfcast} key add` again \
          to check and resend; the key is saved at {}",
-        .0.display()
+        .key_file.display()
     )]
-    NotConfirmed(PathBuf),
+    NotConfirmed { key_file: PathBuf, selfcast: String },
 }
 
 /// `selfcast key add --json`, version 1:
@@ -261,7 +262,11 @@ async fn send_and_confirm(
         }
         tokio::time::sleep(CONFIRM_EVERY).await;
     }
-    Err(KeyAddCliError::NotConfirmed(key_file.to_path_buf()).into())
+    Err(KeyAddCliError::NotConfirmed {
+        key_file: key_file.to_path_buf(),
+        selfcast: invocation::selfcast(),
+    }
+    .into())
 }
 
 async fn is_listed(node: &Node, fid: u64, key: &SignerKey) -> Result<bool, CliError> {

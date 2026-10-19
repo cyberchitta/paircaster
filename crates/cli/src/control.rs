@@ -22,6 +22,7 @@ use selfcast_core::time::Timestamp;
 use std::io::Write;
 
 use crate::CliError;
+use crate::invocation;
 use crate::snapshot::{self, Observed};
 
 const CAFFEINATE: &str = "/usr/bin/caffeinate";
@@ -102,9 +103,10 @@ pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
     for _ in 0..WAIT_TRIES {
         if let Some(pid) = snapshot::holder(&dir)? {
             println!(
-                "Resumed (process {pid}). {}\nLog: {}\nCheck: selfcast node status\nPause: selfcast node pause",
+                "Resumed (process {pid}). {}\nLog: {}\nCheck: {selfcast} node status\nPause: {selfcast} node pause",
                 progress(&dir)?,
-                log.display()
+                log.display(),
+                selfcast = invocation::selfcast(),
             );
             return Ok(());
         }
