@@ -2,7 +2,7 @@ mod common;
 
 use common::{fixture, fixture_messages};
 use selfcast_core::cast::{Cast, Target};
-use selfcast_core::feed;
+use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::parse;
 use selfcast_core::profile::Profile;
 use selfcast_core::proto::ReactionType;
@@ -86,7 +86,7 @@ fn feed_is_newest_first_across_followed_accounts() {
     let signers: Vec<Signer> = FOLLOWED.iter().flat_map(|fid| signers_of(*fid)).collect();
     let newest = casts.iter().map(|c| c.timestamp).max().expect("casts");
 
-    let items = feed::assemble(casts.clone(), &signers, 15);
+    let items = feed::assemble(casts.clone(), &signers, &AppFilter::Any, 15);
 
     assert_eq!(items.len(), 15);
     assert_eq!(items[0].cast.timestamp, newest);
@@ -99,6 +99,45 @@ fn feed_is_newest_first_across_followed_accounts() {
     );
     let authors: std::collections::HashSet<u64> = items.iter().map(|i| i.cast.id.fid).collect();
     assert!(authors.len() > 1, "feed draws on one account only");
+}
+
+/// The whole fixture feed, unfiltered and unlimited.
+fn whole_feed() -> (Vec<Cast>, Vec<Signer>, Vec<FeedItem>) {
+    let casts: Vec<Cast> = FOLLOWED.iter().flat_map(|fid| casts_of(*fid)).collect();
+    let signers: Vec<Signer> = FOLLOWED.iter().flat_map(|fid| signers_of(*fid)).collect();
+    let all = feed::assemble(casts.clone(), &signers, &AppFilter::Any, usize::MAX);
+    (casts, signers, all)
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn including_an_app_keeps_only_its_casts_newest_first() {
+    let (casts, signers, all) = whole_feed();
+    let ours = |i: &&FeedItem| i.app_fid == Some(FARCASTER_APP);
+    assert!(
+        all.iter().any(|i| !ours(&i)),
+        "fixtures need casts from another app"
+    );
+    let expected: Vec<FeedItem> = all.iter().filter(ours).take(5).cloned().collect();
+    assert_eq!(expected.len(), 5, "fixtures need 5 casts from the app");
+
+    let only = AppFilter::Only([FARCASTER_APP].into());
+    assert_eq!(feed::assemble(casts, &signers, &only, 5), expected);
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn excluding_an_app_keeps_every_other_cast() {
+    let (casts, signers, all) = whole_feed();
+    let expected: Vec<FeedItem> = all
+        .iter()
+        .filter(|i| i.app_fid != Some(FARCASTER_APP))
+        .cloned()
+        .collect();
+    assert!(!expected.is_empty(), "fixtures need casts from another app");
+
+    let not = AppFilter::Not([FARCASTER_APP].into());
+    assert_eq!(feed::assemble(casts, &signers, &not, usize::MAX), expected);
 }
 
 #[test]

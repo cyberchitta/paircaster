@@ -4,7 +4,7 @@
 //! version 1; a change to a shape bumps its `version`.
 
 use selfcast_core::cast::{Cast, Target};
-use selfcast_core::feed::{self, FeedItem};
+use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
 use selfcast_core::profile::Profile;
 use selfcast_core::{Error, Node};
@@ -14,9 +14,33 @@ use serde::Serialize;
 pub struct FeedArgs {
     /// The account whose follows make up the feed.
     fid: u64,
-    /// How many casts to show.
+    /// How many casts to show. Filtering by app looks only at each followed
+    /// account's newest LIMIT casts, so it can show fewer.
     #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=1000))]
     limit: u32,
+    /// Only casts posted from these apps, by the app's FID. Repeat the flag
+    /// or separate FIDs with commas. Casts from an unknown app are left out.
+    #[arg(
+        long,
+        value_name = "FID",
+        value_delimiter = ',',
+        conflicts_with = "exclude_app"
+    )]
+    include_app: Vec<u64>,
+    /// Every cast except those posted from these apps, by the app's FID.
+    /// Casts from an unknown app are kept.
+    #[arg(long, value_name = "FID", value_delimiter = ',')]
+    exclude_app: Vec<u64>,
+}
+
+impl FeedArgs {
+    fn apps(&self) -> AppFilter {
+        match (self.include_app.is_empty(), self.exclude_app.is_empty()) {
+            (false, _) => AppFilter::Only(self.include_app.iter().copied().collect()),
+            (true, false) => AppFilter::Not(self.exclude_app.iter().copied().collect()),
+            (true, true) => AppFilter::Any,
+        }
+    }
 }
 
 /// `selfcast profile <fid> --json`, version 1:
@@ -78,7 +102,8 @@ struct ProfileV1<'a> {
 /// }
 /// ```
 ///
-/// `casts` is newest first. `parent` is `null`, `{ "cast": … }` or
+/// `casts` is newest first, after any `--include-app` or `--exclude-app`
+/// filter. `parent` is `null`, `{ "cast": … }` or
 /// `{ "url": … }`. `mentions[].position` is a byte offset into `text`.
 /// `app_fid` is the account of the app whose key signed the cast, or `null`
 /// when that key is no longer listed or its registration names no app.
@@ -137,7 +162,7 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
         casts.extend(node.casts_by_fid(followed, &page).await?.items);
         signers.extend(node.signers_by_fid(followed).await?);
     }
-    let items = feed::assemble(casts, &signers, args.limit as usize);
+    let items = feed::assemble(casts, &signers, &args.apps(), args.limit as usize);
     if json {
         println!("{}", to_json(&feed_v1(args.fid, &items)));
     } else {
