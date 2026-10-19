@@ -37,6 +37,9 @@ impl CustodyKey {
     /// The key at Ethereum's first account path, from a BIP-39 recovery
     /// phrase of 12 to 24 English words with no passphrase. Case and spacing
     /// between words do not matter.
+    ///
+    /// Parsed with `bip39`, not `bip32`'s own `Phrase`, which accepts only
+    /// 24 words.
     pub fn from_phrase(phrase: &str) -> Result<Self, CustodyError> {
         let words: Vec<&str> = phrase.split_whitespace().collect();
         let mut normalized = Zeroizing::new(words.join(" "));

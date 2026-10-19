@@ -104,6 +104,8 @@ impl<'a> Quiet<'a> {
         quiet
             .local_modes
             .remove(LocalModes::ECHO | LocalModes::ECHONL | LocalModes::ISIG);
+        // Flush, as getpass does: anything typed before the prompt is
+        // discarded rather than taken as the secret.
         termios::tcsetattr(tty, OptionalActions::Flush, &quiet).map_err(io::Error::from)?;
         Ok(Self { tty, saved })
     }
