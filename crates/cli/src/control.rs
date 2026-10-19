@@ -103,10 +103,11 @@ pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
     for _ in 0..WAIT_TRIES {
         if let Some(pid) = snapshot::holder(&dir)? {
             println!(
-                "Resumed (process {pid}). {}\nLog: {}\nCheck: {selfcast} node status\nPause: {selfcast} node pause",
+                "Resumed (process {pid}). {}\nLog: {}\nCheck: {}\nPause: {}",
                 progress(&dir)?,
                 log.display(),
-                selfcast = invocation::selfcast(),
+                invocation::node("status", &dir),
+                invocation::node("pause", &dir),
             );
             return Ok(());
         }
