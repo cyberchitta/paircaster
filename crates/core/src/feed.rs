@@ -5,6 +5,12 @@ use std::collections::BTreeSet;
 
 use crate::cast::Cast;
 use crate::signer::{Signer, app_of};
+use crate::time::Timestamp;
+
+/// How far past now a cast's timestamp may be. Snapchain rejects newer
+/// messages dated further ahead (v0.14.3, `validations/message.rs`); older
+/// ones from before that rule can carry any date.
+pub const MAX_FUTURE_SECS: u64 = 600;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FeedItem {
@@ -46,14 +52,20 @@ impl AppFilter {
 
 /// The newest `limit` of `casts` that `apps` admits, newest first; casts at
 /// the same second are ordered by hash, so the order is the same on every
-/// run.
+/// run. A cast dated more than [`MAX_FUTURE_SECS`] past `now` is left out:
+/// its place in time is unknowable, and it would top the feed for years.
 pub fn assemble(
     casts: impl IntoIterator<Item = Cast>,
     signers: &[Signer],
     apps: &AppFilter,
+    now: Timestamp,
     limit: usize,
 ) -> Vec<FeedItem> {
-    let mut casts: Vec<Cast> = casts.into_iter().collect();
+    let latest = Timestamp::from_unix(now.unix_seconds() + MAX_FUTURE_SECS);
+    let mut casts: Vec<Cast> = casts
+        .into_iter()
+        .filter(|c| c.timestamp <= latest)
+        .collect();
     casts.sort_by_key(|c| Reverse((c.timestamp, c.id.hash)));
     casts
         .into_iter()

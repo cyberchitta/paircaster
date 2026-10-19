@@ -7,8 +7,15 @@ use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
 use selfcast_core::profile::Profile;
+use selfcast_core::signer::Signer;
 use selfcast_core::{Error, Node};
 use serde::Serialize;
+use tokio::task::JoinSet;
+
+use crate::clock;
+
+/// How many followed accounts the feed fetches at once.
+const FETCH_AT_ONCE: usize = 8;
 
 #[derive(Debug, clap::Args)]
 pub struct FeedArgs {
@@ -157,18 +164,56 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
         page_size: Some(args.limit),
         page_token: None,
     };
-    let (mut casts, mut signers) = (Vec::new(), Vec::new());
-    for followed in node.all_follows_by_fid(args.fid).await? {
-        casts.extend(node.casts_by_fid(followed, &page).await?.items);
-        signers.extend(node.signers_by_fid(followed).await?);
-    }
-    let items = feed::assemble(casts, &signers, &args.apps(), args.limit as usize);
+    let follows = node.all_follows_by_fid(args.fid).await?;
+    let (casts, signers) = fetch_followed(node, follows, page).await?;
+    let items = feed::assemble(
+        casts,
+        &signers,
+        &args.apps(),
+        clock::now(),
+        args.limit as usize,
+    );
     if json {
         println!("{}", to_json(&feed_v1(args.fid, &items)));
     } else {
         items.iter().for_each(print_item);
     }
     Ok(())
+}
+
+/// Each followed account's casts and app keys, `FETCH_AT_ONCE` accounts at
+/// a time. The first error stops the rest.
+async fn fetch_followed(
+    node: &Node,
+    follows: Vec<u64>,
+    page: PageRequest,
+) -> Result<(Vec<Cast>, Vec<Signer>), Error> {
+    let mut pending = follows.into_iter();
+    let mut running = JoinSet::new();
+    let (mut casts, mut signers) = (Vec::new(), Vec::new());
+    loop {
+        while running.len() < FETCH_AT_ONCE
+            && let Some(fid) = pending.next()
+        {
+            running.spawn(fetch_one(node.clone(), fid, page.clone()));
+        }
+        let Some(done) = running.join_next().await else {
+            return Ok((casts, signers));
+        };
+        let (c, s) = done.expect("a feed fetch does not panic")?;
+        casts.extend(c);
+        signers.extend(s);
+    }
+}
+
+async fn fetch_one(
+    node: Node,
+    fid: u64,
+    page: PageRequest,
+) -> Result<(Vec<Cast>, Vec<Signer>), Error> {
+    let (casts, signers) =
+        tokio::try_join!(node.casts_by_fid(fid, &page), node.signers_by_fid(fid))?;
+    Ok((casts.items, signers))
 }
 
 fn profile_v1(p: &Profile) -> ProfileV1<'_> {

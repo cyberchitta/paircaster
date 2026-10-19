@@ -22,7 +22,7 @@ impl Timestamp {
         Self(FARCASTER_EPOCH + u64::from(seconds))
     }
 
-    pub fn from_unix(seconds: u64) -> Self {
+    pub const fn from_unix(seconds: u64) -> Self {
         Self(seconds)
     }
 

@@ -7,8 +7,12 @@ use selfcast_core::node::parse;
 use selfcast_core::profile::Profile;
 use selfcast_core::proto::ReactionType;
 use selfcast_core::signer::{Signer, app_of};
+use selfcast_core::time::Timestamp;
 
 const FOLLOWED: [u64; 3] = [2, 194, 17];
+
+/// When the fixtures were saved, 2026-10-19.
+const NOW: Timestamp = Timestamp::from_unix(1_792_368_000);
 
 /// The FIDs snapchain v0.14.3 names in `map_signer_fid_to_name`
 /// (`src/connectors/onchain_events/mod.rs:255-260`).
@@ -86,7 +90,7 @@ fn feed_is_newest_first_across_followed_accounts() {
     let signers: Vec<Signer> = FOLLOWED.iter().flat_map(|fid| signers_of(*fid)).collect();
     let newest = casts.iter().map(|c| c.timestamp).max().expect("casts");
 
-    let items = feed::assemble(casts.clone(), &signers, &AppFilter::Any, 15);
+    let items = feed::assemble(casts.clone(), &signers, &AppFilter::Any, NOW, 15);
 
     assert_eq!(items.len(), 15);
     assert_eq!(items[0].cast.timestamp, newest);
@@ -105,7 +109,7 @@ fn feed_is_newest_first_across_followed_accounts() {
 fn whole_feed() -> (Vec<Cast>, Vec<Signer>, Vec<FeedItem>) {
     let casts: Vec<Cast> = FOLLOWED.iter().flat_map(|fid| casts_of(*fid)).collect();
     let signers: Vec<Signer> = FOLLOWED.iter().flat_map(|fid| signers_of(*fid)).collect();
-    let all = feed::assemble(casts.clone(), &signers, &AppFilter::Any, usize::MAX);
+    let all = feed::assemble(casts.clone(), &signers, &AppFilter::Any, NOW, usize::MAX);
     (casts, signers, all)
 }
 
@@ -122,7 +126,7 @@ fn including_an_app_keeps_only_its_casts_newest_first() {
     assert_eq!(expected.len(), 5, "fixtures need 5 casts from the app");
 
     let only = AppFilter::Only([FARCASTER_APP].into());
-    assert_eq!(feed::assemble(casts, &signers, &only, 5), expected);
+    assert_eq!(feed::assemble(casts, &signers, &only, NOW, 5), expected);
 }
 
 #[test]
@@ -137,7 +141,29 @@ fn excluding_an_app_keeps_every_other_cast() {
     assert!(!expected.is_empty(), "fixtures need casts from another app");
 
     let not = AppFilter::Not([FARCASTER_APP].into());
-    assert_eq!(feed::assemble(casts, &signers, &not, usize::MAX), expected);
+    assert_eq!(
+        feed::assemble(casts, &signers, &not, NOW, usize::MAX),
+        expected
+    );
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_cast_dated_over_ten_minutes_ahead_is_left_out() {
+    let signers = signers_of(2);
+    let dated = |secs: u64| Cast {
+        timestamp: Timestamp::from_unix(NOW.unix_seconds() + secs),
+        ..casts_of(2)[0].clone()
+    };
+    let (edge, beyond) = (
+        dated(feed::MAX_FUTURE_SECS),
+        dated(feed::MAX_FUTURE_SECS + 1),
+    );
+
+    let items = feed::assemble([edge.clone(), beyond], &signers, &AppFilter::Any, NOW, 10);
+
+    let kept: Vec<Cast> = items.into_iter().map(|i| i.cast).collect();
+    assert_eq!(kept, [edge]);
 }
 
 #[test]
