@@ -16,13 +16,13 @@ use std::fs::{File, OpenOptions};
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use rustix::process::{Pid, Signal, kill_process};
-use selfcast_core::time::Timestamp;
 use std::io::Write;
 
 use crate::CliError;
+use crate::clock;
 use crate::invocation;
 use crate::snapshot::{self, Observed};
 
@@ -127,7 +127,7 @@ fn spawn(dir: &Path, jobs: u16, log: &Path) -> Result<Child, ControlError> {
         .append(true)
         .open(log)
         .map_err(io_err(log))?;
-    writeln!(out, "=== resume {} --jobs {jobs}", now()).map_err(io_err(log))?;
+    writeln!(out, "=== resume {} --jobs {jobs}", clock::now()).map_err(io_err(log))?;
     let err: File = out.try_clone().map_err(io_err(log))?;
     let exe = std::env::current_exe().map_err(io_err(log))?;
     let mut command = match Path::new(CAFFEINATE).exists() {
@@ -168,14 +168,6 @@ fn progress(dir: &Path) -> Result<String, CliError> {
         Observed::Nothing => "Nothing downloaded yet.".to_owned(),
         Observed::Database => "The snapshot is unpacked.".to_owned(),
     })
-}
-
-fn now() -> Timestamp {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("the clock is after 1970")
-        .as_secs();
-    Timestamp::from_unix(secs)
 }
 
 fn io_err(path: &Path) -> impl FnOnce(std::io::Error) -> ControlError + use<> {

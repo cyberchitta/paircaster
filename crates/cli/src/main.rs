@@ -1,3 +1,4 @@
+mod clock;
 mod control;
 mod invocation;
 mod key_add;

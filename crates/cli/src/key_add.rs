@@ -9,7 +9,7 @@
 //! deadline passes.
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use prost::Message as _;
 use selfcast_core::Node;
@@ -26,6 +26,7 @@ use serde::Serialize;
 use zeroize::Zeroizing;
 
 use crate::CliError;
+use crate::clock;
 use crate::invocation;
 use crate::keystore::{self, KeyStore, KeyStoreError};
 use crate::tty::{Tty, TtyError};
@@ -134,7 +135,7 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
         .checked_add(1)
         .ok_or(KeyAddCliError::NonceExhausted)?;
     let app = new_app_key()?;
-    let now = now();
+    let now = clock::now();
     let request = KeyRequest {
         fid,
         key: app.public(),
@@ -193,14 +194,6 @@ fn new_app_key() -> Result<AppKey, KeyAddCliError> {
     let mut secret = Zeroizing::new([0u8; 32]);
     getrandom::fill(&mut *secret).map_err(|e| KeyAddCliError::Random(e.to_string()))?;
     Ok(AppKey::from_secret(&secret))
-}
-
-fn now() -> Timestamp {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("the clock is after 1970")
-        .as_secs();
-    Timestamp::from_unix(secs)
 }
 
 /// What the custody key will sign, from the request itself.
@@ -288,7 +281,7 @@ async fn resume(node: &Node, store: &KeyStore) -> Result<Vec<Outcome>, CliError>
         if is_listed(node, saved.fid, &saved.message.signer()).await? {
             keystore::remove(&pending).map_err(KeyAddCliError::from)?;
             outcomes.push(saved.outcome(Status::AlreadyAdded, key_file));
-        } else if saved.deadline > now() {
+        } else if saved.deadline > clock::now() {
             send_and_confirm(node, &saved.message, saved.fid, &pending, &key_file).await?;
             outcomes.push(saved.outcome(Status::Added, key_file));
         } else {
