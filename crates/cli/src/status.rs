@@ -35,6 +35,7 @@ pub struct StatusArgs {
 /// `ready`, and decides which other fields are present:
 ///
 /// ```json
+/// { "version": 1, "phase": "not_started", "running": false }
 /// { "version": 1, "phase": "downloading", "running": true,
 ///   "chunks_done": 1289, "chunks_total": 5691, "bytes_per_second": 41800000,
 ///   "eta_seconds": 10260, "seconds_since_write": 2 }
@@ -45,7 +46,9 @@ pub struct StatusArgs {
 /// ```
 ///
 /// `running` is whether a `fetch-snapshot` process holds the download's
-/// lock; `false` means paused or interrupted. `bytes_per_second` and
+/// lock; `false` means paused or interrupted. `not_started` carries
+/// `running` too: `true` while a download has started but saved nothing
+/// yet. `bytes_per_second` and
 /// `eta_seconds` are `null` while not running, and until a few chunks have
 /// finished in the last five minutes; `seconds_since_write` is `null`
 /// before anything is written. `ready` has the same fields as `syncing`.
@@ -72,7 +75,9 @@ struct DiskV1 {
 #[derive(Debug, Serialize)]
 #[serde(tag = "phase", rename_all = "snake_case")]
 enum Phase {
-    NotStarted,
+    NotStarted {
+        running: bool,
+    },
     Downloading {
         running: bool,
         chunks_done: usize,
@@ -109,9 +114,11 @@ pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), Cli
     let dir = snapshot::install_dir(args.dir)?;
     let phase = match Node::new(node_url)?.sync_state().await {
         Ok(state) => synced(state),
-        Err(selfcast_core::Error::Transport(_)) => {
-            on_disk(snapshot::observe(&dir)?, SystemTime::now())
-        }
+        Err(selfcast_core::Error::Transport(_)) => on_disk(
+            snapshot::observe(&dir)?,
+            snapshot::holder(&dir)?.is_some(),
+            SystemTime::now(),
+        ),
         Err(e) => return Err(e.into()),
     };
     let disk = snapshot::disk(&dir)?.map(|d| DiskV1 {
@@ -188,9 +195,10 @@ fn synced(state: SyncState) -> Phase {
     }
 }
 
-fn on_disk(observed: Observed, now: SystemTime) -> Phase {
+/// `locked`: a download holds the lock, which it takes before saving anything.
+fn on_disk(observed: Observed, locked: bool, now: SystemTime) -> Phase {
     match observed {
-        Observed::Nothing => Phase::NotStarted,
+        Observed::Nothing => Phase::NotStarted { running: locked },
         Observed::Database => Phase::NodeStopped,
         Observed::Downloading(d) => downloading(&d, now),
         Observed::Unpacking(u) => unpacking(&u, now),
@@ -249,7 +257,12 @@ fn age(now: SystemTime, then: SystemTime) -> Duration {
 
 fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
     match phase {
-        Phase::NotStarted => format!(
+        Phase::NotStarted { running: true } => format!(
+            "The snapshot download is starting; nothing saved yet.\n\
+             Check again shortly: {}",
+            invocation::node("status", dir)
+        ),
+        Phase::NotStarted { running: false } => format!(
             "No snapshot download started, and no node answers at {node_url}.\n\
              Start with: {}",
             invocation::node("fetch-snapshot", dir)
@@ -360,7 +373,9 @@ mod tests {
 
     use selfcast_core::node::{ShardSync, SyncState};
 
-    use super::{Chunk, Phase, bytes_per_second, duration, eta_seconds, is_low, synced};
+    use super::{
+        Chunk, Observed, Phase, bytes_per_second, duration, eta_seconds, is_low, on_disk, synced,
+    };
 
     const MB: u64 = 1_000_000;
 
@@ -419,6 +434,19 @@ mod tests {
         assert!(matches!(synced(state(&[1, 60, 0])), Phase::Ready { .. }));
         assert!(matches!(synced(state(&[1, 61, 0])), Phase::Syncing { .. }));
         assert!(matches!(synced(state(&[])), Phase::Syncing { .. }));
+    }
+
+    #[test]
+    fn nothing_on_disk_is_running_while_a_download_holds_the_lock() {
+        let now = SystemTime::now();
+        assert!(matches!(
+            on_disk(Observed::Nothing, true, now),
+            Phase::NotStarted { running: true }
+        ));
+        assert!(matches!(
+            on_disk(Observed::Nothing, false, now),
+            Phase::NotStarted { running: false }
+        ));
     }
 
     #[test]
