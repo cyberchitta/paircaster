@@ -1,3 +1,4 @@
+mod control;
 mod key_add;
 mod keystore;
 mod reads;
@@ -63,6 +64,11 @@ enum NodeCommand {
     /// Show which phase the node is in (downloading the snapshot, unpacking,
     /// stopped, syncing, ready) and how far along it is.
     Status(status::StatusArgs),
+    /// Pause the snapshot download. Everything downloaded stays on disk.
+    Pause(control::PauseArgs),
+    /// Resume the snapshot download in the background, logging to
+    /// selfcast-fetch.log in the install directory.
+    Resume(control::ResumeArgs),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -73,6 +79,8 @@ enum CliError {
     Snapshot(#[from] snapshot::SnapshotError),
     #[error(transparent)]
     KeyAdd(#[from] key_add::KeyAddCliError),
+    #[error(transparent)]
+    Control(#[from] control::ControlError),
 }
 
 #[tokio::main]
@@ -95,6 +103,8 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Key(KeyCommand::Add) => key_add::run(&Node::new(&cli.node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
         Command::Node(NodeCommand::Status(args)) => status::run(&cli.node, args, cli.json).await?,
+        Command::Node(NodeCommand::Pause(args)) => control::pause(args).await?,
+        Command::Node(NodeCommand::Resume(args)) => control::resume(args).await?,
     }
     Ok(())
 }

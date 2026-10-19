@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use super::index::{self, Shard};
-use super::{Paths, SnapshotError};
+use super::{Paths, SnapshotError, lock};
 
 /// One downloaded chunk: when it finished and how big it is.
 #[derive(Debug, Clone, Copy)]
@@ -17,9 +17,8 @@ pub struct Chunk {
     pub bytes: u64,
 }
 
-/// Where a snapshot download stands, judged from its files alone: whether a
-/// `fetch-snapshot` process is running cannot be seen here, only how
-/// recently something was written.
+/// Where a snapshot download stands: from its files, and from its lock
+/// whether a `fetch-snapshot` process is working on it.
 #[derive(Debug)]
 pub enum Observed {
     /// No download started and no database.
@@ -32,6 +31,7 @@ pub enum Observed {
 
 #[derive(Debug)]
 pub struct Download {
+    pub running: bool,
     pub chunks_total: usize,
     pub chunks_done: usize,
     /// The downloaded chunks still on disk.
@@ -41,6 +41,7 @@ pub struct Download {
 
 #[derive(Debug)]
 pub struct Unpack {
+    pub running: bool,
     pub shards_total: usize,
     pub shards_done: usize,
     pub last_write: Option<SystemTime>,
@@ -65,9 +66,11 @@ pub(super) fn observe(paths: &Paths) -> Result<Observed, SnapshotError> {
         .iter()
         .map(|s| shard_state(s, paths))
         .collect::<Result<Vec<_>, _>>()?;
+    let running = lock::holder(&paths.dir)?.is_some();
     let chunks_done = shards.iter().map(|s| s.done).sum();
     if chunks_done < index.total_chunks() {
         return Ok(Observed::Downloading(Download {
+            running,
             chunks_total: index.total_chunks(),
             chunks_done,
             last_write: shards.iter().filter_map(|s| s.last_write).max(),
@@ -75,6 +78,7 @@ pub(super) fn observe(paths: &Paths) -> Result<Observed, SnapshotError> {
         }));
     }
     Ok(Observed::Unpacking(Unpack {
+        running,
         shards_total: shards.len(),
         shards_done: shards.iter().filter(|s| s.unpacked).count(),
         last_write: newest_under(&paths.partial, 2)?,

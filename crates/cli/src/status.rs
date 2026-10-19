@@ -16,8 +16,8 @@ use crate::snapshot::{self, Chunk, Download, Observed, Unpack};
 
 /// Download speed is measured over the chunks finished this recently.
 const RATE_WINDOW: Duration = Duration::from_secs(300);
-/// Nothing written for longer than this, and the download or unpack has
-/// stopped (paused, or waiting out a network outage).
+/// A running download that has written nothing for longer than this is
+/// waiting out a network outage.
 const IDLE_AFTER: Duration = Duration::from_secs(90);
 /// A node is ready when every shard's newest block is at most this old.
 const READY_WITHIN_SECS: u64 = 60;
@@ -34,16 +34,18 @@ pub struct StatusArgs {
 /// `ready`, and decides which other fields are present:
 ///
 /// ```json
-/// { "version": 1, "phase": "downloading", "chunks_done": 1289,
-///   "chunks_total": 5691, "bytes_per_second": 41800000,
+/// { "version": 1, "phase": "downloading", "running": true,
+///   "chunks_done": 1289, "chunks_total": 5691, "bytes_per_second": 41800000,
 ///   "eta_seconds": 10260, "seconds_since_write": 2 }
-/// { "version": 1, "phase": "unpacking", "shards_done": 1,
+/// { "version": 1, "phase": "unpacking", "running": true, "shards_done": 1,
 ///   "shards_total": 3, "seconds_since_write": 0 }
 /// { "version": 1, "phase": "syncing", "node_version": "0.14.2",
 ///   "shards": [{ "id": 0, "height": 48340352, "seconds_behind": 4200 }] }
 /// ```
 ///
-/// `bytes_per_second` and `eta_seconds` are `null` until a few chunks have
+/// `running` is whether a `fetch-snapshot` process holds the download's
+/// lock; `false` means paused or interrupted. `bytes_per_second` and
+/// `eta_seconds` are `null` while not running, and until a few chunks have
 /// finished in the last five minutes; `seconds_since_write` is `null`
 /// before anything is written. `ready` has the same fields as `syncing`.
 ///
@@ -71,6 +73,7 @@ struct DiskV1 {
 enum Phase {
     NotStarted,
     Downloading {
+        running: bool,
         chunks_done: usize,
         chunks_total: usize,
         bytes_per_second: Option<u64>,
@@ -78,6 +81,7 @@ enum Phase {
         seconds_since_write: Option<u64>,
     },
     Unpacking {
+        running: bool,
         shards_done: usize,
         shards_total: usize,
         seconds_since_write: Option<u64>,
@@ -193,9 +197,10 @@ fn on_disk(observed: Observed, now: SystemTime) -> Phase {
 }
 
 fn downloading(d: &Download, now: SystemTime) -> Phase {
-    let rate = bytes_per_second(&d.chunks, now);
+    let rate = bytes_per_second(&d.chunks, now).filter(|_| d.running);
     let eta = rate.and_then(|r| eta_seconds(&d.chunks, d.chunks_total - d.chunks_done, r));
     Phase::Downloading {
+        running: d.running,
         chunks_done: d.chunks_done,
         chunks_total: d.chunks_total,
         bytes_per_second: rate.map(|r| r as u64),
@@ -206,6 +211,7 @@ fn downloading(d: &Download, now: SystemTime) -> Phase {
 
 fn unpacking(u: &Unpack, now: SystemTime) -> Phase {
     Phase::Unpacking {
+        running: u.running,
         shards_done: u.shards_done,
         shards_total: u.shards_total,
         seconds_since_write: u.last_write.map(|t| age(now, t).as_secs()),
@@ -248,6 +254,7 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
              Start with: selfcast node fetch-snapshot"
         ),
         Phase::Downloading {
+            running,
             chunks_done,
             chunks_total,
             bytes_per_second,
@@ -258,22 +265,25 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
             let head = format!(
                 "Downloading the snapshot: {chunks_done} of {chunks_total} chunks ({pct}%)."
             );
-            let tail = download_tail(*bytes_per_second, *eta_seconds, *seconds_since_write);
+            let tail = match running {
+                true => download_tail(*bytes_per_second, *eta_seconds, *seconds_since_write),
+                false => "Paused. To resume: selfcast node resume".to_owned(),
+            };
             format!("{head}\n{tail}")
         }
         Phase::Unpacking {
+            running,
             shards_done,
             shards_total,
-            seconds_since_write,
+            ..
         } => {
             let head =
                 format!("Unpacking the snapshot: {shards_done} of {shards_total} shards done.");
-            match seconds_since_write.filter(|s| *s > IDLE_AFTER.as_secs()) {
-                Some(s) => format!(
-                    "{head}\nNothing written for {}. If fetch-snapshot is not running, run it again to finish.",
-                    duration(s)
+            match running {
+                true => head,
+                false => format!(
+                    "{head}\nInterrupted. To finish (the current shard starts over): selfcast node resume"
                 ),
-                None => head,
             }
         }
         Phase::NodeStopped => format!(
@@ -303,10 +313,9 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
 
 fn download_tail(rate: Option<u64>, eta: Option<u64>, since_write: Option<u64>) -> String {
     match (since_write, rate, eta) {
-        (None, _, _) => "Nothing downloaded yet.".to_owned(),
+        (None, _, _) => "Starting; nothing downloaded yet.".to_owned(),
         (Some(s), _, _) if s > IDLE_AFTER.as_secs() => format!(
-            "Nothing written for {}: paused, or waiting for the network.\n\
-             To resume: selfcast node fetch-snapshot",
+            "Running, but nothing written for {}: waiting for the network.",
             duration(s)
         ),
         (Some(_), Some(r), Some(e)) => format!(

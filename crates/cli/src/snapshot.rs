@@ -7,9 +7,11 @@
 
 mod fetch;
 mod index;
+mod lock;
 mod progress;
 mod unpack;
 
+pub use lock::holder;
 pub use progress::{Chunk, Download, Observed, Unpack};
 
 use std::io;
@@ -46,6 +48,8 @@ pub enum SnapshotError {
     DbExists(PathBuf),
     #[error("the snapchain container in {0} is running; stop it first: ./snapchain.sh down")]
     NodeRunning(PathBuf),
+    #[error("a download is already running{}", .0.map_or(String::new(), |p| format!(" (process {p})")))]
+    AlreadyRunning(Option<u32>),
     #[error("{path}: {source}")]
     Io { path: PathBuf, source: io::Error },
     #[error("network: {0}")]
@@ -103,6 +107,7 @@ pub async fn run(args: FetchArgs) -> Result<(), SnapshotError> {
     let paths = Paths::new(install_dir(args.dir)?);
     refuse_if_db_present(&paths.db)?;
     refuse_if_node_running(&paths.dir)?;
+    let _lock = lock::acquire(&paths.dir)?;
     if args.fresh {
         remove_dir_if_present(&paths.work)?;
         remove_dir_if_present(&paths.partial)?;
