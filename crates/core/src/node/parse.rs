@@ -9,7 +9,7 @@ use base64::prelude::*;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::Page;
+use super::{Page, Submitted, node_error, unexpected};
 use crate::Error;
 use crate::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::profile::UserDatum;
@@ -20,6 +20,34 @@ use crate::proto::{
 };
 use crate::signer::Signer;
 use crate::time::Timestamp;
+
+/// A `POST /v1/submitMessage` reply to the message whose hash is `sent`.
+///
+/// A message the node already holds comes back as HTTP 400 with
+/// `bad_request.duplicate/…` inside `error_detail` (snapchain v0.14.3
+/// `src/network/server.rs` lines 1326-1340, test `server_tests.rs` line 5447),
+/// and counts as sent. A success echoes the message, whose hash must be
+/// `sent`.
+pub fn submitted(status: u16, body: &str, sent: MessageHash) -> Result<Submitted, Error> {
+    if !(200..300).contains(&status) {
+        return match node_error(status, body.to_owned()) {
+            Error::Node { detail, .. } if detail.contains("bad_request.duplicate/") => {
+                Ok(Submitted::AlreadyKnown)
+            }
+            other => Err(other),
+        };
+    }
+    #[derive(Deserialize)]
+    struct Echo {
+        hash: String,
+    }
+    let echo: Echo = serde_json::from_str(body).map_err(|_| unexpected(status, body.to_owned()))?;
+    if echo.hash == sent.to_string() {
+        Ok(Submitted::Accepted)
+    } else {
+        Err(bad(&format!("node accepted {}, not {sent}", echo.hash)))
+    }
+}
 
 /// A `castsByFid` page. Cast removes in it are skipped.
 pub fn casts(page: Value) -> Result<Page<Cast>, Error> {

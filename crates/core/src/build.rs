@@ -9,7 +9,7 @@ use ed25519_dalek::{Signer as _, SigningKey};
 use prost::Message as _;
 
 use crate::cast::{Mention, MessageHash, SignerKey, Target};
-use crate::message::hash_data;
+use crate::message::{VerifyError, hash_data, verify};
 use crate::proto::{
     Body, CastAddBody, CastId, CastParent, CastRemoveBody, CastType, Embed, EmbedTarget,
     FarcasterNetwork, HashScheme, LinkBody, LinkTarget, Message, MessageData, MessageType,
@@ -117,6 +117,39 @@ impl SignedMessage {
     pub fn encode(&self) -> Vec<u8> {
         self.to_message().encode_to_vec()
     }
+
+    /// Reads back what [`encode`](Self::encode) wrote, such as a message saved
+    /// before it was sent. A retry resends these bytes rather than signing
+    /// again: signing again would make a second message with a new hash.
+    ///
+    /// Accepts only bytes whose hash and signature verify and which
+    /// `encode` reproduces exactly, so what goes out is what was signed.
+    pub fn decode(bytes: &[u8]) -> Result<Self, DecodeError> {
+        let message = Message::decode(bytes).map_err(|_| DecodeError::NotAMessage)?;
+        verify(&message).map_err(DecodeError::Unverified)?;
+        let signed = Self {
+            data_bytes: message.data_bytes.ok_or(DecodeError::NotAsEncoded)?,
+            hash: MessageHash::from_bytes(&message.hash).ok_or(DecodeError::NotAsEncoded)?,
+            signature: message.signature[..]
+                .try_into()
+                .map_err(|_| DecodeError::NotAsEncoded)?,
+            signer: SignerKey::from_bytes(&message.signer).ok_or(DecodeError::NotAsEncoded)?,
+        };
+        (signed.encode() == bytes)
+            .then_some(signed)
+            .ok_or(DecodeError::NotAsEncoded)
+    }
+}
+
+/// Why saved bytes cannot be resent as they are.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum DecodeError {
+    #[error("not a protobuf Message")]
+    NotAMessage,
+    #[error("message does not verify: {0}")]
+    Unverified(VerifyError),
+    #[error("message is not in the form SignedMessage::encode writes")]
+    NotAsEncoded,
 }
 
 /// Builds `action` as `envelope.fid` would send it, and signs it with `key`.

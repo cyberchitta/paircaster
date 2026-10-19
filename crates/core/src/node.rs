@@ -3,6 +3,7 @@ pub mod parse;
 use reqwest::{Client, Url};
 use serde_json::Value;
 
+use crate::build::SignedMessage;
 use crate::cast::{Cast, MessageHash, Reaction};
 use crate::error::{Error, NodeErrorBody};
 use crate::profile::UserDatum;
@@ -31,6 +32,17 @@ impl PageRequest {
         let token = self.page_token.clone().map(|t| ("page_token", t));
         size.into_iter().chain(token).collect()
     }
+}
+
+/// What a node did with a submitted message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Submitted {
+    /// Accepted for relay to validators. Not proof it was merged: read it
+    /// back to confirm.
+    Accepted,
+    /// The node already holds it, merged or waiting to be. Sending the same
+    /// bytes again is how a retry lands here.
+    AlreadyKnown,
 }
 
 /// A connection to one Snapchain node's HTTP API.
@@ -116,6 +128,23 @@ impl Node {
             parse::signers(self.get("v1/signersByFid", &query).await?)
         })
         .await
+    }
+
+    /// `POST /v1/submitMessage` with `message`'s bytes exactly as signed.
+    pub async fn submit_message(&self, message: &SignedMessage) -> Result<Submitted, Error> {
+        let url = self
+            .base
+            .join("v1/submitMessage")
+            .expect("static relative URL");
+        let resp = self
+            .http
+            .post(url)
+            .header("content-type", "application/octet-stream")
+            .body(message.encode())
+            .send()
+            .await?;
+        let status = resp.status().as_u16();
+        parse::submitted(status, &resp.text().await?, message.hash())
     }
 
     async fn all_pages<T, F, Fut>(&self, read: F) -> Result<Vec<T>, Error>
