@@ -56,13 +56,20 @@ cargo install --path crates/cli --locked</code></pre>
 
 <li>
 <h3>Install Snapchain, then stop it</h3>
-<pre class="cmd"><code>curl -sSL https://raw.githubusercontent.com/farcasterxyz/snapchain/refs/heads/main/scripts/snapchain-bootstrap.sh | bash</code></pre>
+<pre class="cmd"><code>mkdir -p ~/snapchain &amp;&amp; echo SKIP_CRONTAB=true &gt;&gt; ~/snapchain/.env
+curl -sSL https://raw.githubusercontent.com/farcasterxyz/snapchain/refs/heads/main/scripts/snapchain-bootstrap.sh | bash</code></pre>
 <p>Run 2026-10-18. The script asks two questions: whether you agree that a read node earns no rewards, and
-an operator FID, which you can leave blank. It installs to <code>~/snapchain</code> and starts the node,
+an operator FID, which you can leave blank because of the first line. Without <code>SKIP_CRONTAB</code>,
+a blank FID stops the script before it starts the node: it needs the FID to pick a day for its weekly
+upgrade job (<a href="https://github.com/farcasterxyz/snapchain/issues/1030">snapchain #1030</a>). With the line,
+upgrades happen <a href="#upgrades">by hand</a>. It installs to <code>~/snapchain</code> and starts the node,
 which begins its own snapshot download. That download cannot resume after an interruption
 (<a href="#snapshot">why</a>), so stop it and let <code>selfcast</code> download instead:</p>
 <pre class="cmd"><code>cd ~/snapchain &amp;&amp; ./snapchain.sh down</code></pre>
 <div class="unverified">
+  <p>On the test machine <code>~/snapchain/.env</code> held <code>SKIP_CRONTAB=true</code> before the script
+  ran, but the command that wrote it was not recorded. The stop on a blank FID without it is read from
+  <code>scripts/snapchain.sh</code> (<code>setup_crontab</code>), not run.</p>
   <p>Snapchain's own download was stopped on the test machine, but the exact command was not recorded.
   <code>selfcast node fetch-snapshot</code> refuses to start while the node's container is running and names
   this command.</p>
@@ -322,7 +329,7 @@ back 40 minutes further behind. A node on a laptop is only syncing while the lap
 
 <h3 id="upgrades">Upgrades</h3>
 <p>The bootstrap script adds a weekly cron job that upgrades Snapchain, unless <code>~/snapchain/.env</code>
-contains <code>SKIP_CRONTAB=true</code>. On the test machine it does, so upgrades happen by hand:</p>
+contains <code>SKIP_CRONTAB=true</code>. The quickstart adds it, so upgrades happen by hand:</p>
 <pre class="cmd"><code>cd ~/snapchain &amp;&amp; ./snapchain.sh upgrade</code></pre>
 <div class="unverified">
   <p>No upgrade has been run yet.</p>
