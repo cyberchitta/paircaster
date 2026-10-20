@@ -138,6 +138,17 @@ what it has already downloaded (<code>--skip-disk-check</code> overrides it).</p
   <p>The 770 GB peak is worked out from shard sizes (about 470 GB of chunks; 557 GB unpacked), not
   measured. Snapchain's own download keeps more on disk at once, which is why its docs ask for 1.5 to 2 TB.</p>
 </div>
+<h4 id="renting">Renting a server instead</h4>
+<p>Look for 4 or more vCPUs, 16 GB of RAM and at least 1 TB of disk (a server's own disk is usually far
+smaller, so add a block-storage volume). Most providers bill by the hour, so a test that takes two days costs
+two days. One example, read from Hetzner's price page on 2026-10-21: CPX42, 8 vCPU, 16 GB RAM, 320 GB disk,
+€0.1122 an hour or €69.99 a month at most, excluding VAT, in its EU locations. The volume is extra; that
+page gives no price for it. When you are done, delete both the server and the volume: a stopped server
+is still billed.</p>
+<div class="unverified">
+  <p>We have not rented a server for Selfcast, so none of this has been run on one. "A stopped server is
+  still billed" is Hetzner's general rule as we understand it, not something we checked.</p>
+</div>
 <div class="limit">
   <p>The test machine was an Apple M5 Max (18 cores, 128 GB RAM, 4 TB disk) running macOS 26.7.1 with
   Docker through OrbStack. That is far above the stated minimum, so it shows nothing about whether the
