@@ -349,7 +349,7 @@ async fn ensure_registered(node: &Node, loaded: &LoadedKey) -> Result<(), CliErr
 }
 
 async fn username(node: &Node, fid: u64) -> Result<Option<String>, CliError> {
-    Ok(Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0).username)
+    Ok(Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0, 0).username)
 }
 
 fn decode(signed: &SignedMessage) -> Result<MessageData, WriteError> {

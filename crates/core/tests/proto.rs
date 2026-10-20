@@ -15,6 +15,7 @@ const SIGNED_FIXTURES: &[&str] = &[
     "reactionsByFid-like-3.json",
     "reactionsByFid-recast-3.json",
     "linksByFid-follow-3.json",
+    "linksByTargetFid-follow-17.json",
 ];
 
 #[test]

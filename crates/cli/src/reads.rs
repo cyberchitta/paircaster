@@ -65,12 +65,14 @@ impl FeedArgs {
 ///   "twitter": "alice",
 ///   "github": null,
 ///   "banner_url": "https://…",
-///   "following": 10
+///   "following": 10,
+///   "followers": 25
 /// }
 /// ```
 ///
 /// Each text field is `null` when the account has not set it, or set it
-/// empty. `following` is how many accounts it follows.
+/// empty. `following` is how many accounts it follows, `followers` how many
+/// follow it, both as the node holds them.
 #[derive(Serialize)]
 struct ProfileV1<'a> {
     version: u32,
@@ -85,6 +87,7 @@ struct ProfileV1<'a> {
     github: Option<&'a str>,
     banner_url: Option<&'a str>,
     following: usize,
+    followers: usize,
 }
 
 /// `selfcast feed <fid> --json`, version 1:
@@ -150,7 +153,8 @@ enum TargetV1<'a> {
 pub async fn profile(node: &Node, fid: u64, json: bool) -> Result<(), Error> {
     let user_data = node.user_data_by_fid(fid).await?;
     let following = node.all_follows_by_fid(fid).await?.len();
-    let profile = Profile::assemble(fid, &user_data, following);
+    let followers = node.follower_count(fid).await?;
+    let profile = Profile::assemble(fid, &user_data, following, followers);
     if json {
         println!("{}", to_json(&profile_v1(&profile)));
     } else {
@@ -230,6 +234,7 @@ fn profile_v1(p: &Profile) -> ProfileV1<'_> {
         github: p.github.as_deref(),
         banner_url: p.banner_url.as_deref(),
         following: p.following,
+        followers: p.followers,
     }
 }
 
@@ -292,6 +297,7 @@ fn print_profile(p: &Profile) {
         .filter_map(|(label, value)| value.as_deref().map(|v| (label, v)))
         .for_each(|(label, v)| println!("  {label}: {v}"));
     println!("  following: {}", p.following);
+    println!("  followers: {}", p.followers);
 }
 
 fn print_item(item: &FeedItem) {
@@ -355,10 +361,11 @@ mod tests {
             github: None,
             banner_url: None,
             following: 10,
+            followers: 25,
         };
         assert_eq!(
             to_json(&profile_v1(&profile)),
-            r#"{"version":1,"fid":3,"username":"alice","display_name":null,"bio":null,"pfp_url":null,"url":null,"location":null,"twitter":null,"github":null,"banner_url":null,"following":10}"#
+            r#"{"version":1,"fid":3,"username":"alice","display_name":null,"bio":null,"pfp_url":null,"url":null,"location":null,"twitter":null,"github":null,"banner_url":null,"following":10,"followers":25}"#
         );
     }
 }

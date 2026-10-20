@@ -128,7 +128,7 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
         .fid_of_custody(&address)
         .await?
         .ok_or(KeyAddCliError::NoAccount(address))?;
-    let username = Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0).username;
+    let username = Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0, 0).username;
     let nonce = node
         .user_nonce(fid)
         .await?

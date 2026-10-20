@@ -4,7 +4,7 @@ use common::{fixture, fixture_messages};
 use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::parse;
-use selfcast_core::profile::Profile;
+use selfcast_core::profile::{FollowerTally, Profile};
 use selfcast_core::proto::ReactionType;
 use selfcast_core::signer::{Signer, app_of};
 use selfcast_core::time::Timestamp;
@@ -42,7 +42,7 @@ fn profile_takes_user_data_and_counts_follows() {
         "fixture is one page of several"
     );
 
-    let profile = Profile::assemble(3, &user_data.items, follows.items.len());
+    let profile = Profile::assemble(3, &user_data.items, follows.items.len(), 25);
 
     let raw = fixture("userDataByFid-3.json");
     let expect = |kind: &str| newest_set_value(&raw, kind);
@@ -67,6 +67,38 @@ fn profile_takes_user_data_and_counts_follows() {
     assert_eq!(profile.twitter, expect("USER_DATA_TYPE_TWITTER"));
     assert_eq!(profile.github, expect("USER_DATA_TYPE_GITHUB"));
     assert_eq!(profile.following, 10);
+    assert_eq!(profile.followers, 25);
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn followers_are_the_accounts_whose_follow_targets_the_account() {
+    let raw = fixture("linksByTargetFid-follow-17.json");
+    let page = parse::followers(raw.clone(), 17).expect("followers parse");
+    let expected: Vec<u64> = raw["messages"]
+        .as_array()
+        .expect("messages")
+        .iter()
+        .map(|m| m["data"]["fid"].as_u64().expect("fid"))
+        .collect();
+    assert_eq!(page.items, expected);
+    assert!(
+        page.next_page_token.is_some(),
+        "fixture is one page of several"
+    );
+    assert!(
+        parse::followers(raw, 18).is_err(),
+        "followers of 17 are not of 18"
+    );
+}
+
+#[test]
+fn a_page_that_brings_no_new_follower_ends_the_count() {
+    let mut tally = FollowerTally::default();
+    let pages: [&[u64]; 4] = [&[1, 2, 3], &[4, 1], &[], &[2, 3]];
+    let fresh: Vec<bool> = pages.iter().map(|p| tally.add_page(p)).collect();
+    assert_eq!(fresh, [true, true, false, false]);
+    assert_eq!(tally.count(), 4);
 }
 
 /// The newest non-empty value of one user data type in a raw

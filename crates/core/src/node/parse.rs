@@ -112,6 +112,22 @@ pub fn follows(page: Value) -> Result<Page<u64>, Error> {
     })
 }
 
+/// A `linksByTargetFid?link_type=follow` page, as the FIDs following
+/// `target`.
+pub fn followers(page: Value, target: u64) -> Result<Page<u64>, Error> {
+    messages(page)?.try_filter_map(|m| {
+        let (data, body) = data_and_body(&m)?;
+        match body {
+            Body::Link(link) if link.r#type == "follow" => match link.target {
+                Some(LinkTarget::Fid(fid)) if fid == target => Ok(Some(data.fid)),
+                Some(LinkTarget::Fid(_)) => Err(bad("follower of another account")),
+                None => Err(bad("follow without a target")),
+            },
+            _ => Err(bad("non-follow message in a page of followers")),
+        }
+    })
+}
+
 /// A `reactionsByFid` page.
 pub fn reactions(page: Value) -> Result<Page<Reaction>, Error> {
     messages(page)?.try_filter_map(|m| {

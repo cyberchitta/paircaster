@@ -7,9 +7,12 @@ use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
-use crate::profile::UserDatum;
+use crate::profile::{FollowerTally, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
+
+/// Per shard, so a page holds up to this many times the shard count.
+const FOLLOWER_PAGE_SIZE: u32 = 1000;
 
 /// One page of a paged read. `next_page_token` is `None` on the last page.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,6 +135,38 @@ impl Node {
     pub async fn all_follows_by_fid(&self, fid: u64) -> Result<Vec<u64>, Error> {
         self.all_pages(|page| async move { self.follows_by_fid(fid, &page).await })
             .await
+    }
+
+    /// `GET /v1/linksByTargetFid?link_type=follow`: FIDs following an
+    /// account. Pages repeat; see [`FollowerTally`].
+    pub async fn followers_by_fid(&self, fid: u64, page: &PageRequest) -> Result<Page<u64>, Error> {
+        let params = [
+            ("target_fid", fid.to_string()),
+            ("link_type", "follow".to_owned()),
+        ];
+        parse::followers(
+            self.get("v1/linksByTargetFid", &with_page(&params, page))
+                .await?,
+            fid,
+        )
+    }
+
+    /// How many accounts follow `fid`: one request per 1000 followers per
+    /// shard, plus one.
+    pub async fn follower_count(&self, fid: u64) -> Result<usize, Error> {
+        let mut tally = FollowerTally::default();
+        let mut request = PageRequest {
+            page_size: Some(FOLLOWER_PAGE_SIZE),
+            page_token: None,
+        };
+        loop {
+            let page = self.followers_by_fid(fid, &request).await?;
+            let fresh = tally.add_page(&page.items);
+            match page.next_page_token {
+                Some(token) if fresh => request.page_token = Some(token),
+                _ => return Ok(tally.count()),
+            }
+        }
     }
 
     /// `GET /v1/reactionsByFid` for one kind of reaction.
