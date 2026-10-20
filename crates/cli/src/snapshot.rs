@@ -38,6 +38,9 @@ pub struct FetchArgs {
     /// Fetch only the first N chunks of each shard, then stop before unpacking.
     #[arg(long, hide = true)]
     max_chunks: Option<usize>,
+    /// Start even if the disk looks too small for the download and unpack.
+    #[arg(long)]
+    skip_disk_check: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -64,6 +67,16 @@ pub enum SnapshotError {
     Corrupt { path: PathBuf, reason: String },
     #[error("bad snapshot index from {origin}: {reason}")]
     BadIndex { origin: String, reason: String },
+    #[error(
+        "{dir} has {have_gb} GB for the snapshot (free space plus what is already downloaded); \
+         the download and unpack need about {need_gb} GB at their peak. \
+         Free some space, or pass --skip-disk-check"
+    )]
+    DiskTooSmall {
+        dir: PathBuf,
+        have_gb: u64,
+        need_gb: u64,
+    },
 }
 
 impl SnapshotError {
@@ -113,6 +126,9 @@ pub async fn run(args: FetchArgs) -> Result<(), SnapshotError> {
         remove_dir_if_present(&paths.partial)?;
     }
     std::fs::create_dir_all(&paths.work).map_err(SnapshotError::io(&paths.work))?;
+    if !args.skip_disk_check && args.max_chunks.is_none() {
+        refuse_if_disk_small(&paths)?;
+    }
     let client = http_client()?;
     let mut index =
         index::load_or_fetch(&client, &args.url, &paths.work.join("index.json")).await?;
@@ -157,6 +173,54 @@ pub fn disk(dir: &Path) -> Result<Option<Disk>, SnapshotError> {
         })),
         Err(rustix::io::Errno::NOENT) => Ok(None),
         Err(e) => Err(SnapshotError::io(dir)(e.into())),
+    }
+}
+
+const GB: u64 = 1_000_000_000;
+
+/// Disk the download and unpack need at their peak: every chunk is kept until
+/// its shard is unpacked, so the peak comes while shard 2 unpacks (shard 0's
+/// and 2's chunks, plus shards 1 and 2 unpacked). An estimate from the mainnet
+/// snapshot of 2026-10 (about 470 GB of chunks, 557 GB unpacked), not measured.
+pub const PEAK_BYTES: u64 = 800 * GB;
+
+fn refuse_if_disk_small(paths: &Paths) -> Result<(), SnapshotError> {
+    let Some(disk) = disk(&paths.dir)? else {
+        return Ok(());
+    };
+    let ours = dir_bytes(&paths.work)? + dir_bytes(&paths.partial)?;
+    match fits(disk.free, ours) {
+        true => Ok(()),
+        false => Err(SnapshotError::DiskTooSmall {
+            dir: paths.dir.clone(),
+            have_gb: disk.free.saturating_add(ours) / GB,
+            need_gb: PEAK_BYTES / GB,
+        }),
+    }
+}
+
+/// Whether the peak fits, given free space and what our own files already
+/// hold (a resumed download has used part of the peak already).
+fn fits(free: u64, ours: u64) -> bool {
+    free.saturating_add(ours) >= PEAK_BYTES
+}
+
+/// Total size of the files under `dir`; 0 if it does not exist.
+fn dir_bytes(dir: &Path) -> Result<u64, SnapshotError> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(SnapshotError::io(dir)(e)),
+    };
+    entries.map(|entry| entry_bytes(entry, dir)).sum()
+}
+
+fn entry_bytes(entry: io::Result<std::fs::DirEntry>, dir: &Path) -> Result<u64, SnapshotError> {
+    let entry = entry.map_err(SnapshotError::io(dir))?;
+    let meta = entry.metadata().map_err(SnapshotError::io(&entry.path()))?;
+    match meta.is_dir() {
+        true => dir_bytes(&entry.path()),
+        false => Ok(meta.len()),
     }
 }
 
@@ -257,4 +321,31 @@ fn report_done(paths: &Paths, chunks: usize) {
         paths.db.display(),
         paths.dir.display()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn disk_check_counts_what_is_already_downloaded() {
+        assert!(fits(PEAK_BYTES, 0));
+        assert!(fits(PEAK_BYTES - 300 * GB, 300 * GB));
+        assert!(!fits(PEAK_BYTES - 1, 0));
+        assert!(fits(u64::MAX, u64::MAX));
+    }
+
+    #[test]
+    fn dir_bytes_sums_nested_files_and_treats_missing_as_empty() {
+        let root = std::env::temp_dir().join(format!("selfcast-dir-bytes-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("a/b")).expect("temp dir is writable");
+        std::fs::write(root.join("x"), [0u8; 10]).expect("temp dir is writable");
+        std::fs::write(root.join("a/b/y"), [0u8; 5]).expect("temp dir is writable");
+        assert_eq!(dir_bytes(&root).expect("readable"), 15);
+        assert_eq!(
+            dir_bytes(&root.join("missing")).expect("missing is empty"),
+            0
+        );
+        std::fs::remove_dir_all(&root).expect("temp dir is removable");
+    }
 }
