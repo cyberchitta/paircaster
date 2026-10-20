@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, and reading profiles, feeds and accounts' casts from the node, with worked examples (account stats, a feed of a list of accounts). Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds and accounts' casts from the node, with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -201,6 +201,186 @@ following thousands is slow. For a short named list, use `casts`.
 
 ## Writes
 
-Not covered by this skill yet. Do not run `cast`, `delete`, `react`,
-`unreact`, `follow`, `unfollow`, `resend` or `key add`; if the user asks,
-tell them the command and let them run it in their own terminal.
+**Not yet run.** No write in this section has been sent to a node from a
+real account yet. What follows is how the CLI is built to behave, from its
+source and its unit tests. The messages it builds have been checked with a
+node's `validateMessage`; sending one and reading it back has not been
+done.
+
+### Read-only until the user enables writes
+
+Do not run any write command until the user has said, in this
+conversation, that you may write. Being asked for one write is not
+permission for the next. "Enable writes" lasts for this conversation only.
+
+The write commands are `cast`, `delete`, `react`, `unreact`, `follow`,
+`unfollow` and `resend`. Each is its own subcommand, so the user's harness
+can gate each one separately (*Gating writes in the harness*, below).
+
+### The app key: `selfcast key add` is the user's, not yours
+
+A write is signed with an **app key**, which can only post as the account:
+casts, reactions and follows, each with its undo. It cannot move funds,
+change the account's profile, or change who owns the account. The key that
+owns the account comes from the **recovery phrase** (seed phrase), and it
+can do all of those.
+
+- **Never run `selfcast key add`.** Tell the user to run it in their own
+  terminal. It reads the recovery phrase from the keyboard only, never from
+  a pipe, a file, an argument or the environment.
+- **Never ask for a recovery phrase, and never accept one.** If the user
+  pastes one into the conversation, do not repeat it, store it, or pass it
+  to any command. Tell them it is now in this transcript, that they should
+  treat that account as exposed, and that they should only use a test
+  account with Selfcast.
+- Do not open, read, copy or list the key files under
+  `~/.config/selfcast/keys` (or `$XDG_CONFIG_HOME/selfcast/keys`).
+
+What `key add` sets up, as built:
+
+- The key may sign casts, cast deletes, reactions and their undo, and
+  follows and their undo. Nothing else.
+- It expires 90 days after it was last used, and each use pushes that back.
+- It is registered with a gasless `KEY_ADD` message, not a chain
+  transaction.
+- The key is saved at mode 0600, and a key file with wider permissions is
+  refused. The recovery phrase is never written anywhere.
+- It works on mainnet only.
+
+**Removing a key keeps what it signed.** The node does not delete the
+casts, reactions or follows an app key made when the key is removed
+(from Snapchain 0.14.3's source; not yet seen on a node). Delete those
+first if that is the goal. Selfcast has no `key remove`
+command yet.
+
+### What each write does
+
+All take `--json`, `--dry-run` and `--yes`, and `--fid <fid>` when keys
+for several accounts are saved. `cast` also takes `--reply-to` and
+`--embed`.
+
+| Command | Does |
+|---|---|
+| `cast <text>` | Posts `<text>` exactly as given. `--reply-to <FID:HASH>` makes it a reply. `--embed <URL or FID:HASH>` adds a link or quotes a cast (repeatable). `@name` is **not** turned into a mention. |
+| `delete <hash>` | Deletes one of the account's own casts. |
+| `react like\|recast <FID:HASH>` | Likes or recasts a cast. |
+| `unreact like\|recast <FID:HASH>` | Undoes a like or a recast. |
+| `follow <fid>`, `unfollow <fid>` | Follows or unfollows an account. |
+| `resend` | Sends again any message an earlier write saved but did not see arrive. It does not ask: each one was approved when first written. |
+
+A write counts as done only once the node is seen to hold it. Before it is
+sent, the signed message is saved to an outbox (`~/.config/selfcast/outbox`).
+
+`--json` output, version 1:
+
+```json
+{ "version": 1, "status": "sent", "kind": "cast", "fid": 1234, "hash": "0x…" }
+```
+
+`status` is `sent`, or with `--dry-run` `valid` or `invalid` (nothing
+sent). `kind` is one of `cast`, `delete`, `like`, `recast`, `unlike`,
+`unrecast`, `follow`, `unfollow`. `resend --json` prints
+`{"version":1,"messages":[…]}`, one entry per message sent. This shape is
+from the source; no write has printed it against a node yet.
+
+Errors you will see, and what to do:
+
+- `no app key saved; run … key add first`: the user runs `key add`.
+- `… is not registered to FID … on this node`: the user's `key add` did
+  not finish, or `--node` points at a different node.
+- `… message(s) from an earlier write are saved but not seen sent; run …
+  resend first`: new writes are refused until `resend` has run. Ask the
+  user before running it, and say what it will send (it prints each one).
+- `sent, but the node did not show it within a minute …`: run `resend`
+  later to check and send it again. Do not write the same thing again:
+  that would be a second message.
+- `the node says it would not accept this message; nothing was sent`.
+- `this needs a terminal …`: you ran a write without `--yes` or
+  `--dry-run`. Follow the steps below instead.
+
+### Confirming a write: show the CLI's text, not yours
+
+What the user approves must be what the CLI is about to sign, rendered by
+the CLI from the signed message itself. Do not paraphrase it, shorten it,
+or translate it.
+
+For every write:
+
+1. Run it with `--dry-run --json`, and the subcommand first:
+   `selfcast cast "gm" --dry-run --json`. This signs the message, prints
+   what it does to stderr, and asks the node whether it would accept it.
+   Nothing is saved or sent.
+2. Show the user the stderr text **exactly as printed**, in a code block.
+   It starts `Send as @<username> (FID <fid>), signed by app key <key>,
+   dated <time>:`, and then gives the cast text (each line after `| `,
+   with control characters escaped) or the one action, for example `Like
+   cast <FID:HASH>`.
+3. Ask the user to confirm. Stop if they don't.
+4. Run the same command with `--yes` in place of `--dry-run`. With
+   `--yes` the CLI prints the same text to stderr and sends without
+   asking at the terminal. Show its JSON result.
+
+The user may say they don't need steps 1 to 3 for the rest of this
+conversation. Then run the write with `--yes` directly and show the text it
+prints. Never drop the harness's prompt yourself (*below*).
+
+**Limits:**
+
+- The CLI's own confirmation is a question it asks at the terminal. An
+  agent's shell usually has none, so `--yes` skips it. What the user then
+  approves is your relay of the CLI's text and the harness's prompt, which
+  shows the command line, not the CLI's rendering. You could show one
+  thing and run another. The harness's prompt is the check on that, so the
+  user should read the command in it.
+- Step 4 signs again, with a new timestamp, so its hash differs from the
+  dry run's. The content is the same only if the command is.
+- Where the harness lets you answer its prompts yourself, or runs commands
+  without asking, nothing between you and the node is the user's.
+
+### Gating writes in the harness
+
+Recommend this to the user. Do not add it, or change any permission
+setting, yourself. In Claude Code it goes in `.claude/settings.json` (this
+project) or `~/.claude/settings.json` (every project):
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(selfcast node status *)",
+      "Bash(selfcast info *)",
+      "Bash(selfcast profile *)",
+      "Bash(selfcast casts *)",
+      "Bash(selfcast feed *)"
+    ],
+    "ask": [
+      "Bash(selfcast cast *)",
+      "Bash(selfcast delete *)",
+      "Bash(selfcast react *)",
+      "Bash(selfcast unreact *)",
+      "Bash(selfcast follow *)",
+      "Bash(selfcast unfollow *)",
+      "Bash(selfcast resend *)"
+    ],
+    "deny": [
+      "Bash(selfcast key *)"
+    ]
+  }
+}
+```
+
+Reads run without a prompt. Each write prompts every time: Claude Code
+checks deny, then ask, then allow, so an ask rule prompts even where an
+allow rule also matches, and in auto mode too. `key add` is refused.
+
+**Limits:**
+
+- A rule matches the command as written. `selfcast --json cast …`, a full
+  path such as `~/.cargo/bin/selfcast cast …`, or `sh -c '…'` is not
+  matched by `Bash(selfcast cast *)`. Always write `selfcast`, then the
+  subcommand, then its arguments and flags.
+- In `bypassPermissions` mode Claude Code does not prompt, so the ask rules
+  do nothing.
+- This configuration has not been loaded into a Claude Code session and
+  tried yet. The syntax follows Claude Code's permissions documentation as
+  read on 2026-10-20.
