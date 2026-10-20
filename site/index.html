@@ -14,9 +14,9 @@
   <p class="tagline">Farcaster from your own Snapchain node, for people and their AI agents. No API keys from anyone.</p>
 
   <div class="note">
-    <p><strong>Draft.</strong> The node half of this tutorial is written; the client half is not. Every command and
-    every output below comes from one macOS machine, run 2026-10-18 to 2026-10-20. None of it has been run
-    on a fresh machine yet. Commands that were never run at all are marked <em>Not yet run</em>.</p>
+    <p><strong>Draft.</strong> Every command and every output below comes from one macOS machine, run
+    2026-10-18 to 2026-10-20. None of it has been run on a fresh machine yet. Commands that were never run
+    at all are marked <em>Not yet run</em>; that includes every write, which needs a test account.</p>
     <p>Paths under your home directory are shown as <code>~</code>.</p>
   </div>
 
@@ -331,27 +331,267 @@ contains <code>SKIP_CRONTAB=true</code>. On the test machine it does, so upgrade
 
 <section id="client">
 <h2>Using the client</h2>
-<p class="placeholder">Not written yet.</p>
+
+<p>Every read below goes to your own node's HTTP API and nowhere else. The examples were run on
+2026-10-20 at about 12:15 UTC, while the test node was 44 hours behind the network, so nothing newer than
+that shows up in them.</p>
+
+<h3 id="accounts">Accounts and FIDs</h3>
+<p>A Farcaster account is a number, its <em>FID</em>. <code>selfcast</code> names accounts by FID; it has no
+username lookup yet.</p>
+<pre class="cmd"><code>selfcast profile 3</code></pre>
+<pre class="out"><code>dwr  fid 3
+  name: Dan Romero
+  bio: Interested in technology and other stuff.
+  url: https://danromero.org
+  twitter: dwr
+  following: 79
+  followers: 630233</code></pre>
+<p>The name, bio and username are the account's own <em>user data</em> messages
+(<code>/v1/userDataByFid</code>). The username, <code>dwr</code>, is an <em>fname</em>: one of those
+messages, not part of the account itself. A follow is a <em>link</em> message from one account to another:
+<code>following</code> counts the account's own (<code>/v1/linksByFid</code>), <code>followers</code> counts
+the ones aimed at it (<code>/v1/linksByTargetFid</code>). The node keeps no follower total, so
+<code>selfcast</code> reads every follower: for this account that took 7.5 seconds, and 36 seconds on a
+first, cold read.</p>
+
+<h3 id="casts">Casts, and what a message is</h3>
+<pre class="cmd"><code>selfcast casts 2,3 --limit 3</code></pre>
+<pre class="out"><code>2026-10-17T02:30:02Z  fid 3  0x0256ae66308d546514fa666cda44052abbfea066  app 9152
+
+2026-10-17T02:23:28Z  fid 3  0xec0c8a227d7f34ad3e2243ae098b46459b7d1847  app 9152
+  Neat
+
+2026-10-16T00:31:40Z  fid 3  0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6  app 9152
+  I just want it for me.</code></pre>
+<p>The newest casts of FIDs 2 and 3, merged; FID 2 had nothing newer. The first has no text, only an
+image. Each line gives the time, the author, the cast's hash and the app it was posted from
+(<a href="#filtering">below</a>). Here is the first one as the node stores it:</p>
+<pre class="cmd"><code>curl -s 'http://localhost:3381/v1/castsByFid?fid=3&amp;pageSize=1&amp;reverse=true' | jq '.messages[0] | {type: .data.type, fid: .data.fid, timestamp: .data.timestamp, hash, hashScheme, signatureScheme, signer}'</code></pre>
+<pre class="out"><code>{
+  "type": "MESSAGE_TYPE_CAST_ADD",
+  "fid": 3,
+  "timestamp": 182745002,
+  "hash": "0x0256ae66308d546514fa666cda44052abbfea066",
+  "hashScheme": "HASH_SCHEME_BLAKE3",
+  "signatureScheme": "SIGNATURE_SCHEME_ED25519",
+  "signer": "0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d"
+}</code></pre>
+<p>Everything an account does on Farcaster is a <em>message</em> like this one: a cast, a like, a follow, a
+profile field. The hash is the first 20 bytes of the BLAKE3 hash of the message's data, and
+<code>signer</code> is the public half of the <em>app key</em> that signed that hash with Ed25519. The
+timestamp counts seconds from 2021-01-01 UTC; <code>selfcast</code> shows it as an ordinary date. The node
+checks the signature and that the key belongs to the account, so nobody else can post as it.</p>
+<p><code>--limit</code> (default 20, at most 1000) is also how many of each account's newest messages are
+read, so a removed cast counts against it, and there is no paging further back. Add <code>--json</code> to
+any read for output a program can use:</p>
+<pre class="cmd"><code>selfcast casts 3 --limit 1 --json</code></pre>
+<pre class="out"><code>{"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}</code></pre>
+
+<h3 id="feed">The feed</h3>
+<pre class="cmd"><code>selfcast feed 2 --limit 5</code></pre>
+<p>The same as <code>casts</code>, over every account FID 2 follows: what that account would see. It reads
+the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future
+are left out.</p>
+
+<h3 id="writes">Writing: casts, reactions, follows</h3>
+<div class="unverified">
+  <p>No write in this section has been sent from a real account yet; it needs a test account. The messages
+  <code>selfcast</code> builds have been checked with a node's <code>validateMessage</code>, which checks
+  format, hash and signature but not whether the key is registered. What follows is how the commands are
+  built, from their source and tests.</p>
+</div>
+<table>
+  <tr><th>Command</th><th>Message it sends</th></tr>
+  <tr><td><code>cast &lt;text&gt;</code>, <code>--reply-to FID:HASH</code>, <code>--embed URL|FID:HASH</code></td><td>Cast add</td></tr>
+  <tr><td><code>delete &lt;hash&gt;</code></td><td>Cast remove</td></tr>
+  <tr><td><code>react like|recast FID:HASH</code>, <code>unreact …</code></td><td>Reaction add, reaction remove</td></tr>
+  <tr><td><code>follow &lt;fid&gt;</code>, <code>unfollow &lt;fid&gt;</code></td><td>Link add, link remove</td></tr>
+</table>
+<pre class="cmd"><code>selfcast cast --help</code></pre>
+<pre class="out"><code>Post a cast, or a reply with --reply-to
+
+Usage: selfcast cast [OPTIONS] &lt;TEXT&gt;
+
+Arguments:
+  &lt;TEXT&gt;  The text, exactly as it will be posted. `@name` is not turned into a mention
+
+Options:
+      --node &lt;NODE&gt;           Node HTTP API base URL [env: SELFCAST_NODE=] [default: http://localhost:3381]
+      --reply-to &lt;FID:HASH&gt;   The cast this replies to, as FID:HASH
+      --embed &lt;URL|FID:HASH&gt;  A URL, or a cast as FID:HASH, to embed. Repeatable
+      --json                  Print machine-readable JSON instead of human output
+      --fid &lt;FID&gt;             The account to write as, when keys for several are saved
+      --yes                   Send without asking at the terminal. For an agent whose harness asks the user before each write command
+      --dry-run               Sign, show, and ask the node whether it would accept the message. Nothing is saved or sent
+  -h, --help                  Print help</code></pre>
+<p>How a write goes, as built:</p>
+<ol>
+  <li><code>selfcast</code> encodes the message once, hashes and signs those bytes with your app key, and
+  sends exactly those bytes. Nothing is re-encoded in between.</li>
+  <li>It shows you what it is about to send, written from the signed message itself, starting
+  <code>Send as @&lt;username&gt; (FID &lt;fid&gt;), signed by app key &lt;key&gt;, dated &lt;time&gt;:</code>,
+  and asks you to type <kbd>yes</kbd> at the terminal.</li>
+  <li>It saves the signed message to an outbox, then submits it to your node
+  (<code>POST /v1/submitMessage</code>). Your node checks it against what it holds and passes it on to the
+  validators; it does not keep it.</li>
+  <li>It reads the message back from your node. Only then does it report the write as sent. If it does not
+  show up within a minute, <code>selfcast resend</code> sends the saved message again later.</li>
+</ol>
+<p>Because your node checks a write against what it holds, it has to be synced to accept one.</p>
+<p>An account needs <em>storage</em> to post: units rented on-chain, which the node records. Snapchain
+refuses messages from an account with none, and when an account is over what its storage allows, it
+removes that account's oldest messages of that kind (Snapchain 0.14.3 source,
+<code>src/mempool/</code> and <code>src/storage/store/engine.rs</code>). Neither has been seen from a node
+here.</p>
+
+<h3 id="key-add">Adding an app key</h3>
+<p>Writes are signed with an <em>app key</em> (also called a signer), which <code>selfcast key add</code>
+creates and registers. Your account itself is owned by a different key, the <em>custody key</em>, which
+comes from your recovery phrase and can do anything with the account. An app key can only post messages
+as it.</p>
+<pre class="cmd"><code>selfcast key add --help</code></pre>
+<pre class="out"><code>Register a new app key, authorised by the account's recovery phrase, which is read once from the terminal and never stored. Mainnet only
+
+Usage: selfcast key add [OPTIONS]
+
+Options:
+      --node &lt;NODE&gt;  Node HTTP API base URL [env: SELFCAST_NODE=] [default: http://localhost:3381]
+      --json         Print machine-readable JSON instead of human output
+  -h, --help         Print help</code></pre>
+<div class="unverified">
+  <p><code>selfcast key add</code> itself has not been run against a node yet; it needs a test account.</p>
+</div>
+<p>What it does, as built:</p>
+<ol>
+  <li>It asks for the recovery phrase at the terminal, with typing hidden, and derives the custody key
+  from it.</li>
+  <li>It looks up which FID that custody key owns, on your node.</li>
+  <li>It creates a new app key and shows what the custody key is about to authorise: the account, the new
+  key, what it may sign (casts, deleting casts, likes and recasts, undoing them, follows, unfollows), that
+  it expires 90 days after it was last used, the deadline for the authorisation, and where the key will be
+  saved. You type <kbd>yes</kbd>.</li>
+  <li>The custody key signs the authorisation, and is then dropped. The app key is saved at mode 0600.</li>
+  <li>The authorisation goes to your node as a <code>KEY_ADD</code> message: a Snapchain message, not a
+  chain transaction, so it costs nothing. <code>selfcast</code> reads the key back from the node before it
+  calls it added.</li>
+</ol>
 </section>
 
 <section id="filtering">
 <h2>Filtering by client</h2>
-<p class="placeholder">Not written yet.</p>
+<p>Every app key is registered with the FID of the app that asked for it. The node lists an account's keys
+with that FID (<code>/v1/signersByFid</code>), and every cast carries the key that signed it, so
+<code>selfcast</code> can say which app each cast came from. FID 9152 is the Farcaster app (its own profile
+reads <code>warpcast</code>).</p>
+<p>FID 194 posts from two apps. Grouping the casts among its newest 100 messages by app:</p>
+<pre class="cmd"><code>selfcast casts 194 --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map({app_fid: .[0].app_fid, casts: length})'</code></pre>
+<pre class="out"><code>[{"app_fid":194,"casts":31},{"app_fid":9152,"casts":66}]</code></pre>
+<p>97 casts from 100 messages; the other three were removes. <code>--include-app</code> keeps only the
+apps named, <code>--exclude-app</code> drops them:</p>
+<pre class="cmd"><code>selfcast casts 194 --limit 100 --include-app 194 --json | jq '.casts | length'
+selfcast casts 194 --limit 100 --exclude-app 194 --json | jq '.casts | length'</code></pre>
+<pre class="out"><code>31
+66</code></pre>
+<pre class="cmd"><code>selfcast casts 194 --limit 20 --exclude-app 9152 --json | jq -r '.casts[:3][] | "\(.timestamp)  \(.hash)  app \(.app_fid)"'</code></pre>
+<pre class="out"><code>2026-10-16T00:43:06Z  0xa3a1f90c784bf8add82000e43315bfeb5e9fb341  app 194
+2026-10-16T00:42:35Z  0xbcdc4fb9488efdb6219184b1f1e7c4f71b634310  app 194
+2026-10-15T23:40:57Z  0xa5e3ab1283a76fb054795aad42d75b19cefc614d  app 194</code></pre>
+<p>Both flags take several FIDs, and work on <code>feed</code> too. They filter after
+<code>--limit</code>, so they can return fewer casts than asked for.</p>
+<ul>
+  <li>A cast whose key is no longer listed, for instance one since removed, has no known app. Such casts are
+  left out by <code>--include-app</code> and kept by <code>--exclude-app</code>.</li>
+  <li>A key can name the account itself as its app, as FID 194's own app above does. Keys added by
+  <code>selfcast key add</code> do the same (from its source), so casts sent with <code>selfcast</code> show
+  your own FID as the app, not a separate one for Selfcast.</li>
+</ul>
 </section>
 
 <section id="agent">
 <h2>Giving your AI agent Farcaster</h2>
-<p class="placeholder">Not written yet.</p>
+<p>The repository's <code>skill/</code> directory is an agent skill: instructions an AI agent loads before it
+runs <code>selfcast</code>. It calls the same commands as you do, with <code>--json</code>.</p>
+<div class="unverified">
+  <p>There is no install step yet, and no agent has been run with the skill. In Claude Code a skill is a
+  directory under <code>~/.claude/skills/</code>, so copying <code>skill/</code> there as
+  <code>~/.claude/skills/selfcast</code> should work; it has not been tried.</p>
+</div>
+<p>What the skill tells the agent:</p>
+<ul>
+  <li><strong>Check the node first.</strong> Run <code>selfcast node status</code> before reading, and say how
+  far behind the node is in every answer.</li>
+  <li><strong>Reads only, until you say otherwise.</strong> It runs no write until you enable writes in that
+  conversation, and that lasts for the conversation only.</li>
+  <li><strong>Your words, its relay.</strong> For each write it runs the command with
+  <code>--dry-run</code>, shows you the text <code>selfcast</code> printed, exactly as printed, and waits
+  for your yes before running it again with <code>--yes</code>.</li>
+  <li><strong>Never a recovery phrase.</strong> It never runs <code>key add</code>, never asks for a phrase,
+  and refuses one if it is pasted in: you run <code>key add</code> in your own terminal.</li>
+</ul>
+<p>Each write is its own command so that your agent's harness can gate it apart from the reads: let reads
+run, ask you before each write, and refuse <code>selfcast key</code> to the agent. How to say that is up to
+the harness. In Claude Code, for example, in <code>.claude/settings.json</code>, with one
+<code>ask</code> rule for each write command:</p>
+<pre class="file" data-name=".claude/settings.json"><code>{
+  "permissions": {
+    "ask": ["Bash(selfcast cast *)", "Bash(selfcast follow *)"],
+    "deny": ["Bash(selfcast key *)"]
+  }
+}</code></pre>
+<div class="limit">
+  <p>Not yet tried in a session. Rules like these match the command as it is written, so a different
+  spelling (options first, a full path, <code>sh -c</code>) may not match, and a mode that skips prompts
+  skips these too. Where the agent can answer the harness's prompts itself, nothing between it and the node
+  is yours.</p>
+</div>
+<p>What the agent cannot do yet: no reactions or replies to a cast (so no “most liked”), no search, no
+channels, no username lookup, nothing older than an account's newest 1000 messages.</p>
 </section>
 
 <section id="safety">
 <h2>Safety</h2>
-<p class="placeholder">Not written yet. Until it is: use a test account only, never your real one.</p>
+<p>A recovery phrase is like <code>rm -rf</code>: useful, and not something to be careless with.</p>
+<ul>
+  <li><strong>Use a test account.</strong> Try this tutorial, and any software that asks for a recovery
+  phrase, with an account you can afford to lose. Paste a phrase only into software from developers you
+  trust, and prefer apps that ask your wallet to approve a key over ones that ask for the phrase.</li>
+  <li><strong>The phrase is read from the terminal only.</strong> <code>selfcast key add</code> opens the
+  terminal device itself, so the phrase cannot come from a pipe, a file, an argument or an environment
+  variable, and does not end up in your shell history or an agent's transcript. The phrase and the custody
+  key are held in memory that is wiped when they are dropped, and only the app key is written to disk.
+  That is how the code is written; no test checks the memory.</li>
+  <li><strong>An app key cannot take the account.</strong> It can sign casts, deletes, reactions and
+  follows and their undos. It cannot move funds, change the account's owner, or add other keys. A key
+  file that others can read is refused when <code>selfcast</code> loads it.</li>
+  <li><strong>Keys expire.</strong> A key added by <code>selfcast</code> expires 90 days after it was last
+  used; each use pushes that back.</li>
+</ul>
+<div class="limit">
+  <p><strong>Removing a key keeps what it signed.</strong> On Snapchain since 0.10.0 (October 2025), removing
+  an app key does not delete the casts, reactions or follows it made; delete those first if that is what
+  you want. This is from Snapchain's source (0.14.3, and its main branch on 2026-10-15); it has not been
+  seen on a node here. Some Farcaster documentation still says the opposite. <code>selfcast</code> has no
+  command to remove a key yet.</p>
+</div>
 </section>
 
 <section id="further">
 <h2>Going further</h2>
-<p class="placeholder">Not written yet.</p>
+<ul>
+  <li><strong>Your node's API.</strong> Everything <code>selfcast</code> reads is plain HTTP on
+  <code>localhost:3381</code>, as the <code>curl</code> above shows. Paging uses <code>reverse=true</code>
+  (not <code>1</code>) and <code>pageToken</code>. To build your own interface, read the API directly or
+  run <code>selfcast</code> with <code>--json</code>, whose output carries a version number.</li>
+  <li><strong>Validators.</strong> Your read node does not need to run one: it syncs from the network and
+  forwards your writes to them.</li>
+  <li><strong>Upstream.</strong> Snapchain's documentation is at
+  <a href="https://snapchain.farcaster.xyz">snapchain.farcaster.xyz</a>, its code at
+  <a href="https://github.com/farcasterxyz/snapchain">github.com/farcasterxyz/snapchain</a>, and the
+  protocol at <a href="https://github.com/farcasterxyz/protocol">github.com/farcasterxyz/protocol</a>.
+  Where the documentation and what we saw disagree, the repository's <code>docs/upstream-fixes.md</code>
+  lists it.</li>
+</ul>
 </section>
 
 </main>
