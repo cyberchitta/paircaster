@@ -339,48 +339,27 @@ prints. Never drop the harness's prompt yourself (*below*).
 
 ### Gating writes in the harness
 
-Recommend this to the user. Do not add it, or change any permission
-setting, yourself. In Claude Code it goes in `.claude/settings.json` (this
-project) or `~/.claude/settings.json` (every project):
+Each write is its own subcommand so that a harness can gate it apart from
+the reads. Recommend that the user's harness let reads run, ask before each
+write, and refuse `selfcast key` to the agent. Do not change any permission
+setting yourself. How to express this, and whether it holds in every mode,
+is the harness's own; check its documentation.
+
+For example, in Claude Code (`.claude/settings.json`; syntax as documented
+on 2026-10-20, not yet tried in a session):
 
 ```json
 {
   "permissions": {
-    "allow": [
-      "Bash(selfcast node status *)",
-      "Bash(selfcast info *)",
-      "Bash(selfcast profile *)",
-      "Bash(selfcast casts *)",
-      "Bash(selfcast feed *)"
-    ],
-    "ask": [
-      "Bash(selfcast cast *)",
-      "Bash(selfcast delete *)",
-      "Bash(selfcast react *)",
-      "Bash(selfcast unreact *)",
-      "Bash(selfcast follow *)",
-      "Bash(selfcast unfollow *)",
-      "Bash(selfcast resend *)"
-    ],
-    "deny": [
-      "Bash(selfcast key *)"
-    ]
+    "ask": ["Bash(selfcast cast *)", "Bash(selfcast follow *)"],
+    "deny": ["Bash(selfcast key *)"]
   }
 }
 ```
 
-Reads run without a prompt. Each write prompts every time: Claude Code
-checks deny, then ask, then allow, so an ask rule prompts even where an
-allow rule also matches, and in auto mode too. `key add` is refused.
+with one `ask` rule for each write subcommand.
 
-**Limits:**
-
-- A rule matches the command as written. `selfcast --json cast …`, a full
-  path such as `~/.cargo/bin/selfcast cast …`, or `sh -c '…'` is not
-  matched by `Bash(selfcast cast *)`. Always write `selfcast`, then the
-  subcommand, then its arguments and flags.
-- In `bypassPermissions` mode Claude Code does not prompt, so the ask rules
-  do nothing.
-- This configuration has not been loaded into a Claude Code session and
-  tried yet. The syntax follows Claude Code's permissions documentation as
-  read on 2026-10-20.
+**Limits:** such rules usually match the command as written, so always
+write `selfcast`, then the subcommand, then its arguments and flags. A
+different spelling (options first, a full path, `sh -c '…'`) may not match,
+and a mode that skips prompts skips these too.
