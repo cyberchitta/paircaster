@@ -42,20 +42,33 @@ Follow the site, starting from the quickstart, and use only what it says. If
 you have to do something it does not mention, write it down: that is a bug in
 the tutorial.
 
-Check each of these and note the result:
+Check each of these and note the result. The run comes in two parts, so you
+can report the first while you wait for the second.
+
+**Part 1: the node and reads** (a day, mostly waiting for the download).
 
 1. The three quickstart commands run as shown, and their output looks like
    the output on the site.
 2. The node downloads its snapshot, starts, and reports that it is in sync.
    Stopping and restarting the download resumes it instead of starting over.
 3. `selfcast` reads your profile and your feed from your own node.
-4. Importing your test account adds an app key. Before anything is signed,
+4. Filtering the feed to include or exclude casts from a given app.
+5. The site reads well on a phone as well as a desktop.
+
+**Part 2: writes** (an hour, after `git pull` and reinstalling, as above).
+
+6. Importing your test account adds an app key. Before anything is signed,
    the terminal shows what you are approving.
-5. A cast you post shows up when you read it back from your node, and in
+7. A cast you post shows up when you read it back from your node, and in
    another Farcaster client.
-6. Reply, follow and unfollow, like and unlike, recast and undo the recast.
-7. Filtering the feed to include or exclude casts from a given app.
-8. The site reads well on a phone as well as a desktop.
+8. Reply, follow and unfollow, like and unlike, recast and undo the recast.
+
+## If you vouch
+
+Post the vouching cast with `selfcast cast`, from the test account you used,
+and put its hash in your report. It is then signed by the app key Selfcast
+added for you, which anyone can check on any node (the site's *Checking a
+voucher* section shows how). Vouch for what you saw, including what failed.
 
 ## Running it with an AI agent
 
@@ -82,6 +95,7 @@ Machine, OS, CPU architecture:
 Started (UTC):           Node in sync (UTC):         Finished (UTC):
 Cloud cost, if any:
 Steps 1-8 above: pass / fail / not tried, each
+Vouching cast hash, if you vouched:
 Message hashes of the casts and other writes you made:
 Every failure, retry, workaround, and time you had to step in:
 One thing that worked well:
