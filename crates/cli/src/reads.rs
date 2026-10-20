@@ -1,4 +1,5 @@
-//! `selfcast profile` and `selfcast feed`, and their `--json` output.
+//! `selfcast profile`, `selfcast feed` and `selfcast casts`, and their
+//! `--json` output.
 //!
 //! The JSON shapes are an external format the agent skill depends on. Each is
 //! version 1; a change to a shape bumps its `version`.
@@ -21,7 +22,22 @@ const FETCH_AT_ONCE: usize = 8;
 pub struct FeedArgs {
     /// The account whose follows make up the feed.
     fid: u64,
-    /// How many casts to show. Filtering by app looks only at each followed
+    #[command(flatten)]
+    filter: CastFilter,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct CastsArgs {
+    /// The accounts whose casts to show. Repeat or separate with commas.
+    #[arg(required = true, value_delimiter = ',')]
+    fids: Vec<u64>,
+    #[command(flatten)]
+    filter: CastFilter,
+}
+
+#[derive(Debug, clap::Args)]
+struct CastFilter {
+    /// How many casts to show. Filtering by app looks only at each
     /// account's newest LIMIT casts, so it can show fewer.
     #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=1000))]
     limit: u32,
@@ -40,7 +56,7 @@ pub struct FeedArgs {
     exclude_app: Vec<u64>,
 }
 
-impl FeedArgs {
+impl CastFilter {
     fn apps(&self) -> AppFilter {
         match (self.include_app.is_empty(), self.exclude_app.is_empty()) {
             (false, _) => AppFilter::Only(self.include_app.iter().copied().collect()),
@@ -124,6 +140,22 @@ struct FeedV1<'a> {
     casts: Vec<CastV1<'a>>,
 }
 
+/// `selfcast casts <fid>... --json`, version 1:
+///
+/// ```json
+/// { "version": 1, "fids": [2, 3], "casts": [ … ] }
+/// ```
+///
+/// `fids` are the accounts asked for, in the order given. Each element of
+/// `casts` has the same shape as in `feed`, newest first, after any app
+/// filter.
+#[derive(Serialize)]
+struct CastsV1<'a> {
+    version: u32,
+    fids: &'a [u64],
+    casts: Vec<CastV1<'a>>,
+}
+
 #[derive(Serialize)]
 struct CastV1<'a> {
     hash: String,
@@ -164,19 +196,8 @@ pub async fn profile(node: &Node, fid: u64, json: bool) -> Result<(), Error> {
 }
 
 pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error> {
-    let page = PageRequest {
-        page_size: Some(args.limit),
-        page_token: None,
-    };
     let follows = node.all_follows_by_fid(args.fid).await?;
-    let (casts, signers) = fetch_followed(node, follows, page).await?;
-    let items = feed::assemble(
-        casts,
-        &signers,
-        &args.apps(),
-        clock::now(),
-        args.limit as usize,
-    );
+    let items = newest_casts(node, follows, &args.filter).await?;
     if json {
         println!("{}", to_json(&feed_v1(args.fid, &items)));
     } else {
@@ -185,9 +206,40 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
     Ok(())
 }
 
-/// Each followed account's casts and app keys, `FETCH_AT_ONCE` accounts at
-/// a time. The first error stops the rest.
-async fn fetch_followed(
+pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Error> {
+    let items = newest_casts(node, args.fids.clone(), &args.filter).await?;
+    if json {
+        println!("{}", to_json(&casts_v1(&args.fids, &items)));
+    } else {
+        items.iter().for_each(print_item);
+    }
+    Ok(())
+}
+
+/// The newest casts across `fids`, after the filter.
+async fn newest_casts(
+    node: &Node,
+    fids: Vec<u64>,
+    filter: &CastFilter,
+) -> Result<Vec<FeedItem>, Error> {
+    let page = PageRequest {
+        page_size: Some(filter.limit),
+        page_token: None,
+    };
+    let (casts, signers) = fetch_all(node, fids, page).await?;
+    let limit = filter.limit as usize;
+    Ok(feed::assemble(
+        casts,
+        &signers,
+        &filter.apps(),
+        clock::now(),
+        limit,
+    ))
+}
+
+/// Each account's casts and app keys, `FETCH_AT_ONCE` accounts at a time.
+/// The first error stops the rest.
+async fn fetch_all(
     node: &Node,
     follows: Vec<u64>,
     page: PageRequest,
@@ -242,6 +294,14 @@ fn feed_v1(fid: u64, items: &[FeedItem]) -> FeedV1<'_> {
     FeedV1 {
         version: 1,
         fid,
+        casts: items.iter().map(|i| cast_v1(&i.cast, i.app_fid)).collect(),
+    }
+}
+
+fn casts_v1<'a>(fids: &'a [u64], items: &'a [FeedItem]) -> CastsV1<'a> {
+    CastsV1 {
+        version: 1,
+        fids,
         casts: items.iter().map(|i| cast_v1(&i.cast, i.app_fid)).collect(),
     }
 }
@@ -318,12 +378,11 @@ mod tests {
     use selfcast_core::proto::CastType;
     use selfcast_core::time::Timestamp;
 
-    use super::{feed_v1, profile_v1, to_json};
+    use super::{casts_v1, feed_v1, profile_v1, to_json};
 
-    #[test]
-    fn feed_json_is_version_1() {
+    fn item() -> FeedItem {
         let hash = MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes");
-        let item = FeedItem {
+        FeedItem {
             cast: Cast {
                 id: CastRef { fid: 2, hash },
                 timestamp: Timestamp::from_farcaster(0),
@@ -338,13 +397,27 @@ mod tests {
                 signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
             },
             app_fid: Some(9152),
-        };
+        }
+    }
+
+    fn cast_json() -> String {
         let h = format!("0x{}", "ab".repeat(20));
         let signer = format!("0x{}", "01".repeat(32));
-        let expected = format!(
-            r#"{{"version":1,"fid":3,"casts":[{{"hash":"{h}","fid":2,"timestamp":"2021-01-01T00:00:00Z","text":"hi @x","mentions":[{{"fid":9,"position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}},"signer":"{signer}","app_fid":9152}}]}}"#
-        );
-        assert_eq!(to_json(&feed_v1(3, &[item])), expected);
+        format!(
+            r#"{{"hash":"{h}","fid":2,"timestamp":"2021-01-01T00:00:00Z","text":"hi @x","mentions":[{{"fid":9,"position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}},"signer":"{signer}","app_fid":9152}}"#
+        )
+    }
+
+    #[test]
+    fn feed_json_is_version_1() {
+        let expected = format!(r#"{{"version":1,"fid":3,"casts":[{}]}}"#, cast_json());
+        assert_eq!(to_json(&feed_v1(3, &[item()])), expected);
+    }
+
+    #[test]
+    fn casts_json_is_version_1() {
+        let expected = format!(r#"{{"version":1,"fids":[2,5],"casts":[{}]}}"#, cast_json());
+        assert_eq!(to_json(&casts_v1(&[2, 5], &[item()])), expected);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready) and pausing or resuming the snapshot download. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, and reading profiles, feeds and accounts' casts from the node, with worked examples (account stats, a feed of a list of accounts). Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -12,9 +12,11 @@ hosted service.
 ## How to call it
 
 - Add `--json` to every command that supports it, and read the JSON, not the
-  human output. `node status --json` carries `"version"`; this skill
-  describes version 1. If you see another version, tell the user this skill
-  is out of date rather than guessing at the fields.
+  human output. The JSON of `node status`, `profile`, `feed` and `casts`
+  carries `"version"`; this skill describes version 1 of each. If you see
+  another version, tell the user this skill is out of date rather than
+  guessing at the fields. (`info --json` is the node's own `/v1/info`
+  response, passed through unversioned; prefer `node status`.)
 - Exit code 0 is success. On failure the command prints `error: …` to
   stderr and exits 1. Report the error text as it is.
 - `--node <url>` (or `SELFCAST_NODE`) picks the node. Leave it unset unless
@@ -109,3 +111,96 @@ shows `running: false`.
   which starts over each time.
 - `./snapchain.sh up`, or anything else that starts or stops the node,
   unless the user asks. Tell them the command instead.
+
+## Reads
+
+Every read comes from the user's node and nowhere else. Accounts are named
+by FID, a number; the CLI has no username lookup, so if the user gives you
+names, ask them for the FIDs.
+
+### Check the node first
+
+Before the first read in a conversation, run `selfcast node status --json`.
+Reads work in `syncing` as well as `ready`, but while syncing the node
+holds only what it has caught up to: nothing newer than each shard's
+`seconds_behind`. Say so when you answer, with the lag in hours, for
+example "from your node, which is about 46 hours behind". Example, from a
+node catching up:
+
+```json
+{"version":1,"phase":"syncing","node_version":"0.14.3","shards":[{"id":0,"height":48401912,"seconds_behind":80369},{"id":1,"height":49013085,"seconds_behind":145673},{"id":2,"height":48830242,"seconds_behind":164323}],"disk":{"free_bytes":3164618342400,"total_bytes":3996276899840,"low":false}}
+```
+
+An account's data lives on one shard, and the CLI does not say which, so
+quote the largest `seconds_behind`. In any other phase there is no node to
+read from: report the phase instead.
+
+### `selfcast profile <fid> --json`
+
+```json
+{"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":630231}
+```
+
+(Image URLs shortened here.) Each text field is `null` when not set.
+`following` and `followers` are counts as the node holds them. The follower
+count reads every follower, so a large account is slow: for fid 3, with
+630,231 followers, it took 5 to 7 seconds, and 36 seconds on a first,
+cold read. Run it once per account and reuse the result.
+
+### `selfcast casts <fid>... --json`
+
+The newest casts of one or more accounts, merged, newest first. FIDs are
+separate arguments or comma-separated.
+
+```json
+{"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+```
+
+Per cast:
+
+- `hash` and `fid` identify it. `timestamp` is UTC, ISO 8601.
+- `text` may be empty when the cast is only an embed.
+- `mentions[]` are `{fid, position}`, where `position` is a byte offset into
+  `text`.
+- `embeds[]` are `{"url": …}` or `{"cast": {fid, hash}}`.
+- `parent` is `null` for a top-level cast, `{"cast": {fid, hash}}` for a
+  reply, or `{"url": …}` for a cast in a channel.
+- `app_fid` is the app whose key signed the cast (9152 is the Farcaster app,
+  username `warpcast`), or `null` when unknown.
+
+`--limit` (default 20, at most 1000) caps the result, and is also how many
+of each account's newest messages are read, so a removed cast counts
+against it: `casts 3 --limit 200` returned 198. There is no paging past
+that. For a period, ask for enough and filter on `timestamp` yourself.
+`--include-app` and `--exclude-app` take app FIDs, and filter after the
+limit, so they can return fewer.
+
+An FID with no account gives `"casts":[]` and exit 0, the same as an
+account that never cast. Check with `profile` before saying an account is
+quiet.
+
+### `selfcast feed <fid> --json`
+
+The same as `casts`, over every account `<fid>` follows: what that account
+would see. The shape is `{"version":1,"fid":…,"casts":[…]}`, with casts as
+above. It reads each followed account, eight at a time, so an account
+following thousands is slow. For a short named list, use `casts`.
+
+### What reads cannot do yet
+
+- No reactions or replies to a cast, so no "most liked", "who reacts most"
+  or "top casts". Say this, rather than estimating from other fields.
+- No search, no channels, no username lookup.
+- Nothing older than an account's newest 1000 messages.
+
+### Examples
+
+- [Account stats](examples/account-stats.md): one account's week, from its
+  own casts.
+- [A feed of a list of accounts](examples/community-feed.md).
+
+## Writes
+
+Not covered by this skill yet. Do not run `cast`, `delete`, `react`,
+`unreact`, `follow`, `unfollow`, `resend` or `key add`; if the user asks,
+tell them the command and let them run it in their own terminal.
