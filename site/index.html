@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Selfcast</title>
+<meta name="description" content="Run your own Farcaster read node and a client that people and AI agents can both use. No API keys.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Selfcast</h1>
+  <p class="tagline">Farcaster from your own Snapchain node, for people and their AI agents. No API keys from anyone.</p>
+
+  <div class="note">
+    <p><strong>Draft.</strong> The node half of this tutorial is written; the client half is not. Every command and
+    every output below comes from one macOS machine, run 2026-10-18 to 2026-10-20. None of it has been run
+    on a fresh machine yet. Commands that were never run at all are marked <em>Not yet run</em>.</p>
+    <p>Paths under your home directory are shown as <code>~</code>.</p>
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#quickstart">Quickstart</a></li>
+      <li><a href="#what-you-did">What you just did</a></li>
+      <li><a href="#node">Running the node</a></li>
+      <li><a href="#client">Using the client</a></li>
+      <li><a href="#filtering">Filtering by client</a></li>
+      <li><a href="#agent">Giving your AI agent Farcaster</a></li>
+      <li><a href="#safety">Safety</a></li>
+      <li><a href="#further">Going further</a></li>
+    </ol>
+  </nav>
+</header>
+
+<main>
+
+<section id="quickstart">
+<h2>Quickstart</h2>
+
+<p>You need Docker and a disk with room for a 557 GB database plus the download
+(<a href="#hardware">details</a>). Each step below is explained in <a href="#node">Running the node</a>.</p>
+
+<ol class="steps">
+<li>
+<h3>Install <code>selfcast</code></h3>
+<pre class="cmd"><code>git clone https://github.com/cyberchitta/selfcast
+cd selfcast
+cargo install --path crates/cli --locked</code></pre>
+<div class="unverified">
+  <p>There is no release binary yet. On the test machine <code>selfcast</code> was built from this repository
+  with <code>cargo build --release</code>; the clone and install above have not been run as written.</p>
+</div>
+</li>
+
+<li>
+<h3>Install Snapchain, then stop it</h3>
+<pre class="cmd"><code>curl -sSL https://raw.githubusercontent.com/farcasterxyz/snapchain/refs/heads/main/scripts/snapchain-bootstrap.sh | bash</code></pre>
+<p>Run 2026-10-18. The script asks two questions: whether you agree that a read node earns no rewards, and
+an operator FID, which you can leave blank. It installs to <code>~/snapchain</code> and starts the node,
+which begins its own snapshot download. That download cannot resume after an interruption
+(<a href="#snapshot">why</a>), so stop it and let <code>selfcast</code> download instead:</p>
+<pre class="cmd"><code>cd ~/snapchain &amp;&amp; ./snapchain.sh down</code></pre>
+<div class="unverified">
+  <p>Snapchain's own download was stopped on the test machine, but the exact command was not recorded.
+  <code>selfcast node fetch-snapshot</code> refuses to start while the node's container is running and names
+  this command.</p>
+</div>
+</li>
+
+<li>
+<h3>Download the snapshot and start the node</h3>
+<pre class="cmd"><code>selfcast node fetch-snapshot
+cd ~/snapchain &amp;&amp; ./snapchain.sh up
+selfcast node status</code></pre>
+<p>The download and unpack took about 12 h 15 min of wall-clock time on the test machine, pauses
+included, at 8 to 41 MB/s. Once the node is up, it has to catch up from the snapshot's date to now. Four
+hours after starting, the test node was <a href="#sync">still catching up</a>:</p>
+<pre class="out"><code>Syncing (Snapchain 0.14.3): 47h07m behind at most.
+  shard 0: height 48391469, 23h49m behind
+  shard 1: height 49002681, 41h55m behind
+  shard 2: height 48819789, 47h07m behind
+Disk: 3165 GB free of 3996 GB.</code></pre>
+</li>
+</ol>
+</section>
+
+<section id="what-you-did">
+<h2>What you just did</h2>
+
+<pre><code>  your machine
+ ┌──────────────────────────────────────────────┐
+ │  selfcast ──HTTP──▶ localhost:3381           │
+ │  (you, or your agent)     │                  │
+ │                    Snapchain read node       │
+ │                    (~/snapchain/.rocks)      │
+ └───────────────────────────┬──────────────────┘
+                             │ gossip, UDP 3382
+                             ▼
+                  other Snapchain nodes
+                  and the validators</code></pre>
+
+<p>Your node keeps its own copy of the network's messages: casts, reactions, follows and profile data.
+Ours reports 914,246,336 messages in 557 GB. <code>selfcast</code> reads from the node at
+<code>http://localhost:3381</code> unless you point it elsewhere, so what you read does not pass through
+anyone else's server.</p>
+<p>A read node does not decide what goes on the network; validators do. When you post, your node checks
+the message against what it has, passes it on to the validators, and keeps nothing itself. The message is
+on the network only once it comes back in a read, which is why <code>selfcast</code> reads every write
+back before it calls it sent.</p>
+</section>
+
+<section id="node">
+<h2>Running the node</h2>
+
+<h3 id="hardware">Hardware and disk</h3>
+<p>Snapchain's README asks for 16 GB RAM, 4 vCPUs and 1.5 TB of disk; its getting-started page says
+2 TB. What we measured:</p>
+<table>
+  <tr><th>Item</th><th>Size</th><th>Checked with</th></tr>
+  <tr><td>Snapshot, as downloaded</td><td>5,691 chunks in 3 shards</td><td><code>fetch-snapshot</code> output</td></tr>
+  <tr><td>Node database after unpacking</td><td>557 GB</td><td><code>du -sh ~/snapchain/.rocks</code></td></tr>
+  <tr><td>Database size the node reports</td><td>557,823,184,195 bytes</td><td><code>selfcast info</code></td></tr>
+</table>
+<p>The download keeps each shard's chunks only until that shard is unpacked, then deletes them. We did not
+measure the peak disk use while the last shard was unpacking.</p>
+<div class="limit">
+  <p>The test machine was an Apple M5 Max (18 cores, 128 GB RAM, 4 TB disk) running macOS 26.7.1 with
+  Docker through OrbStack. That is far above the stated minimum, so it shows nothing about whether the
+  minimum is enough. No Linux machine or cloud VM has been tried.</p>
+</div>
+
+<h3 id="snapshot">The snapshot</h3>
+<p>A new node does not replay Farcaster's history block by block. It starts from a <em>snapshot</em>: a copy
+of a node's database, published for new nodes to start from and split into chunks of about 90 MB. The one we fetched was
+dated 2026-10-18.</p>
+<p>Snapchain can download the snapshot itself when it first starts, but that download cannot resume. A
+network gap of about 50 seconds stops the node, and the restart begins again at chunk 1. Worse, if the
+first shard has already been unpacked, the restart sees a non-empty database, skips the snapshot, and
+runs on an incomplete copy without saying so. On a home connection the download takes many hours, so
+<code>selfcast</code> has its own downloader, which can stop and pick up where it left off.</p>
+
+<h4>Download</h4>
+<pre class="cmd"><code>selfcast node fetch-snapshot</code></pre>
+<pre class="out"><code>0 of 5691 chunks already on disk
+[1/5691] shard 1 chunk_0003.bin  35.2 MB/s  ETA 7h03m
+[2/5691] shard 1 chunk_0002.bin  35.5 MB/s  ETA 3h45m
+[3/5691] shard 1 chunk_0004.bin  36.7 MB/s  ETA 3h09m
+…</code></pre>
+<p>Ctrl-C stops it. Running it again continues, including chunks that were half done:</p>
+<pre class="cmd"><code>selfcast node fetch-snapshot --jobs 8</code></pre>
+<pre class="out"><code>112 of 5691 chunks already on disk
+resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_0115.bin.part at 11.5 MB
+resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_0114.bin.part at 56.2 MB
+…</code></pre>
+<p><code>--jobs</code> is how many chunks download at once; the default is 4. On the test machine 8 was less
+than 10% faster, because the line, not the server, was the limit.</p>
+
+<h4>Download in the background</h4>
+<p>To close the terminal while it runs, use <code>pause</code> and <code>resume</code> instead.
+<code>resume</code> starts the download in the background and appends its output to
+<code>~/snapchain/selfcast-fetch.log</code>; <code>pause</code> stops it, keeping everything downloaded.</p>
+<pre class="cmd"><code>selfcast node resume
+selfcast node pause</code></pre>
+<p>What <code>resume</code> wrote to the log on the test machine:</p>
+<pre class="out"><code>=== resume 2026-10-19T11:02:01Z --jobs 4
+2649 of 5691 chunks already on disk
+resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_2652.bin.part at 60.0 MB
+…</code></pre>
+<p>Only one download runs per install directory: a second <code>fetch-snapshot</code> or <code>resume</code>
+while one is running does not start another.</p>
+
+<h4>Unpack</h4>
+<p>When the last chunk arrives, the download unpacks each shard into the node's database:</p>
+<pre class="out"><code>[5691/5691] shard 0 chunk_0367.bin  8.1 MB/s  ETA 0h00m
+unpacking shard 1 (2672 chunks)
+unpacking shard 2 (2648 chunks)
+unpacking shard 0 (371 chunks)
+snapshot ready: 5691 chunks unpacked into ~/snapchain/.rocks
+start the node: cd ~/snapchain &amp;&amp; ./snapchain.sh up</code></pre>
+<p>Every pause leaves the snapshot older by the time you were paused, and the node has to sync that time
+back once it starts.</p>
+
+<h3 id="start">Start the node</h3>
+<pre class="cmd"><code>cd ~/snapchain &amp;&amp; ./snapchain.sh up</code></pre>
+<p>The node starts from the unpacked database without downloading again.</p>
+
+<h3 id="status">Watch it</h3>
+<p><code>selfcast node status</code> works in every phase: downloading the snapshot, unpacking, stopped,
+syncing and ready. It also reports free disk. While the node is behind:</p>
+<pre class="cmd"><code>selfcast node status</code></pre>
+<pre class="out"><code>Syncing (Snapchain 0.14.3): 47h07m behind at most.
+  shard 0: height 48391469, 23h49m behind
+  shard 1: height 49002681, 41h55m behind
+  shard 2: height 48819789, 47h07m behind
+Disk: 3165 GB free of 3996 GB.</code></pre>
+<p>Snapchain splits the network into <em>shards</em>, each its own chain of blocks. A shard's
+<em>height</em> is the number of its newest block, and “behind” is how old that block is. The node reports
+<em>ready</em> once every shard is within a minute of its newest block. Your node's own numbers:</p>
+<pre class="cmd"><code>selfcast info</code></pre>
+<pre class="out"><code>{
+  "dbStats": {
+    "approxSize": 557823184195,
+    "numFidRegistrations": 3355165,
+    "numMessages": 914246336
+  },
+  "nextEngineVersionTimestamp": 0,
+  "numShards": 2,
+  "peer_id": "12D3KooWEYXexrGCimknLUiKsEijFohY4HCJxo1vB4joawm8VCvS",
+  "shardInfos": [
+    {
+      "approxSize": 38892955790,
+      "blockDelay": 85744,
+      "maxHeight": 48391470,
+      "mempoolSize": 0,
+      "numFidRegistrations": 0,
+      "numMessages": 12668689,
+      "shardId": 0
+    },
+    {
+      "approxSize": 280148797489,
+      "blockDelay": 150942,
+      "maxHeight": 49002681,
+      "mempoolSize": 4294967295,
+      "numFidRegistrations": 1677734,
+      "numMessages": 458613892,
+      "shardId": 1
+    },
+    {
+      "approxSize": 277674386706,
+      "blockDelay": 169654,
+      "maxHeight": 48819790,
+      "mempoolSize": 4294967295,
+      "numFidRegistrations": 1677431,
+      "numMessages": 455632444,
+      "shardId": 2
+    }
+  ],
+  "version": "0.14.3"
+}</code></pre>
+<p>Shards 1 and 2 hold about 1.68 million accounts each and nearly all the messages; shard 0 holds no
+accounts. The same data comes straight from Snapchain's API with
+<code>curl http://localhost:3381/v1/info</code>, unformatted.</p>
+
+<h3 id="sync">Why sync is slow</h3>
+<p>The test node started 2026-10-20 at 05:56 UTC, 25 to 48 hours behind. What we saw:</p>
+<ul>
+  <li>While the machine was awake and the node was catching up, it gained about 2 seconds of the network's
+  time per second, in samples of 35 s to 2 min.</li>
+  <li>From 07:36 to 10:00 UTC the furthest-behind shard made no net progress, with the container up the
+  whole time. We have not found why.</li>
+  <li>CPU and bandwidth were not the limit: over 30 s the node used about 3% CPU and received about
+  20 KB/s.</li>
+</ul>
+<p>Snapchain v0.14.3 syncs through the Malachite library, pinned at commit <code>13bca14</code>, which asks a
+peer for one block at a time and waits for the answer before asking for the next
+(<code>code/crates/sync/src/handle.rs</code>, <code>request_value</code>). From the test machine a peer was
+about 250 ms away, which fits about 3 blocks per second per shard. Newer Malachite can ask for several
+blocks at once; no Snapchain release uses it, as of v0.14.3.</p>
+<div class="limit">
+  <p>We have not shown that distance to the peers is what limits sync, and we have not run a node close to
+  them. This page gives no sync time because the one estimate we had did not hold.</p>
+</div>
+
+<h3 id="ports">Ports, and who can reach your node</h3>
+<table>
+  <tr><th>Port</th><th>Protocol</th><th>Used for</th></tr>
+  <tr><td>3381</td><td>TCP</td><td>HTTP API: reads, and submitting messages</td></tr>
+  <tr><td>3382</td><td>UDP</td><td>Gossip with other nodes</td></tr>
+  <tr><td>3383</td><td>TCP</td><td>gRPC API</td></tr>
+</table>
+<p>Snapchain's compose file publishes these on every network interface. On the test machine that put the
+HTTP API, including message submission, within reach of anything on the local network. To keep the APIs on
+your machine and leave only gossip open, add this file next to Snapchain's <code>docker-compose.yml</code>.
+<code>./snapchain.sh upgrade</code> replaces <code>docker-compose.yml</code> but leaves this file alone.</p>
+<pre class="file" data-name="~/snapchain/docker-compose.override.yml"><code>services:
+  snapchain:
+    environment:
+      RUST_LOG: "warn,informalsystems_malachitebft_sync=error"
+    ports: !override
+      - "127.0.0.1:3381:3381/tcp"
+      - "3382:3382/udp"
+      - "127.0.0.1:3383:3383/tcp"
+  statsd:
+    ports: !override
+      - "127.0.0.1:8125:8125/udp"
+      - "127.0.0.1:8126:8126"</code></pre>
+<p>Then restart the node and check:</p>
+<div class="unverified">
+  <p>How the node was restarted after adding this file on the test machine was not recorded. The check
+  below was run.</p>
+</div>
+<pre class="cmd"><code>docker port snapchain-snapchain-1</code></pre>
+<pre class="out"><code>3381/tcp -> 127.0.0.1:3381
+3382/udp -> 0.0.0.0:3382
+3382/udp -> [::]:3382
+3383/tcp -> 127.0.0.1:3383</code></pre>
+<p>With this in place, the HTTP API answered on <code>localhost</code> and refused a connection to the
+machine's LAN address.</p>
+
+<h3 id="logs">Logs</h3>
+<p>The <code>RUST_LOG</code> line in the file above keeps warnings and errors only. Without it, the sync
+library logs a “SYNC REQUIRED” warning for every block while the node catches up: about 0.9 MB of log a
+minute on the test machine, against about 6 KB with it. To read the log:</p>
+<pre class="cmd"><code>docker logs --tail 4 snapchain-snapchain-1</code></pre>
+<pre class="out"><code>2026-10-20T10:06:08.093084Z  WARN snapchain::network::gossip: Failed to publish gossip message: InsufficientPeers ("read-node-peers")
+2026-10-20T10:06:17.991223Z  WARN snapchain::network::gossip: Failed to publish gossip message: InsufficientPeers ("read-node-peers")
+…</code></pre>
+<p>The log lives with the container and goes when the container is recreated, for example after changing
+its ports.</p>
+
+<h3 id="sleep">Sleep, shutdown and logout</h3>
+<p>Tested on macOS with OrbStack set to pause in sleep: with the lid closed for 40 minutes, the node wrote nothing, the container
+did not restart, and on waking it reconnected to peers and caught up at the same rate as before. It came
+back 40 minutes further behind. A node on a laptop is only syncing while the laptop is awake.</p>
+<div class="limit">
+  <p>Not tested: what happens after a reboot or a logout, whether Docker starts again at login, and whether
+  quitting Docker stops the node cleanly. OrbStack has a setting for each of the last two; both were
+  turned on but neither was tried.</p>
+</div>
+
+<h3 id="upgrades">Upgrades</h3>
+<p>The bootstrap script adds a weekly cron job that upgrades Snapchain, unless <code>~/snapchain/.env</code>
+contains <code>SKIP_CRONTAB=true</code>. On the test machine it does, so upgrades happen by hand:</p>
+<pre class="cmd"><code>cd ~/snapchain &amp;&amp; ./snapchain.sh upgrade</code></pre>
+<div class="unverified">
+  <p>No upgrade has been run yet.</p>
+</div>
+</section>
+
+<section id="client">
+<h2>Using the client</h2>
+<p class="placeholder">Not written yet.</p>
+</section>
+
+<section id="filtering">
+<h2>Filtering by client</h2>
+<p class="placeholder">Not written yet.</p>
+</section>
+
+<section id="agent">
+<h2>Giving your AI agent Farcaster</h2>
+<p class="placeholder">Not written yet.</p>
+</section>
+
+<section id="safety">
+<h2>Safety</h2>
+<p class="placeholder">Not written yet. Until it is: use a test account only, never your real one.</p>
+</section>
+
+<section id="further">
+<h2>Going further</h2>
+<p class="placeholder">Not written yet.</p>
+</section>
+
+</main>
+
+<footer>
+  <p>Selfcast is MIT-licensed: <a href="https://github.com/cyberchitta/selfcast">github.com/cyberchitta/selfcast</a>.
+</p>
+</footer>
+
+</body>
+</html>
