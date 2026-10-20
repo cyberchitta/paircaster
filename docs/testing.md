@@ -21,6 +21,21 @@ saw.
   it into a chat, an issue, a screenshot or a report, and never send it to
   us. Nobody working on Selfcast will ask for it.
 
+## Start the node now; update Selfcast before the client steps
+
+The node takes about a day to download and sync, so run the quickstart as
+soon as you can and leave the download going. Selfcast itself is still being
+updated every day until the entry is submitted. Before you start the client
+steps, run `git pull` in your clone and `cargo install --path crates/cli
+--locked` again, and give the commit you tested (`git rev-parse --short HEAD`)
+in your report.
+
+## Everything so far ran on one Mac
+
+All of Selfcast's own testing so far was done on one Apple Silicon Mac
+running macOS. Nothing has been run on Linux or on an Intel machine yet. A
+report from either is especially useful, because it is the first.
+
 ## The run
 
 Follow the site, starting from the quickstart, and use only what it says. If
@@ -62,7 +77,7 @@ applies:
 ```text
 Tester (Farcaster account):
 Run: by hand / with an agent (which agent, which model)
-Selfcast version:
+Selfcast commit (git rev-parse --short HEAD):
 Machine, OS, CPU architecture:
 Started (UTC):           Node in sync (UTC):         Finished (UTC):
 Cloud cost, if any:
@@ -75,3 +90,21 @@ The worst problem:
 
 Screenshots are welcome. Check that none shows a seed phrase, a key, a token
 or your full config before you post it.
+
+## Payment
+
+Testers are paid only if Selfcast wins part of the bounty, and only out of
+what it wins. The award is split into shares: one for each tester, three for
+cyberchitta. There is no cap on the number of testers. Server costs are
+yours.
+
+Your share does not depend on what your report says or whether you vouch. A
+report counts if:
+
+- it is posted publicly on Farcaster before we submit the entry (planned for
+  2026-10-23),
+- it fills in the template above, and
+- it lists the message hashes of the writes you made, which we check on our
+  node. A run that failed before any write counts if it says where it failed.
+
+If you vouch, please say in the cast that you are paid this way.
