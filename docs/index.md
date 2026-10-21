@@ -106,7 +106,7 @@ A read node does not decide what goes on the network; validators do. When you po
 - Linux, Intel Macs, and rented servers; the [renting](node.md#renting-a-server-instead) advice is untested.
 - A node on a real remote server, reached [through SSH](client.md#where-to-run-selfcast); a write or `key add` through a tunnel. The tunnel was tried only against a stand-in server on the same machine.
 - A write or `key add` through your own node. So far they have gone through Farcaster's public node `crackle`, while the test node was still catching up.
-- Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text. Also replies, embeds and `resend`.
+- Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text. Also embeds and `resend`.
 - Installing the [agent skill](agent.md), and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a reboot or logout with the node running; whether Docker starts again at login.
 

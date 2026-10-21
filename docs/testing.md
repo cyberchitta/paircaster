@@ -56,7 +56,7 @@ You can also run the whole thing through an AI agent with the Selfcast skill ([Y
 
 ## Report
 
-Open an [issue on the Selfcast repo](https://github.com/cyberchitta/selfcast/issues/new) with this form in it, filled in where it applies, and your logs below it. Then reply to Selfcast's tester call on Farcaster with a cast linking the issue. If you report Part 1 while you wait for Part 2, add Part 2 to the same issue as a comment.
+Open an [issue on the Selfcast repo](https://github.com/cyberchitta/selfcast/issues/new) with this form in it, filled in where it applies, and your logs below it. Then reply to [Selfcast's tester call](https://farcaster.xyz/selfcast/0x6734c1e8) on Farcaster with a cast linking the issue, from any Farcaster app, or with `selfcast cast "<text>" --reply-to 3356360:0x6734c1e81150dc1dea7f5546a61e48014a9bafb3`. If you report Part 1 while you wait for Part 2, add Part 2 to the same issue as a comment.
 
 ```text
 Tester (Farcaster account):
@@ -76,6 +76,8 @@ The worst problem:
 Screenshots are welcome. Check that none shows a recovery phrase, a key, a token or your full config before you post it.
 
 ## Payment
+
+These terms are also in the [tester call](https://farcaster.xyz/selfcast/0x6734c1e8), and we follow them as written there.
 
 Testers are paid only if Selfcast wins part of the bounty, and only out of what it wins. We split what we receive (the bounty pays in USDC) into equal shares: one for each tester whose report counts, four for cyberchitta. There is no cap on the number of testers. When a share is due, we ask in your issue for an address to send it to. Server costs are yours.
 
