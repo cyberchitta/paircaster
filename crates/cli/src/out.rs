@@ -2,6 +2,9 @@
 //! is not a failure: the command has done its work, so it stops quietly
 //! with exit 0 rather than panicking as `println!` does. That matters most
 //! after a write, which an agent seeing a crash might send again.
+//! Restoring SIGPIPE's default instead would need `unsafe`, which the
+//! workspace forbids, and would let a closed socket kill the process
+//! mid-write.
 
 use std::fmt::Display;
 use std::io::{ErrorKind, Write};
