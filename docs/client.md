@@ -188,7 +188,16 @@ Because your node checks a write against what it holds, it has to be synced far 
 Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the node shows them only once it catches up (see `selfcast node status`)
 ```
 
-A write sent this way reaches the network even though your node does not show it yet. Do not send it again: `resend` sends the same message, and a new write would be a second one. A node that catches up faster would fix this; that is Snapchain's to change ([Why sync is slow](node.md#why-sync-is-slow)).
+A write sent this way reaches the network even though your node does not show it yet. Do not send it again: `resend` sends the same message, and a new write would be a second one. To clear it without waiting, resend it through a node that has caught up, such as Farcaster's public one; it checks there instead:
+
+```run
+selfcast resend --node https://crackle.farcaster.xyz:3381
+```
+
+```output
+Resending 0x3820fb679133cd50df09d95beb8a5fbe2553069d as FID 3356360: cast "This cast went out through my own Snapchain node, signed by an app key I added with a gasless KEY_ADD message. No API key, no hosted service, no one else's server.\n\nSelfcast: run your own Farcaster read node, plus a CLI and an agent skill that use it."
+Resent 1 message(s); the node shows each.
+``` A node that catches up faster would fix this; that is Snapchain's to change ([Why sync is slow](node.md#why-sync-is-slow)).
 
 An account needs *storage* to post: units rented on-chain, which the node records. Snapchain refuses messages from an account with none, and when an account is over what its storage allows, it removes that account's oldest messages of that kind (Snapchain 0.14.3 source, `src/mempool/` and `src/storage/store/engine.rs`).
 

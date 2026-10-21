@@ -225,8 +225,9 @@ sent a cast, a like, an unlike, a delete, a follow and an unfollow through
 `crackle`, each run by an agent as described below, and each read back from
 `crackle` afterwards. One cast has since gone through the user's own node
 while it was hours behind on the account's shard: it reached the network,
-but the node did not show it, so it stayed in the outbox. `resend` has not
-been run.
+but the node did not show it, so it stayed in the outbox.
+`resend --node https://crackle.farcaster.xyz:3381` then cleared it: same
+message, no second cast.
 
 ### Read-only until the user enables writes
 
@@ -316,7 +317,10 @@ Errors you will see, and what to do:
   which holds FID …'s messages, is … behind the network` says `resend`
   cannot succeed until that shard catches up (`node status`). The time is
   the shard's lag, not how long catching up takes. Tell the user, and
-  offer to wait rather than retry.
+  offer to wait, or to run `resend --node
+  https://crackle.farcaster.xyz:3381`, which sends the same message to
+  Farcaster's public node and checks there. Run that only if the user
+  chooses it.
 - `sent, but the node did not show it within a minute …`: run `resend`
   later to check and send it again. Do not write the same thing again:
   that would be a second message. The same `Shard … is … behind the

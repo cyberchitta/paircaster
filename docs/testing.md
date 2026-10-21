@@ -40,7 +40,7 @@ Check each of these and note the result. The run comes in two parts, so you can 
 
 Each write prints its hash when it is sent (`Sent and seen on the node: cast 0x…`); copy these into your report.
 
-A node still catching up may refuse your writes: it accepts them only from accounts it has seen. If yours refuses them, add `--node https://crackle.farcaster.xyz:3381` to `key add` and each write, so they go through Farcaster's public node, as the guide's own examples did ([Writing](client.md#writing:-casts,-reactions,-follows)). Say so in your report; such writes count the same, so a report can count even if your own node is not in sync by the cutoff.
+A node still catching up may refuse your writes: it accepts them only from accounts it has seen. If yours refuses them, add `--node https://crackle.farcaster.xyz:3381` to `key add` and each write, so they go through Farcaster's public node, as the guide's own examples did ([Writing](client.md#writing:-casts,-reactions,-follows)). Say so in your report; such writes count the same, so a report can count even if your own node is not in sync by the cutoff. If a write waits on your node instead (`not seen sent`), `selfcast resend --node https://crackle.farcaster.xyz:3381` clears it without a second message ([Writing](client.md#writing:-casts,-reactions,-follows)).
 
 ## If you vouch
 
