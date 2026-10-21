@@ -209,11 +209,11 @@ following thousands is slow. For a short named list, use `casts`.
 
 ## Writes
 
-**Not yet run.** No write in this section has been sent to a node from a
-real account yet. What follows is how the CLI is built to behave, from its
-source and its unit tests. The messages it builds have been checked with a
-node's `validateMessage`; sending one and reading it back has not been
-done.
+**Run once, on Farcaster's public node.** On 2026-10-21 a test account
+sent a cast, a like, an unlike, a delete, a follow and an unfollow through
+`crackle`, each run by an agent as described below, and each read back from
+`crackle` afterwards. None has yet been sent through the user's own node,
+and `resend` has not been run.
 
 ### Read-only until the user enables writes
 
