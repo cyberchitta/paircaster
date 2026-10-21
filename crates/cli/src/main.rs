@@ -3,6 +3,7 @@ mod control;
 mod invocation;
 mod key_add;
 mod keystore;
+mod out;
 mod outbox;
 mod reads;
 mod snapshot;
@@ -159,5 +160,5 @@ fn print(value: &serde_json::Value, json: bool) {
     } else {
         serde_json::to_string_pretty(value).expect("a Value always serialises")
     };
-    println!("{out}");
+    crate::out::line(format_args!("{out}"));
 }

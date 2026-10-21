@@ -74,14 +74,14 @@ pub async fn pause(args: PauseArgs) -> Result<(), CliError> {
         return Err(ControlError::Unpacking.into());
     }
     let Some(pid) = snapshot::holder(&dir)? else {
-        println!("No download is running.");
+        crate::out::line(format_args!("No download is running."));
         return Ok(());
     };
     let target = Pid::from_raw(pid as i32).ok_or(ControlError::DidNotStop(pid))?;
     kill_process(target, Signal::INT).map_err(|e| ControlError::Signal(pid, e.into()))?;
     for _ in 0..WAIT_TRIES {
         if snapshot::holder(&dir)?.is_none() {
-            println!("Paused. {}", progress(&dir)?);
+            crate::out::line(format_args!("Paused. {}", progress(&dir)?));
             return Ok(());
         }
         tokio::time::sleep(WAIT_EVERY).await;
@@ -92,24 +92,26 @@ pub async fn pause(args: PauseArgs) -> Result<(), CliError> {
 pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
     let dir = snapshot::install_dir(args.dir)?;
     if let Some(pid) = snapshot::holder(&dir)? {
-        println!("Already running (process {pid}).");
+        crate::out::line(format_args!("Already running (process {pid})."));
         return Ok(());
     }
     if let Observed::Database = snapshot::observe(&dir)? {
-        println!("The snapshot is already unpacked; nothing to resume.");
+        crate::out::line(format_args!(
+            "The snapshot is already unpacked; nothing to resume."
+        ));
         return Ok(());
     }
     let log = dir.join(LOG);
     let mut child = spawn(&dir, args.jobs, &log)?;
     for _ in 0..WAIT_TRIES {
         if let Some(pid) = snapshot::holder(&dir)? {
-            println!(
+            crate::out::line(format_args!(
                 "Resumed (process {pid}). {}\nLog: {}\nCheck: {}\nPause: {}",
                 progress(&dir)?,
                 log.display(),
                 invocation::node("status", &dir),
                 invocation::node("pause", &dir),
-            );
+            ));
             return Ok(());
         }
         if child.try_wait().map_err(io_err(&log))?.is_some() {

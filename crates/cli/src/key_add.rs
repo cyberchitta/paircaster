@@ -360,7 +360,7 @@ fn report(outcome: &Outcome, json: bool) {
             )
         }
     };
-    println!("{out}");
+    crate::out::line(format_args!("{out}"));
 }
 
 #[cfg(test)]

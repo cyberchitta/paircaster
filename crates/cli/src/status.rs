@@ -145,7 +145,7 @@ pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), Cli
             }
         }
     };
-    println!("{out}");
+    crate::out::line(format_args!("{out}"));
     Ok(())
 }
 

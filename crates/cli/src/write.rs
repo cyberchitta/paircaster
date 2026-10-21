@@ -309,7 +309,12 @@ async fn prepare(
     let signed = sign(&loaded.key, &envelope, action).map_err(WriteError::from)?;
     let data = decode(&signed)?;
     let what = what(&data)?;
-    let shown = confirmation(&data, &what, &signed, username(node, loaded.fid).await?);
+    let sender = username(node, loaded.fid).await?;
+    let subject = match subject(&what) {
+        Some(fid) => Some((fid, username(node, fid).await?)),
+        None => None,
+    };
+    let shown = confirmation(&data, &what, &signed, sender, subject);
     Ok((signed, data, what, shown))
 }
 
@@ -331,16 +336,19 @@ pub async fn resend(node: &Node, json: bool) -> Result<(), CliError> {
         sent.push(entry(Status::Sent, &what, data.fid, signed.hash()));
     }
     match json {
-        true => println!(
+        true => crate::out::line(format_args!(
             "{}",
             serde_json::to_string(&ResendV1 {
                 version: 1,
                 messages: sent,
             })
             .expect("a report always serialises")
-        ),
-        false if sent.is_empty() => println!("Nothing to resend."),
-        false => println!("Resent {} message(s); the node shows each.", sent.len()),
+        )),
+        false if sent.is_empty() => crate::out::line(format_args!("Nothing to resend.")),
+        false => crate::out::line(format_args!(
+            "Resent {} message(s); the node shows each.",
+            sent.len()
+        )),
     }
     Ok(())
 }
@@ -448,16 +456,33 @@ fn cast_ref(fid: u64, hash: &[u8]) -> Result<CastRef, WriteError> {
     Ok(CastRef { fid, hash })
 }
 
-/// What the user is asked to approve, from the decoded message.
+/// The account a write acts on besides the sender's: the one followed, or
+/// the author of the cast reacted to.
+fn subject(what: &What) -> Option<u64> {
+    match what {
+        What::Follow { account, .. } => Some(*account),
+        What::React { cast, .. } => Some(cast.fid),
+        _ => None,
+    }
+}
+
+/// What the user is asked to approve, from the decoded message. Usernames
+/// are the node's, looked up for the FIDs the message carries; the subject's
+/// is on a line of its own, so the action itself reads only from the message.
 fn confirmation(
     data: &MessageData,
     what: &What,
     signed: &SignedMessage,
-    username: Option<String>,
+    sender: Option<String>,
+    subject: Option<(u64, Option<String>)>,
 ) -> String {
-    let who = username.map_or(String::new(), |u| format!("@{u} "));
+    let who = sender.map_or(String::new(), |u| format!("@{} ", visible(&u)));
+    let named = subject.map_or(String::new(), |(fid, name)| match name {
+        Some(u) => format!("\n  FID {fid} is @{} on this node.", visible(&u)),
+        None => format!("\n  FID {fid} has no username on this node."),
+    });
     format!(
-        "\nSend as {who}(FID {fid}), signed by app key {key}, dated {when}:\n\n{body}\n",
+        "\nSend as {who}(FID {fid}), signed by app key {key}, dated {when}:\n\n{body}{named}\n",
         fid = data.fid,
         key = signed.signer(),
         when = Timestamp::from_farcaster(data.timestamp),
@@ -643,7 +668,7 @@ fn report(status: Status, what: &What, fid: u64, hash: MessageHash, json: bool) 
             Status::Invalid => format!("Dry run: the node would reject {hash}. Nothing was sent."),
         },
     };
-    println!("{out}");
+    crate::out::line(format_args!("{out}"));
 }
 
 #[cfg(test)]
@@ -653,7 +678,9 @@ mod tests {
     use selfcast_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
     use selfcast_core::time::Timestamp;
 
-    use super::{What, cast_text, confirmation, decode, embed_arg, kind_name, shows, what};
+    use super::{
+        What, cast_text, confirmation, decode, embed_arg, kind_name, shows, subject, what,
+    };
 
     fn hash(byte: u8) -> MessageHash {
         MessageHash::from_bytes(&[byte; 20]).expect("20 bytes")
@@ -756,6 +783,7 @@ mod tests {
             &what(&data).expect("known"),
             &signed,
             Some("alice".into()),
+            None,
         );
         for part in [
             "@alice (FID 7)",
@@ -771,9 +799,26 @@ mod tests {
     }
 
     #[test]
+    fn the_confirmation_names_the_account_acted_on_on_a_line_of_its_own() {
+        let (signed, data) = signed(&Action::FollowAdd(37));
+        let known = what(&data).expect("known");
+        assert_eq!(subject(&known), Some(37));
+        let shown = confirmation(&data, &known, &signed, None, Some((37, Some("bal".into()))));
+        assert!(
+            shown.contains("  Follow FID 37\n  FID 37 is @bal on this node."),
+            "{shown}"
+        );
+        let unnamed = confirmation(&data, &known, &signed, None, Some((37, None)));
+        assert!(
+            unnamed.contains("FID 37 has no username on this node."),
+            "{unnamed}"
+        );
+    }
+
+    #[test]
     fn control_characters_in_the_text_are_shown_escaped() {
         let (signed, data) = signed(&cast("ok\u{1b}[2K\rhidden"));
-        let shown = confirmation(&data, &what(&data).expect("known"), &signed, None);
+        let shown = confirmation(&data, &what(&data).expect("known"), &signed, None, None);
         assert!(
             !shown.contains('\u{1b}') && !shown.contains('\r'),
             "{shown:?}"

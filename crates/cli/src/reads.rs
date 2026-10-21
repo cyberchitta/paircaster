@@ -196,7 +196,7 @@ pub async fn profile(node: &Node, fid: u64, all_followers: bool, json: bool) -> 
     let followers = node.follower_count(fid, cap).await?;
     let profile = Profile::assemble(fid, &user_data, following, followers);
     if json {
-        println!("{}", to_json(&profile_v1(&profile)));
+        crate::out::line(format_args!("{}", to_json(&profile_v1(&profile))));
     } else {
         print_profile(&profile);
     }
@@ -207,7 +207,7 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
     let follows = node.all_follows_by_fid(args.fid).await?;
     let items = newest_casts(node, follows, &args.filter).await?;
     if json {
-        println!("{}", to_json(&feed_v1(args.fid, &items)));
+        crate::out::line(format_args!("{}", to_json(&feed_v1(args.fid, &items))));
     } else {
         items.iter().for_each(print_item);
     }
@@ -217,7 +217,7 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
 pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Error> {
     let items = newest_casts(node, args.fids.clone(), &args.filter).await?;
     if json {
-        println!("{}", to_json(&casts_v1(&args.fids, &items)));
+        crate::out::line(format_args!("{}", to_json(&casts_v1(&args.fids, &items))));
     } else {
         items.iter().for_each(print_item);
     }
@@ -352,7 +352,7 @@ fn to_json(value: &impl Serialize) -> String {
 
 fn print_profile(p: &Profile) {
     let name = p.username.as_deref().unwrap_or("(no username)");
-    println!("{name}  fid {}", p.fid);
+    crate::out::line(format_args!("{name}  fid {}", p.fid));
     let fields = [
         ("name", &p.display_name),
         ("bio", &p.bio),
@@ -364,9 +364,9 @@ fn print_profile(p: &Profile) {
     fields
         .iter()
         .filter_map(|(label, value)| value.as_deref().map(|v| (label, v)))
-        .for_each(|(label, v)| println!("  {label}: {v}"));
-    println!("  following: {}", p.following);
-    println!("  followers: {}", followers_line(p.followers));
+        .for_each(|(label, v)| crate::out::line(format_args!("  {label}: {v}")));
+    crate::out::line(format_args!("  following: {}", p.following));
+    crate::out::line(format_args!("  followers: {}", followers_line(p.followers)));
 }
 
 fn followers_line(f: Followers) -> String {
@@ -383,9 +383,14 @@ fn print_item(item: &FeedItem) {
     let app = item
         .app_fid
         .map_or_else(|| "unknown app".to_owned(), |f| format!("app {f}"));
-    println!("{}  fid {}  {}  {app}", c.timestamp, c.id.fid, c.id.hash);
-    c.text.lines().for_each(|l| println!("  {l}"));
-    println!();
+    crate::out::line(format_args!(
+        "{}  fid {}  {}  {app}",
+        c.timestamp, c.id.fid, c.id.hash
+    ));
+    c.text
+        .lines()
+        .for_each(|l| crate::out::line(format_args!("  {l}")));
+    crate::out::line("");
 }
 
 #[cfg(test)]
