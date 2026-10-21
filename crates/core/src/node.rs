@@ -201,6 +201,17 @@ impl Node {
         parse::user_nonce(self.get("v1/signersByFid", &[fid_param(fid)]).await?)
     }
 
+    /// `GET /v1/onChainEventsByFid` for `EVENT_TYPE_ID_REGISTER`: whether
+    /// the node has seen the account registered. A node still syncing may
+    /// not have.
+    pub async fn is_registered(&self, fid: u64) -> Result<bool, Error> {
+        let query = [
+            fid_param(fid),
+            ("event_type", "EVENT_TYPE_ID_REGISTER".to_string()),
+        ];
+        parse::has_id_register(self.get("v1/onChainEventsByFid", &query).await?)
+    }
+
     /// `GET /v1/onChainIdRegistryEventByAddress`: the account whose custody
     /// address is `address`, or `None` if it has none.
     pub async fn fid_of_custody(&self, address: &EthAddress) -> Result<Option<u64>, Error> {

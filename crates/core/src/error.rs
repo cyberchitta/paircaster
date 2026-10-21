@@ -17,6 +17,8 @@ pub enum Error {
     },
     #[error("node returned HTTP {status} with an unrecognised body: {body}")]
     UnexpectedResponse { status: u16, body: String },
+    #[error("FID {0} is not registered on this node; a node still syncing may not have it yet")]
+    NotRegistered(u64),
 }
 
 /// The JSON error body Snapchain returns for failed lookups. Query-parsing

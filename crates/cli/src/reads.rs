@@ -183,6 +183,9 @@ enum TargetV1<'a> {
 }
 
 pub async fn profile(node: &Node, fid: u64, json: bool) -> Result<(), Error> {
+    if !node.is_registered(fid).await? {
+        return Err(Error::NotRegistered(fid));
+    }
     let user_data = node.user_data_by_fid(fid).await?;
     let following = node.all_follows_by_fid(fid).await?.len();
     let followers = node.follower_count(fid).await?;

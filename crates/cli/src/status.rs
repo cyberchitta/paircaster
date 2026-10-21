@@ -1,8 +1,8 @@
 //! `selfcast node status`: which phase the node is in (downloading the
 //! snapshot, unpacking it, stopped, syncing, ready) and how far along.
 //!
-//! The node is asked first; only when nothing answers is the snapshot
-//! download read from disk.
+//! The node is asked first; only when nothing answers, and the node is on
+//! this machine, is the snapshot download read from disk.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -54,8 +54,8 @@ pub struct StatusArgs {
 /// before anything is written. `ready` has the same fields as `syncing`.
 ///
 /// Every phase also carries `disk`, the filesystem holding the Snapchain
-/// install directory, or `null` when that directory does not exist (as for
-/// a remote node): `"disk": { "free_bytes": 3400000000000,
+/// install directory, or `null` when that directory does not exist or the
+/// node is not on this machine: `"disk": { "free_bytes": 3400000000000,
 /// "total_bytes": 3600000000000, "low": false }`. `low` is under 15% free.
 #[derive(Debug, Serialize)]
 struct StatusV1 {
@@ -112,20 +112,24 @@ struct ShardV1 {
 
 pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), CliError> {
     let dir = snapshot::install_dir(args.dir)?;
+    let local = is_local(node_url);
     let phase = match Node::new(node_url)?.sync_state().await {
         Ok(state) => synced(state),
-        Err(selfcast_core::Error::Transport(_)) => on_disk(
+        Err(selfcast_core::Error::Transport(_)) if local => on_disk(
             snapshot::observe(&dir)?,
             snapshot::holder(&dir)?.is_some(),
             SystemTime::now(),
         ),
         Err(e) => return Err(e.into()),
     };
-    let disk = snapshot::disk(&dir)?.map(|d| DiskV1 {
-        free_bytes: d.free,
-        total_bytes: d.total,
-        low: is_low(d.free, d.total),
-    });
+    let disk = match local {
+        true => snapshot::disk(&dir)?.map(|d| DiskV1 {
+            free_bytes: d.free,
+            total_bytes: d.total,
+            low: is_low(d.free, d.total),
+        }),
+        false => None,
+    };
     let out = match json {
         true => serde_json::to_string(&StatusV1 {
             version: 1,
@@ -133,14 +137,23 @@ pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), Cli
             disk,
         })
         .expect("a status always serialises"),
-        false => [
-            describe(&phase, node_url, &dir),
-            disk_line(disk.as_ref(), &dir),
-        ]
-        .join("\n"),
+        false => {
+            let head = describe(&phase, node_url, &dir);
+            match local {
+                true => format!("{head}\n{}", disk_line(disk.as_ref(), &dir)),
+                false => head,
+            }
+        }
     };
     println!("{out}");
     Ok(())
+}
+
+/// Whether `node_url` names this machine, so that the snapshot download and
+/// the disk read here are the node's own.
+fn is_local(node_url: &str) -> bool {
+    reqwest::Url::parse(node_url)
+        .is_ok_and(|u| matches!(u.host_str(), Some("localhost" | "127.0.0.1" | "[::1]")))
 }
 
 /// Under this share of the disk free, the node's growing database is at risk.
@@ -374,7 +387,8 @@ mod tests {
     use selfcast_core::node::{ShardSync, SyncState};
 
     use super::{
-        Chunk, Observed, Phase, bytes_per_second, duration, eta_seconds, is_low, on_disk, synced,
+        Chunk, Observed, Phase, bytes_per_second, duration, eta_seconds, is_local, is_low, on_disk,
+        synced,
     };
 
     const MB: u64 = 1_000_000;
@@ -463,5 +477,23 @@ mod tests {
         assert_eq!(duration(240), "4m");
         assert_eq!(duration(3 * 3600 + 12 * 60 + 5), "3h12m");
         assert_eq!(duration(3600 + 5 * 60), "1h05m");
+    }
+
+    #[test]
+    fn only_loopback_nodes_are_local() {
+        [
+            "http://localhost:3381",
+            "http://127.0.0.1:3381",
+            "http://[::1]:3381",
+        ]
+        .iter()
+        .for_each(|u| assert!(is_local(u), "{u}"));
+        [
+            "https://crackle.farcaster.xyz:3381",
+            "http://192.168.1.5:3381",
+            "not a url",
+        ]
+        .iter()
+        .for_each(|u| assert!(!is_local(u), "{u}"));
     }
 }

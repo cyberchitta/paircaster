@@ -191,6 +191,18 @@ pub fn id_register(event: Value, address: &EthAddress) -> Result<u64, Error> {
     }
 }
 
+/// An `onChainEventsByFid` reply for `EVENT_TYPE_ID_REGISTER`, as whether
+/// it holds the account's registration. A node that has not seen the
+/// account answers with an empty `events` (observed on our node while it
+/// synced, 2026-10-21).
+pub fn has_id_register(page: Value) -> Result<bool, Error> {
+    #[derive(Deserialize)]
+    struct Raw {
+        events: Vec<Value>,
+    }
+    from_value::<Raw>(page).map(|r| !r.events.is_empty())
+}
+
 /// Whether `e` is the node's "no such record" reply: HTTP 400 with a gRPC
 /// `NotFound` status inside `error_detail` (observed on `crackle`,
 /// 2026-10-19, for `onChainIdRegistryEventByAddress`).

@@ -359,3 +359,12 @@ fn sync_state_without_block_delay_is_an_error() {
     });
     assert!(parse::sync_state(info).is_err());
 }
+
+#[test]
+fn an_empty_id_register_page_means_the_node_has_not_seen_the_account() {
+    let seen = serde_json::json!({ "events": [{ "type": "EVENT_TYPE_ID_REGISTER", "fid": 3 }] });
+    let unseen = serde_json::json!({ "events": [] });
+    assert!(parse::has_id_register(seen).expect("parses"));
+    assert!(!parse::has_id_register(unseen).expect("parses"));
+    assert!(parse::has_id_register(serde_json::json!({})).is_err());
+}

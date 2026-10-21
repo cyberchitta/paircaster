@@ -45,7 +45,8 @@ asked you to keep an eye on it.
 
 `status` asks the node first and reads the download from disk only when no
 node answers. If `--node` or `SELFCAST_NODE` points at another machine's
-node, `status` reports that node, not a download on this machine.
+node, `status` reports that node, not a download or disk on this machine;
+if that node does not answer, it is an error.
 
 `phase` says which fields are present. Every phase also has `disk`.
 Where the table says *offer*, suggest the command; run it only if the user
@@ -62,7 +63,7 @@ asked for that outcome ("resume it", "fix it").
 
 `disk` is `{ "free_bytes", "total_bytes", "low" }` for the filesystem
 holding the install directory, or `null` if that directory does not exist
-here. When `low` is `true` (under 15% free), tell the user: the snapshot
+here or the node is on another machine. When `low` is `true` (under 15% free), tell the user: the snapshot
 still to come and the node's growing database both need room.
 
 Example, mid-download:
@@ -141,7 +142,10 @@ read from: report the phase instead.
 {"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":630231}
 ```
 
-(Image URLs shortened here.) Each text field is `null` when not set.
+(Image URLs shortened here.) Each text field is `null` when not set. An
+FID the node has no registration for is an error (`is not registered on
+this node`), exit 1: either no such account, or one newer than what a
+syncing node has caught up to. Check `node status` before saying which.
 `following` and `followers` are counts as the node holds them. The follower
 count reads every follower, so a large account is slow: for fid 3, with
 630,231 followers, it took 5 to 7 seconds, and 36 seconds on a first,
