@@ -2,7 +2,7 @@ mod common;
 
 use common::fixture_messages;
 use prost::Message as _;
-use selfcast_core::build::{Action, AppKey, BuildError, Envelope, NewCast, sign};
+use selfcast_core::build::{Action, AppKey, BuildError, Envelope, NewCast, cast_type_for, sign};
 use selfcast_core::cast::{CastRef, Mention, MessageHash, Target};
 use selfcast_core::message::{VerifyError, hash_data, verify};
 use selfcast_core::node::parse;
@@ -231,4 +231,15 @@ fn the_encoder_rebuilds_every_fixture_cast_exactly() {
         .collect();
     assert_eq!(rebuilt, 49);
     assert!(mismatches.is_empty(), "not rebuilt exactly: {mismatches:?}");
+}
+
+#[test]
+fn cast_type_follows_the_text_length_in_bytes() {
+    assert_eq!(cast_type_for(""), Some(CastType::Cast));
+    assert_eq!(cast_type_for(&"a".repeat(320)), Some(CastType::Cast));
+    assert_eq!(cast_type_for(&"a".repeat(321)), Some(CastType::LongCast));
+    assert_eq!(cast_type_for(&"a".repeat(1024)), Some(CastType::LongCast));
+    assert_eq!(cast_type_for(&"a".repeat(1025)), None);
+    // 161 characters, 322 bytes.
+    assert_eq!(cast_type_for(&"é".repeat(161)), Some(CastType::LongCast));
 }

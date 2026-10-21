@@ -16,7 +16,10 @@ use std::time::Duration;
 
 use prost::Message as _;
 use selfcast_core::Node;
-use selfcast_core::build::{Action, BuildError, Envelope, NewCast, SignedMessage, sign};
+use selfcast_core::build::{
+    Action, BuildError, CAST_MAX_BYTES, Envelope, LONG_CAST_MAX_BYTES, NewCast, SignedMessage,
+    cast_type_for, sign,
+};
 use selfcast_core::cast::{CastRef, MessageHash, ParseRefError, Target};
 use selfcast_core::profile::Profile;
 use selfcast_core::proto::{
@@ -56,8 +59,9 @@ pub struct WriteFlags {
 #[derive(Debug, clap::Args)]
 pub struct CastArgs {
     /// The text, exactly as it will be posted. `@name` is not turned into a
-    /// mention.
-    text: String,
+    /// mention. Over 320 bytes it is sent as a long cast, up to 1024.
+    #[arg(value_parser = cast_text)]
+    text: CastText,
     /// The cast this replies to, as FID:HASH.
     #[arg(long, value_name = "FID:HASH")]
     reply_to: Option<CastRef>,
@@ -196,11 +200,11 @@ enum What {
 impl CastArgs {
     pub fn into_parts(self) -> (Action, WriteFlags) {
         let cast = NewCast {
-            text: self.text,
+            text: self.text.text,
             mentions: Vec::new(),
             embeds: self.embeds,
             parent: self.reply_to.map(Target::Cast),
-            kind: CastType::Cast,
+            kind: self.text.kind,
         };
         (Action::CastAdd(cast), self.flags)
     }
@@ -235,6 +239,27 @@ impl FollowArgs {
         };
         (action, self.flags)
     }
+}
+
+/// Cast text within a node's limits, with the cast type its length needs.
+#[derive(Debug, Clone)]
+struct CastText {
+    text: String,
+    kind: CastType,
+}
+
+fn cast_text(s: &str) -> Result<CastText, String> {
+    cast_type_for(s)
+        .map(|kind| CastText {
+            text: s.to_owned(),
+            kind,
+        })
+        .ok_or_else(|| {
+            format!(
+                "{} bytes; a cast holds at most {LONG_CAST_MAX_BYTES} (over {CAST_MAX_BYTES} is sent as a long cast)",
+                s.len()
+            )
+        })
 }
 
 fn embed_arg(s: &str) -> Result<Target, ParseRefError> {
@@ -622,7 +647,7 @@ mod tests {
     use selfcast_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
     use selfcast_core::time::Timestamp;
 
-    use super::{What, confirmation, decode, embed_arg, kind_name, shows, what};
+    use super::{What, cast_text, confirmation, decode, embed_arg, kind_name, shows, what};
 
     fn hash(byte: u8) -> MessageHash {
         MessageHash::from_bytes(&[byte; 20]).expect("20 bytes")
@@ -773,5 +798,14 @@ mod tests {
             Ok(Target::Cast(CastRef { fid: 9, .. }))
         ));
         assert!(embed_arg("example.com").is_err());
+    }
+
+    #[test]
+    fn cast_text_sends_long_text_as_a_long_cast_and_refuses_past_1024_bytes() {
+        let long = cast_text(&"a".repeat(619)).expect("fits a long cast");
+        assert_eq!(long.kind, CastType::LongCast);
+        assert_eq!(cast_text("gm").expect("fits").kind, CastType::Cast);
+        let err = cast_text(&"a".repeat(1025)).expect_err("too long");
+        assert!(err.starts_with("1025 bytes"), "{err}");
     }
 }

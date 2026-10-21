@@ -265,7 +265,7 @@ for several accounts are saved. `cast` also takes `--reply-to` and
 
 | Command | Does |
 |---|---|
-| `cast <text>` | Posts `<text>` exactly as given. `--reply-to <FID:HASH>` makes it a reply. `--embed <URL or FID:HASH>` adds a link or quotes a cast (repeatable). `@name` is **not** turned into a mention. |
+| `cast <text>` | Posts `<text>` exactly as given. `--reply-to <FID:HASH>` makes it a reply. `--embed <URL or FID:HASH>` adds a link or quotes a cast (repeatable). `@name` is **not** turned into a mention. Up to 1024 bytes of UTF-8 (not characters); over 320 it goes as a long cast, and past 1024 it is refused before anything is signed. |
 | `delete <hash>` | Deletes one of the account's own casts. |
 | `react like\|recast <FID:HASH>` | Likes or recasts a cast. |
 | `unreact like\|recast <FID:HASH>` | Undoes a like or a recast. |

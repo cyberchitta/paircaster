@@ -56,6 +56,31 @@ pub struct NewCast {
     pub kind: CastType,
 }
 
+/// The most bytes of text a standard cast, and a long cast, may carry
+/// (snapchain `src/core/validations/cast.rs`, `4e547eb`). Longer casts need
+/// Farcaster Pro, which Selfcast does not support.
+pub const CAST_MAX_BYTES: usize = 320;
+pub const LONG_CAST_MAX_BYTES: usize = 1024;
+
+/// The cast type a node accepts for `text`: a standard cast up to 320
+/// bytes, a long cast from 321 to 1024 (a node refuses a long cast of 320
+/// or fewer). `None` past 1024.
+///
+/// ```
+/// use selfcast_core::build::cast_type_for;
+/// use selfcast_core::proto::CastType;
+/// assert_eq!(cast_type_for(&"a".repeat(320)), Some(CastType::Cast));
+/// assert_eq!(cast_type_for(&"a".repeat(321)), Some(CastType::LongCast));
+/// assert_eq!(cast_type_for(&"a".repeat(1025)), None);
+/// ```
+pub fn cast_type_for(text: &str) -> Option<CastType> {
+    match text.len() {
+        0..=CAST_MAX_BYTES => Some(CastType::Cast),
+        n if n <= LONG_CAST_MAX_BYTES => Some(CastType::LongCast),
+        _ => None,
+    }
+}
+
 /// What a message does.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
