@@ -13,12 +13,12 @@ const sgEleventy = path.join(
 const includesDir = path.join(__dirname, '_includes');
 const site = JSON.parse(fs.readFileSync(path.join(__dirname, '_data', 'site.json'), 'utf8'));
 
-// Boxes the page uses to say what was not run and what Selfcast cannot do.
-// Authored as <not-run>, <limit> and <note>, each with a markdown body.
+// Boxes for a warning, what Selfcast cannot do, and a note.
+// Authored as <warning>, <limit> and <note>, each with a markdown body.
 // All three share the neutral alert: alert-warning's yellow leaves inline
 // code unreadable, so the label carries the meaning.
 const CALLOUTS = {
-  'not-run': { label: 'Not yet run' },
+  warning: { label: 'Warning' },
   limit: { label: 'Limit' },
   note: { label: '' },
 };

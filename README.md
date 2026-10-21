@@ -12,7 +12,7 @@ by hand.
 Styling comes from Supramental Gold, pinned in `package.json`; its CSS is
 fetched from jsDelivr at the pinned tag.
 
-Pages use three boxes, `<not-run>`, `<limit>` and `<note>`, each with a
+Pages use three boxes, `<warning>`, `<limit>` and `<note>`, each with a
 markdown body, and three labelled code fences: ` ```run `, ` ```output `
 and ` ```file <path> `.
 
