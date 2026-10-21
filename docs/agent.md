@@ -4,7 +4,14 @@ title: Giving your AI agent Farcaster
 
 The repository's `skill/` directory is an agent skill: instructions an AI agent loads before it runs `selfcast`. It calls the same commands as you do, with `--json`.
 
-In Claude Code a skill is a directory under `~/.claude/skills/`: copy `skill/` there as `~/.claude/skills/selfcast`. The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) were sent by an agent following the skill's write steps.
+It comes with the repository. Start Claude Code in the clone from the [quickstart](index.md#quickstart)'s first step:
+
+```run
+cd selfcast
+claude
+```
+
+It loads the skill from `.claude/skills/selfcast`, a link to `skill/`, with nothing to copy. Asked “How far behind is my Farcaster node?”, it loads the skill on its own and runs `selfcast node status --json`. The skill calls `selfcast` by name, so the `cargo install` from that step has to have put it on your `PATH`. Another agent can be pointed at `skill/SKILL.md`. On Windows, git checks the link out as a plain file unless symlinks are enabled (`core.symlinks`), and then the skill does not load. The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) were sent by an agent following the skill's write steps.
 
 What the skill tells the agent:
 
