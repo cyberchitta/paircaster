@@ -15,8 +15,10 @@
 
   <div class="note">
     <p><strong>Draft.</strong> Every command and every output below comes from one macOS machine, run
-    2026-10-18 to 2026-10-20. None of it has been run on a fresh machine yet. Commands that were never run
-    at all are marked <em>Not yet run</em>; that includes every write, which needs a test account.</p>
+    2026-10-18 to 2026-10-21. None of it has been run on a fresh machine yet. The writes and
+    <code>key add</code> went through Farcaster's public node <code>crackle</code>, while this machine's own
+    node was still catching up; none has gone through our own node yet. Commands that were never run at all
+    are marked <em>Not yet run</em>.</p>
     <p>Paths under your home directory are shown as <code>~</code>.</p>
   </div>
 
@@ -425,10 +427,12 @@ are left out.</p>
 
 <h3 id="writes">Writing: casts, reactions, follows</h3>
 <div class="unverified">
-  <p>No write in this section has been sent from a real account yet; it needs a test account. The messages
-  <code>selfcast</code> builds have been checked with a node's <code>validateMessage</code>, which checks
-  format, hash and signature but not whether the key is registered. What follows is how the commands are
-  built, from their source and tests.</p>
+  <p>Run once, on 2026-10-21, from a test account (<code>@selfcast</code>, FID 3356360): a cast, a like, an
+  unlike, a delete, a follow and an unfollow, each read back afterwards. They went through Farcaster's
+  public node <code>crackle</code>, because our own node had not yet synced the new account; none has gone
+  through our own node yet. An AI agent ran each one with <code>--yes</code>, after the person approved
+  the text from a dry run, so the prompt where you type <kbd>yes</kbd> has not been seen for a write.
+  Replies, embeds and <code>resend</code> have not been run.</p>
 </div>
 <table>
   <tr><th>Command</th><th>Message it sends</th></tr>
@@ -443,7 +447,7 @@ are left out.</p>
 Usage: selfcast cast [OPTIONS] &lt;TEXT&gt;
 
 Arguments:
-  &lt;TEXT&gt;  The text, exactly as it will be posted. `@name` is not turned into a mention
+  &lt;TEXT&gt;  The text, exactly as it will be posted. `@name` is not turned into a mention. Over 320 bytes it is sent as a long cast, up to 1024
 
 Options:
       --node &lt;NODE&gt;           Node HTTP API base URL [env: SELFCAST_NODE=] [default: http://localhost:3381]
@@ -454,18 +458,48 @@ Options:
       --yes                   Send without asking at the terminal. For an agent whose harness asks the user before each write command
       --dry-run               Sign, show, and ask the node whether it would accept the message. Nothing is saved or sent
   -h, --help                  Print help</code></pre>
-<p>How a write goes, as built:</p>
+<p>A dry run signs the message and asks the node whether it would accept it. Nothing is sent:</p>
+<pre class="cmd"><code>selfcast follow 1 --node https://crackle.farcaster.xyz:3381 --dry-run</code></pre>
+<pre class="out"><code>Send as @selfcast (FID 3356360), signed by app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e, dated 2026-10-21T06:25:37Z:
+
+  Follow FID 1
+  FID 1 is @farcaster on this node.
+Dry run: the node would accept 0x3a91056f44dbc7de30108f12e4908ee40b729e13. Nothing was sent.</code></pre>
+<p>Everything above the last two lines is written from the signed message. The line naming
+<code>@farcaster</code> is the node's answer for FID 1, so you can see whom you are about to follow. The
+first write, as the agent sent it:</p>
+<pre class="cmd"><code>selfcast cast "This cast will be deleted with selfcast delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json</code></pre>
+<pre class="out"><code>Send as @selfcast (FID 3356360), signed by app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e, dated 2026-10-21T05:58:14Z:
+
+  Cast:
+    | This cast will be deleted with selfcast delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy.
+{"version":1,"status":"sent","kind":"cast","fid":3356360,"hash":"0x879a1298bb749bcebd52c08fb3ff1ab166a42bcc"}</code></pre>
+<p>The rest went the same way. Each hash names a message any node can be asked for:</p>
+<table>
+  <tr><th>Write</th><th>Message hash</th></tr>
+  <tr><td>Cast</td><td><code>0x879a1298bb749bcebd52c08fb3ff1ab166a42bcc</code></td></tr>
+  <tr><td>Like it</td><td><code>0x587ade3ad3134783b293109c41f475617c8482f0</code></td></tr>
+  <tr><td>Undo the like</td><td><code>0xa352092ac2ecb2087ebaf08c936becc6467f8dbc</code></td></tr>
+  <tr><td>Delete it</td><td><code>0xf1f1a93b7ebb7d840572fed96a9baf855edc1ae2</code></td></tr>
+  <tr><td>Follow FID 1</td><td><code>0x42ab0000cf5486129cd3b815cbaa0f9386af0c2e</code></td></tr>
+  <tr><td>Unfollow FID 1</td><td><code>0x1c0d573152f7c4f879633f3af275b70d9b6d9d1b</code></td></tr>
+</table>
+<p>A delete and an undo are messages of their own. After the delete, the node answers
+<code>/v1/castById</code> for the cast with “not found”, and <code>/v1/castsByFid</code> lists only the
+removal. Anyone who read the cast before then still has it.</p>
+<p>How a write goes:</p>
 <ol>
   <li><code>selfcast</code> encodes the message once, hashes and signs those bytes with your app key, and
   sends exactly those bytes. Nothing is re-encoded in between.</li>
   <li>It shows you what it is about to send, written from the signed message itself, starting
   <code>Send as @&lt;username&gt; (FID &lt;fid&gt;), signed by app key &lt;key&gt;, dated &lt;time&gt;:</code>,
-  and asks you to type <kbd>yes</kbd> at the terminal.</li>
+  and asks you to type <kbd>yes</kbd> at the terminal (not yet seen for a write; see above).</li>
   <li>It saves the signed message to an outbox, then submits it to your node
   (<code>POST /v1/submitMessage</code>). Your node checks it against what it holds and passes it on to the
   validators; it does not keep it.</li>
-  <li>It reads the message back from your node. Only then does it report the write as sent. If it does not
-  show up within a minute, <code>selfcast resend</code> sends the saved message again later.</li>
+  <li>It reads the message back from your node. Only then does it report the write as sent; every write
+  above was read back. If it does not show up within a minute, <code>selfcast resend</code> sends the saved
+  message again later (not yet run).</li>
 </ol>
 <p>Because your node checks a write against what it holds, it has to be synced to accept one.</p>
 <p>An account needs <em>storage</em> to post: units rented on-chain, which the node records. Snapchain
@@ -488,10 +522,28 @@ Options:
       --node &lt;NODE&gt;  Node HTTP API base URL [env: SELFCAST_NODE=] [default: http://localhost:3381]
       --json         Print machine-readable JSON instead of human output
   -h, --help         Print help</code></pre>
-<div class="unverified">
-  <p><code>selfcast key add</code> itself has not been run against a node yet; it needs a test account.</p>
-</div>
-<p>What it does, as built:</p>
+<p>Run on 2026-10-21 for the test account, through <code>crackle</code>, which had seen the new account
+within minutes; our own node had not. The person ran it in their own terminal; the recovery phrase prompt
+above this output is left out:</p>
+<pre class="cmd"><code>export SELFCAST_NODE=https://crackle.farcaster.xyz:3381
+selfcast key add</code></pre>
+<pre class="out"><code>Add an app key to account @selfcast (FID 3356360), custody address 0x337596dD506856c952a89554DE28064146b901D0.
+
+  New key:     0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e
+  May sign:    casts, deleting casts, likes and recasts, undoing them, follows, unfollows
+  Expires:     90 days after it was last used
+  Nonce:       1
+  Sign by:     2026-10-21T06:03:04Z (the authorisation lapses after this)
+  Saved to:    ~/.config/selfcast/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key
+
+It cannot change the account, move funds, or add or remove other keys.
+Type yes to sign and send: yes
+Added: app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e for FID 3356360.
+Saved at ~/.config/selfcast/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key.</code></pre>
+<p>Check the custody address before typing <kbd>yes</kbd>. The Farcaster app shows two phrases, a
+Farcaster recovery phrase and a separate wallet one. It was the Farcaster one that gave this account's
+custody address.</p>
+<p>What it does:</p>
 <ol>
   <li>It asks for the recovery phrase at the terminal, with typing hidden, and derives the custody key
   from it.</li>
@@ -542,9 +594,11 @@ selfcast casts 194 --limit 100 --exclude-app 194 --json | jq '.casts | length'</
 <p>The repository's <code>skill/</code> directory is an agent skill: instructions an AI agent loads before it
 runs <code>selfcast</code>. It calls the same commands as you do, with <code>--json</code>.</p>
 <div class="unverified">
-  <p>There is no install step yet, and no agent has been run with the skill. In Claude Code a skill is a
-  directory under <code>~/.claude/skills/</code>, so copying <code>skill/</code> there as
-  <code>~/.claude/skills/selfcast</code> should work; it has not been tried.</p>
+  <p>There is no install step yet. In Claude Code a skill is a directory under
+  <code>~/.claude/skills/</code>, so copying <code>skill/</code> there as
+  <code>~/.claude/skills/selfcast</code> should work; it has not been tried. The writes on this page were
+  run by an agent (Claude Code, working in this repository) following the skill's write steps, without the
+  skill installed.</p>
 </div>
 <p>What the skill tells the agent:</p>
 <ul>
@@ -560,19 +614,27 @@ runs <code>selfcast</code>. It calls the same commands as you do, with <code>--j
 </ul>
 <p>Each write is its own command so that your agent's harness can gate it apart from the reads: let reads
 run, ask you before each write, and refuse <code>selfcast key</code> to the agent. How to say that is up to
-the harness. In Claude Code, for example, in <code>.claude/settings.json</code>, with one
-<code>ask</code> rule for each write command:</p>
-<pre class="file" data-name=".claude/settings.json"><code>{
+the harness. These were tried in Claude Code on 2026-10-21:</p>
+<pre class="file" data-name=".claude/settings.local.json"><code>{
   "permissions": {
-    "ask": ["Bash(selfcast cast *)", "Bash(selfcast follow *)"],
-    "deny": ["Bash(selfcast key *)"]
+    "ask": ["Bash(*selfcast cast *)", "Bash(*selfcast delete *)", "Bash(*selfcast react *)",
+            "Bash(*selfcast unreact *)", "Bash(*selfcast follow *)", "Bash(*selfcast unfollow *)",
+            "Bash(*selfcast resend*)"],
+    "deny": ["Bash(*selfcast key *)"]
   }
 }</code></pre>
+<p>The <code>deny</code> rule held: the agent's <code>selfcast key --help</code> was refused. It also
+refused a command that only contained the words, in text the agent was writing into this page. The
+<code>ask</code> rules did not prompt. With <code>--node</code> between <code>selfcast</code> and
+<code>cast</code> the pattern cannot match, and the session was in auto mode, which ran the writes without
+asking. Whether they prompt outside auto mode was not tried.</p>
 <div class="limit">
-  <p>Not yet tried in a session. Rules like these match the command as it is written, so a different
-  spelling (options first, a full path, <code>sh -c</code>) may not match, and a mode that skips prompts
-  skips these too. Where the agent can answer the harness's prompts itself, nothing between it and the node
-  is yours.</p>
+  <p>Rules like these match the command's text, so another spelling (options first, another path,
+  <code>sh -c</code>) or a mode that skips prompts gets past them, and harmless text can trip them. They are
+  a convenience, not a boundary. On your machine an agent with a shell can send anything the app key
+  allows. What holds is the key's scope: casts, deletes, reactions and follows, never the account, its
+  funds or its keys; and <code>key add</code> reads the phrase only from a terminal, which an agent's shell
+  does not have.</p>
 </div>
 <p>What the agent cannot do yet: no reactions or replies to a cast (so no “most liked”), no search, no
 channels, no username lookup, nothing older than an account's newest 1000 messages.</p>
@@ -594,7 +656,8 @@ channels, no username lookup, nothing older than an account's newest 1000 messag
   follows and their undos. It cannot move funds, change the account's owner, or add other keys. A key
   file that others can read is refused when <code>selfcast</code> loads it.</li>
   <li><strong>Keys expire.</strong> A key added by <code>selfcast</code> expires 90 days after it was last
-  used; each use pushes that back.</li>
+  used; each use pushes that back (seen in <a href="#vouch">Checking a voucher</a>:
+  <code>expiresAt</code> is <code>lastUsedAt</code> plus the <code>ttl</code>).</li>
 </ul>
 <div class="limit">
   <p><strong>Removing a key keeps what it signed.</strong> On Snapchain since 0.10.0 (October 2025), removing
@@ -614,7 +677,29 @@ them. Look the account's keys up:</p>
 <p>A key added by <code>selfcast key add</code> is added without gas, names the account itself as the
 app (<code>requestFid</code> is the account's own FID), has a <code>ttl</code> of 7776000 seconds (90
 days), and has six scopes: casts and their removal, reactions and their removal, follows and unfollows. The
-vouching cast's <code>signer</code> field should be that key.</p>
+vouching cast's <code>signer</code> field should be that key. The test account's key, after the writes
+above:</p>
+<pre class="cmd"><code>curl -s "https://crackle.farcaster.xyz:3381/v1/signersByFid?fid=3356360" | jq '.signers[] | select(.source == "SIGNER_SOURCE_OFFCHAIN")'</code></pre>
+<pre class="out"><code>{
+  "source": "SIGNER_SOURCE_OFFCHAIN",
+  "key": "0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e",
+  "keyType": 1,
+  "fid": 3356360,
+  "addedAt": 1792558984,
+  "lastUsedAt": 1792563233,
+  "ttl": 7776000,
+  "expiresAt": 1800339233,
+  "scopes": [
+    "MESSAGE_TYPE_CAST_ADD",
+    "MESSAGE_TYPE_CAST_REMOVE",
+    "MESSAGE_TYPE_REACTION_ADD",
+    "MESSAGE_TYPE_REACTION_REMOVE",
+    "MESSAGE_TYPE_LINK_ADD",
+    "MESSAGE_TYPE_LINK_REMOVE"
+  ],
+  "requestFid": 3356360,
+  "nonce": 1
+}</code></pre>
 <div class="limit">
   <p>This is evidence, not proof. Another client can make a key with the same settings, and at least one
   other entry uses the same six scopes with a shorter expiry. Nothing on chain shows which node a message
