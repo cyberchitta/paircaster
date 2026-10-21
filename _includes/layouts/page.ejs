@@ -1,0 +1,11 @@
+---
+layout: layouts/base.ejs
+---
+<%- include('primitives/entry-title-row', { title }) %>
+<% if (typeof dek !== 'undefined' && dek) { %>
+<p><%= dek %></p>
+<% } %>
+<hr class="rule-divider" />
+<section class="article-content">
+<%- content %>
+</section>

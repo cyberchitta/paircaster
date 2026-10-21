@@ -1,0 +1,8 @@
+{
+  "title": "Selfcast",
+  "tagline": "Farcaster from your own node, for people and their AI agents",
+  "github": "cyberchitta/selfcast",
+  "url": "https://selfcast.cyberchitta.cc",
+  "mainSiteUrl": "https://www.cyberchitta.cc",
+  "description": "Run your own Farcaster read node and a client that people and AI agents can both use. No API keys."
+}

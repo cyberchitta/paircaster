@@ -1,0 +1,16 @@
+{
+  "name": "selfcast-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "eleventy"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.5",
+    "@11ty/eleventy-plugin-ejs": "^1.0.0",
+    "ejs": "^5.0.1"
+  },
+  "dependencies": {
+    "@cyberchitta/supramental-gold": "github:cyberchitta/supramental-gold#v0.5.0"
+  }
+}
