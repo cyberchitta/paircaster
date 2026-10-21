@@ -97,9 +97,10 @@ A read node does not decide what goes on the network; validators do. When you po
 1. [Running the node](node.md)
 2. [Using the client](client.md)
 3. [Giving your AI agent Farcaster](agent.md)
-4. [Safety](safety.md)
-5. [Checking a voucher](voucher.md)
-6. [Testing Selfcast on a clean machine](testing.md)
+4. [What you can do with it](uses.md)
+5. [Safety](safety.md)
+6. [Checking a voucher](voucher.md)
+7. [Testing Selfcast on a clean machine](testing.md)
 
 ## Not tried yet
 

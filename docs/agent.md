@@ -63,4 +63,4 @@ What the agent cannot read yet: the reactions or replies to a cast (so no “mos
 
 ---
 
-Next: [Safety](safety.md)
+Next: [What you can do with it](uses.md)
