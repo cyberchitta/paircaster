@@ -90,7 +90,7 @@ Disk: 3165 GB free of 3996 GB.
 
 Your node keeps its own copy of the network's messages: casts, reactions, follows and profile data. Ours reports 914,246,336 messages in 557 GB. `selfcast` reads from the node at `http://localhost:3381` unless you point it elsewhere, so what you read does not pass through anyone else's server.
 
-A read node does not decide what goes on the network; validators do. When you post, your node checks the message against what it has, passes it on to the validators, and keeps nothing itself. The message is on the network only once it comes back in a read, which is why `selfcast` reads every write back before it calls it sent.
+A read node does not decide what goes on the network; validators do. When you post, your node checks the message against what it has, passes it on to the validators, and keeps nothing itself ([Snapchain's node types](https://snapchain.farcaster.xyz/node-types#message-submission-and-the-mempool)). The message is on the network only once it comes back in a read, which is why `selfcast` reads every write back before it calls it sent.
 
 ## The rest of the guide
 
