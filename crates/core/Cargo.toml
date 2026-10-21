@@ -27,3 +27,6 @@ zeroize.workspace = true
 [dev-dependencies]
 alloy-dyn-abi = { version = "1", features = ["eip712"] }
 alloy-primitives = { workspace = true, features = ["k256"] }
+
+[lints]
+workspace = true

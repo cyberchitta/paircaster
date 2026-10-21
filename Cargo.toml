@@ -9,6 +9,9 @@ license = "MIT"
 repository = "https://github.com/cyberchitta/selfcast"
 rust-version = "1.99.1"
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
 [workspace.dependencies]
 selfcast-core = { path = "crates/core", version = "0.0.1" }
 alloy-primitives = { version = "1", default-features = false, features = ["std"] }
