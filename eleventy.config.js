@@ -63,6 +63,15 @@ export default function (eleventyConfig) {
     return this.page.outputPath?.endsWith('.html') ? renderCallouts(content) : content;
   });
 
+  // Pages link to each other as .md so the links also work on GitHub.
+  eleventyConfig.addTransform('rewriteMdLinks', function (content) {
+    if (!this.page.outputPath?.endsWith('.html')) return content;
+    return content.replace(
+      /(href=["'])(?!\w+:)([^"'#?]+?)\.md(#[^"']*)?(["'])/g,
+      (_m, pre, p, hash, post) => `${pre}${p}.html${hash || ''}${post}`,
+    );
+  });
+
   // The words come from main's docs/, copied into content/ by the workflow,
   // which is why content/ is gitignored here and the gitignore is not used.
   eleventyConfig.setUseGitIgnore(false);
