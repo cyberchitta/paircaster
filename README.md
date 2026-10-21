@@ -23,7 +23,7 @@ network, and `selfcast` reads and writes through your node.
 |---|---|
 | `crates/core` | Message construction, feed and profile assembly; network access only in its `node` module |
 | `crates/cli` | The `selfcast` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
-| `skill/` | An agent skill that drives `selfcast`; Claude Code started in the repo loads it through `.claude/skills/selfcast` |
+| `skill/` | An agent skill that drives `selfcast`; Claude Code started in the repo loads it through `.claude/skills/selfcast`, Codex through `.agents/skills/selfcast` |
 | `docs/` | The microsite's pages and the documents above; the `site-build` branch holds the toolchain that builds them |
 
 ## Status

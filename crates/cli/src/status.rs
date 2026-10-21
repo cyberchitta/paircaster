@@ -5,7 +5,8 @@
 //! installed on this machine, so when nothing answers the snapshot download
 //! is read from its install directory, and the disk holding that directory
 //! is reported. A node named with `--node` may be anywhere, so only it is
-//! reported.
+//! reported. A connection this process is not permitted to open, as under an
+//! agent's sandbox, is an error: nothing is inferred from it.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -137,6 +138,9 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
     let (node_url, local) = (target.url, target.here);
     let phase = match Node::new(node_url)?.sync_state().await {
         Ok(state) => synced(state),
+        Err(selfcast_core::Error::Transport(e)) if denied(&e) => {
+            return Err(StatusError::NetworkDenied(node_url.to_owned()).into());
+        }
         Err(selfcast_core::Error::Transport(_)) if local => on_disk(
             snapshot::observe(&dir)?,
             snapshot::holder(&dir)?.is_some(),
@@ -169,6 +173,23 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
     };
     crate::out::line(format_args!("{out}"));
     Ok(())
+}
+
+/// `node status` could not learn the node's state.
+#[derive(Debug, thiserror::Error)]
+pub enum StatusError {
+    #[error(
+        "not permitted to connect to {0}, so the node's state is unknown; an agent's sandbox may be blocking network access for selfcast"
+    )]
+    NetworkDenied(String),
+}
+
+/// Whether the connection was not permitted, as a sandbox denies it, rather
+/// than refused by the other end, as a stopped node is.
+fn denied(e: &(dyn std::error::Error + 'static)) -> bool {
+    std::iter::successors(Some(e), |e| e.source())
+        .filter_map(|e| e.downcast_ref::<std::io::Error>())
+        .any(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
 }
 
 /// Under this share of the disk free, the node's growing database is at risk.
@@ -402,8 +423,8 @@ mod tests {
     use selfcast_core::node::{ShardSync, SyncState};
 
     use super::{
-        Chunk, Observed, Phase, Target, bytes_per_second, duration, eta_seconds, is_low, on_disk,
-        synced, target,
+        Chunk, Observed, Phase, Target, bytes_per_second, denied, duration, eta_seconds, is_low,
+        on_disk, synced, target,
     };
 
     const MB: u64 = 1_000_000;
@@ -476,6 +497,19 @@ mod tests {
             on_disk(Observed::Nothing, false, now),
             Phase::NotStarted { running: false }
         ));
+    }
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("connect")]
+    struct Connect(#[source] std::io::Error);
+
+    #[test]
+    fn only_a_connection_not_permitted_is_denied() {
+        use std::io::{Error, ErrorKind};
+        let denied_by = |kind| denied(&Connect(Error::from(kind)));
+        assert!(denied_by(ErrorKind::PermissionDenied));
+        assert!(!denied_by(ErrorKind::ConnectionRefused));
+        assert!(!denied(&Error::from(ErrorKind::TimedOut)));
     }
 
     #[test]

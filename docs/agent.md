@@ -11,7 +11,25 @@ cd selfcast
 claude
 ```
 
-It loads the skill from `.claude/skills/selfcast`, a link to `skill/`, with nothing to copy. Asked “How far behind is my Farcaster node?”, it loads the skill on its own and runs `selfcast node status --json`. The skill calls `selfcast` by name, so the `cargo install` from that step has to have put it on your `PATH`. Another agent can be pointed at `skill/SKILL.md`. On Windows, git checks the link out as a plain file unless symlinks are enabled (`core.symlinks`), and then the skill does not load. The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) were sent by an agent following the skill's write steps.
+It loads the skill from `.claude/skills/selfcast`, a link to `skill/`, with nothing to copy. Asked “How far behind is my Farcaster node?”, it loads the skill on its own and runs `selfcast node status --json`. The skill calls `selfcast` by name, so the `cargo install` from that step has to have put it on your `PATH`. Another agent can be pointed at `skill/SKILL.md`.
+
+Codex loads it from `.agents/skills/selfcast`, another link to `skill/`, and reads `AGENTS.md`, a link to the repository's `CLAUDE.md`. Its default sandbox blocks network access, `localhost` included, so `selfcast` cannot reach the node and says so. Allow network access for the session:
+
+```run
+codex exec -s workspace-write -c sandbox_workspace_write.network_access=true "How far behind is my Farcaster node?"
+```
+
+```output
+Your node is **syncing**. Shards 0 and 1 are about **2 seconds behind**; shard 2 is about **49 minutes 38 seconds behind**. So shard 2 is the lagging one.
+```
+
+It read the skill and ran `selfcast node status --json` to answer. Under the default sandbox, `selfcast node status` fails with:
+
+```output
+error: not permitted to connect to http://localhost:3381, so the node's state is unknown; an agent's sandbox may be blocking network access for selfcast
+```
+
+On Windows, git checks both links out as plain files unless symlinks are enabled (`core.symlinks`), and then the skill does not load. The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) were sent by an agent following the skill's write steps.
 
 What the skill tells the agent:
 

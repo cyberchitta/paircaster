@@ -52,6 +52,12 @@ is, with no download and `disk: null`; if that node does not answer, it is
 an error. Use `--node` for a node reached through an SSH tunnel too: its
 address is `localhost`, but it is not this machine's node.
 
+If `status` fails with `not permitted to connect`, your shell's sandbox is
+blocking network access, so nothing is known about the node: say so, and
+tell the user `selfcast` needs network access (in Codex,
+`-c sandbox_workspace_write.network_access=true`). Do not report the node
+as stopped.
+
 `phase` says which fields are present. Every phase also has `disk`.
 Where the table says *offer*, suggest the command; run it only if the user
 asked for that outcome ("resume it", "fix it").

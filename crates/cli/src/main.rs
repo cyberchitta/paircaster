@@ -108,6 +108,8 @@ enum CliError {
     Control(#[from] control::ControlError),
     #[error(transparent)]
     Write(#[from] write::WriteError),
+    #[error(transparent)]
+    Status(#[from] status::StatusError),
 }
 
 #[tokio::main]
