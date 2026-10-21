@@ -19,7 +19,7 @@ use selfcast_core::build::{
 use selfcast_core::cast::SignerKey;
 use selfcast_core::custody::{CustodyError, CustodyKey, EthAddress};
 use selfcast_core::key_add::{KeyAddError, KeyRequest, MAX_TTL_SECS, authorize};
-use selfcast_core::profile::Profile;
+use selfcast_core::profile::{Followers, Profile};
 use selfcast_core::proto::{Body, FarcasterNetwork, MessageData, MessageType};
 use selfcast_core::time::Timestamp;
 use serde::Serialize;
@@ -128,7 +128,13 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
         .fid_of_custody(&address)
         .await?
         .ok_or(KeyAddCliError::NoAccount(address))?;
-    let username = Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0, 0).username;
+    let username = Profile::assemble(
+        fid,
+        &node.user_data_by_fid(fid).await?,
+        0,
+        Followers::Exact(0),
+    )
+    .username;
     let nonce = node
         .user_nonce(fid)
         .await?

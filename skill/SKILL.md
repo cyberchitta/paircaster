@@ -139,17 +139,21 @@ read from: report the phase instead.
 ### `selfcast profile <fid> --json`
 
 ```json
-{"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":630231}
+{"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":10000,"followers_exact":false}
 ```
 
 (Image URLs shortened here.) Each text field is `null` when not set. An
 FID the node has no registration for is an error (`is not registered on
 this node`), exit 1: either no such account, or one newer than what a
 syncing node has caught up to. Check `node status` before saying which.
-`following` and `followers` are counts as the node holds them. The follower
-count reads every follower, so a large account is slow: for fid 3, with
-630,231 followers, it took 5 to 7 seconds, and 36 seconds on a first,
-cold read. Run it once per account and reuse the result.
+`following` and `followers` are counts as the node holds them. The node
+keeps no follower total, so followers are read 1000 at a time, and counting
+stops at 10,000: then `followers_exact` is `false` and `followers` is a
+lower bound ("at least"). Say so when you report it. `--all-followers`
+counts every one, which is slow for a large account: for fid 3, 630,232
+followers took 7.6 seconds on 2026-10-21 (36 seconds on a first, cold
+read, 2026-10-20), and fid 37 on `crackle` did not finish in 120 seconds.
+Use it only when the user wants the exact number, once per account.
 
 ### `selfcast casts <fid>... --json`
 

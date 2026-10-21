@@ -4,7 +4,7 @@ use common::{fixture, fixture_messages};
 use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::parse;
-use selfcast_core::profile::{FollowerTally, Profile};
+use selfcast_core::profile::{FollowerTally, Followers, Profile};
 use selfcast_core::proto::ReactionType;
 use selfcast_core::signer::{Signer, app_of};
 use selfcast_core::time::Timestamp;
@@ -42,7 +42,12 @@ fn profile_takes_user_data_and_counts_follows() {
         "fixture is one page of several"
     );
 
-    let profile = Profile::assemble(3, &user_data.items, follows.items.len(), 25);
+    let profile = Profile::assemble(
+        3,
+        &user_data.items,
+        follows.items.len(),
+        Followers::Exact(25),
+    );
 
     let raw = fixture("userDataByFid-3.json");
     let expect = |kind: &str| newest_set_value(&raw, kind);
@@ -67,7 +72,7 @@ fn profile_takes_user_data_and_counts_follows() {
     assert_eq!(profile.twitter, expect("USER_DATA_TYPE_TWITTER"));
     assert_eq!(profile.github, expect("USER_DATA_TYPE_GITHUB"));
     assert_eq!(profile.following, 10);
-    assert_eq!(profile.followers, 25);
+    assert_eq!(profile.followers, Followers::Exact(25));
 }
 
 #[test]
@@ -367,4 +372,23 @@ fn an_empty_id_register_page_means_the_node_has_not_seen_the_account() {
     assert!(parse::has_id_register(seen).expect("parses"));
     assert!(!parse::has_id_register(unseen).expect("parses"));
     assert!(parse::has_id_register(serde_json::json!({})).is_err());
+}
+
+#[test]
+fn follower_counting_stops_at_the_cap_with_a_lower_bound() {
+    let mut tally = FollowerTally::default();
+    assert_eq!(tally.step(&[1, 2], true, Some(4)), None);
+    assert_eq!(
+        tally.step(&[3, 4, 5], true, Some(4)),
+        Some(Followers::AtLeast(5))
+    );
+    let mut all = FollowerTally::default();
+    assert_eq!(all.step(&[1, 2], true, None), None);
+    assert_eq!(all.step(&[3, 1], true, None), None);
+    assert_eq!(all.step(&[1, 2], true, None), Some(Followers::Exact(3)));
+    let mut last = FollowerTally::default();
+    assert_eq!(
+        last.step(&[1, 2, 3, 4], false, Some(4)),
+        Some(Followers::Exact(4))
+    );
 }

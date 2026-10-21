@@ -7,7 +7,7 @@ use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
-use crate::profile::{FollowerTally, UserDatum};
+use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
 
@@ -151,9 +151,9 @@ impl Node {
         )
     }
 
-    /// How many accounts follow `fid`: one request per 1000 followers per
-    /// shard, plus one.
-    pub async fn follower_count(&self, fid: u64) -> Result<usize, Error> {
+    /// How many accounts follow `fid`, counted up to `cap` (all of them
+    /// when `None`): one request per 1000 followers per shard, plus one.
+    pub async fn follower_count(&self, fid: u64, cap: Option<usize>) -> Result<Followers, Error> {
         let mut tally = FollowerTally::default();
         let mut request = PageRequest {
             page_size: Some(FOLLOWER_PAGE_SIZE),
@@ -161,11 +161,11 @@ impl Node {
         };
         loop {
             let page = self.followers_by_fid(fid, &request).await?;
-            let fresh = tally.add_page(&page.items);
-            match page.next_page_token {
-                Some(token) if fresh => request.page_token = Some(token),
-                _ => return Ok(tally.count()),
+            let more = page.next_page_token.is_some();
+            if let Some(done) = tally.step(&page.items, more, cap) {
+                return Ok(done);
             }
+            request.page_token = page.next_page_token;
         }
     }
 

@@ -21,7 +21,7 @@ use selfcast_core::build::{
     cast_type_for, sign,
 };
 use selfcast_core::cast::{CastRef, MessageHash, ParseRefError, Target};
-use selfcast_core::profile::Profile;
+use selfcast_core::profile::{Followers, Profile};
 use selfcast_core::proto::{
     Body, CastParent, CastType, Embed, EmbedTarget, FarcasterNetwork, LinkTarget, MessageData,
     MessageType, ReactionTarget, ReactionType,
@@ -374,7 +374,13 @@ async fn ensure_registered(node: &Node, loaded: &LoadedKey) -> Result<(), CliErr
 }
 
 async fn username(node: &Node, fid: u64) -> Result<Option<String>, CliError> {
-    Ok(Profile::assemble(fid, &node.user_data_by_fid(fid).await?, 0, 0).username)
+    Ok(Profile::assemble(
+        fid,
+        &node.user_data_by_fid(fid).await?,
+        0,
+        Followers::Exact(0),
+    )
+    .username)
 }
 
 fn decode(signed: &SignedMessage) -> Result<MessageData, WriteError> {

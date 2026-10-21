@@ -7,7 +7,7 @@
 use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
-use selfcast_core::profile::Profile;
+use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Profile};
 use selfcast_core::signer::Signer;
 use selfcast_core::{Error, Node};
 use serde::Serialize;
@@ -82,13 +82,16 @@ impl CastFilter {
 ///   "github": null,
 ///   "banner_url": "https://…",
 ///   "following": 10,
-///   "followers": 25
+///   "followers": 25,
+///   "followers_exact": true
 /// }
 /// ```
 ///
 /// Each text field is `null` when the account has not set it, or set it
 /// empty. `following` is how many accounts it follows, `followers` how many
-/// follow it, both as the node holds them.
+/// follow it, both as the node holds them. `followers_exact` is `false` when
+/// counting stopped at 10000 (without `--all-followers`): `followers` is
+/// then a lower bound.
 #[derive(Serialize)]
 struct ProfileV1<'a> {
     version: u32,
@@ -104,6 +107,7 @@ struct ProfileV1<'a> {
     banner_url: Option<&'a str>,
     following: usize,
     followers: usize,
+    followers_exact: bool,
 }
 
 /// `selfcast feed <fid> --json`, version 1:
@@ -182,13 +186,14 @@ enum TargetV1<'a> {
     Url(&'a str),
 }
 
-pub async fn profile(node: &Node, fid: u64, json: bool) -> Result<(), Error> {
+pub async fn profile(node: &Node, fid: u64, all_followers: bool, json: bool) -> Result<(), Error> {
     if !node.is_registered(fid).await? {
         return Err(Error::NotRegistered(fid));
     }
     let user_data = node.user_data_by_fid(fid).await?;
     let following = node.all_follows_by_fid(fid).await?.len();
-    let followers = node.follower_count(fid).await?;
+    let cap = (!all_followers).then_some(FOLLOWER_COUNT_CAP);
+    let followers = node.follower_count(fid, cap).await?;
     let profile = Profile::assemble(fid, &user_data, following, followers);
     if json {
         println!("{}", to_json(&profile_v1(&profile)));
@@ -289,7 +294,8 @@ fn profile_v1(p: &Profile) -> ProfileV1<'_> {
         github: p.github.as_deref(),
         banner_url: p.banner_url.as_deref(),
         following: p.following,
-        followers: p.followers,
+        followers: p.followers.count(),
+        followers_exact: p.followers.is_exact(),
     }
 }
 
@@ -360,7 +366,16 @@ fn print_profile(p: &Profile) {
         .filter_map(|(label, value)| value.as_deref().map(|v| (label, v)))
         .for_each(|(label, v)| println!("  {label}: {v}"));
     println!("  following: {}", p.following);
-    println!("  followers: {}", p.followers);
+    println!("  followers: {}", followers_line(p.followers));
+}
+
+fn followers_line(f: Followers) -> String {
+    match f {
+        Followers::Exact(n) => n.to_string(),
+        Followers::AtLeast(n) => {
+            format!("at least {n} (counting stopped; --all-followers counts them all)")
+        }
+    }
 }
 
 fn print_item(item: &FeedItem) {
@@ -377,7 +392,7 @@ fn print_item(item: &FeedItem) {
 mod tests {
     use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, SignerKey, Target};
     use selfcast_core::feed::FeedItem;
-    use selfcast_core::profile::Profile;
+    use selfcast_core::profile::{Followers, Profile};
     use selfcast_core::proto::CastType;
     use selfcast_core::time::Timestamp;
 
@@ -437,11 +452,11 @@ mod tests {
             github: None,
             banner_url: None,
             following: 10,
-            followers: 25,
+            followers: Followers::AtLeast(10_002),
         };
         assert_eq!(
             to_json(&profile_v1(&profile)),
-            r#"{"version":1,"fid":3,"username":"alice","display_name":null,"bio":null,"pfp_url":null,"url":null,"location":null,"twitter":null,"github":null,"banner_url":null,"following":10,"followers":25}"#
+            r#"{"version":1,"fid":3,"username":"alice","display_name":null,"bio":null,"pfp_url":null,"url":null,"location":null,"twitter":null,"github":null,"banner_url":null,"following":10,"followers":10002,"followers_exact":false}"#
         );
     }
 }

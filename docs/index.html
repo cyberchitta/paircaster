@@ -374,14 +374,15 @@ username lookup yet.</p>
   url: https://danromero.org
   twitter: dwr
   following: 79
-  followers: 630233</code></pre>
+  followers: at least 10000 (counting stopped; --all-followers counts them all)</code></pre>
 <p>The name, bio and username are the account's own <em>user data</em> messages
 (<code>/v1/userDataByFid</code>). The username, <code>dwr</code>, is an <em>fname</em>: one of those
 messages, not part of the account itself. A follow is a <em>link</em> message from one account to another:
 <code>following</code> counts the account's own (<code>/v1/linksByFid</code>), <code>followers</code> counts
 the ones aimed at it (<code>/v1/linksByTargetFid</code>). The node keeps no follower total, so
-<code>selfcast</code> reads every follower: for this account that took 7.5 seconds, and 36 seconds on a
-first, cold read.</p>
+<code>selfcast</code> reads followers 1000 at a time and stops at 10,000. <code>selfcast profile 3
+--all-followers</code> reads every one: 630,232 for this account, in 7.6 seconds (run 2026-10-21; a
+first, cold read on 2026-10-20 took 36 seconds).</p>
 
 <h3 id="casts">Casts, and what a message is</h3>
 <pre class="cmd"><code>selfcast casts 2,3 --limit 3</code></pre>

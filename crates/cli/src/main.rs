@@ -42,6 +42,10 @@ enum Command {
     Profile {
         /// The account's FID.
         fid: u64,
+        /// Count every follower, however many. By default counting stops
+        /// at 10000 and the count is a lower bound.
+        #[arg(long)]
+        all_followers: bool,
     },
     /// Show recent casts from the accounts an account follows, newest first.
     Feed(reads::FeedArgs),
@@ -120,7 +124,9 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Command::Info => print(&Node::new(&cli.node)?.info().await?, cli.json),
-        Command::Profile { fid } => reads::profile(&Node::new(&cli.node)?, fid, cli.json).await?,
+        Command::Profile { fid, all_followers } => {
+            reads::profile(&Node::new(&cli.node)?, fid, all_followers, cli.json).await?
+        }
         Command::Feed(args) => reads::feed(&Node::new(&cli.node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(&cli.node)?, &args, cli.json).await?,
         Command::Cast(args) => send(&cli.node, args.into_parts(), cli.json).await?,

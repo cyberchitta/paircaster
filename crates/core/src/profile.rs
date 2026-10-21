@@ -28,13 +28,43 @@ pub struct Profile {
     /// How many accounts this one follows.
     pub following: usize,
     /// How many accounts follow this one.
-    pub followers: usize,
+    pub followers: Followers,
+}
+
+/// Followers counted before `profile` stops and reports a lower bound.
+/// Counting is one request per 1000 per shard, in sequence, and a large
+/// account has hundreds of thousands (2026-10-21: FID 37 took over 120 s).
+pub const FOLLOWER_COUNT_CAP: usize = 10_000;
+
+/// How many accounts follow one: exact, or at least this many when counting
+/// stopped at a cap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Followers {
+    Exact(usize),
+    AtLeast(usize),
+}
+
+impl Followers {
+    pub fn count(self) -> usize {
+        match self {
+            Followers::Exact(n) | Followers::AtLeast(n) => n,
+        }
+    }
+
+    pub fn is_exact(self) -> bool {
+        matches!(self, Followers::Exact(_))
+    }
 }
 
 impl Profile {
     /// Where an account has set one kind of user data more than once, the
     /// newest wins. An empty value counts as unset.
-    pub fn assemble(fid: u64, user_data: &[UserDatum], following: usize, followers: usize) -> Self {
+    pub fn assemble(
+        fid: u64,
+        user_data: &[UserDatum],
+        following: usize,
+        followers: Followers,
+    ) -> Self {
         let get = |kind| latest(user_data, kind);
         Profile {
             fid,
@@ -86,6 +116,26 @@ impl FollowerTally {
 
     pub fn count(&self) -> usize {
         self.fids.len()
+    }
+
+    /// Adds one page and says whether counting is done: exact once a page
+    /// brings no one new or there is no next page, at least the count once
+    /// `cap` followers have been seen.
+    ///
+    /// ```
+    /// use selfcast_core::profile::{FollowerTally, Followers};
+    /// let mut tally = FollowerTally::default();
+    /// assert_eq!(tally.step(&[1, 2], true, Some(3)), None);
+    /// assert_eq!(tally.step(&[3, 4], true, Some(3)), Some(Followers::AtLeast(4)));
+    /// ```
+    pub fn step(&mut self, fids: &[u64], more: bool, cap: Option<usize>) -> Option<Followers> {
+        let fresh = self.add_page(fids);
+        let count = self.count();
+        match (fresh && more, cap) {
+            (false, _) => Some(Followers::Exact(count)),
+            (true, Some(c)) if count >= c => Some(Followers::AtLeast(count)),
+            (true, _) => None,
+        }
     }
 }
 
