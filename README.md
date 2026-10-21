@@ -6,7 +6,8 @@ network, and `selfcast` reads and writes through your node.
 
 - **Tutorial and quickstart:** [selfcast.cyberchitta.cc](https://selfcast.cyberchitta.cc/)
   (source: [`docs/index.md`](docs/index.md))
-- **Testing it for us:** [`docs/testing.md`](docs/testing.md)
+- **Testing it for us:** [selfcast.cyberchitta.cc/testing.html](https://selfcast.cyberchitta.cc/testing.html)
+  (source: [`docs/testing.md`](docs/testing.md))
 - **Farcaster documentation we found wrong, and the fixes we sent upstream:**
   [`docs/upstream-fixes.md`](docs/upstream-fixes.md)
 
@@ -21,16 +22,15 @@ network, and `selfcast` reads and writes through your node.
 
 ## Status
 
-A draft. Everything so far was run on one Apple Silicon Mac; nothing on Linux
-or a rented server yet. Writes and `key add` have not been run against mainnet.
-The tutorial marks every command that has not been run.
+New. It has been run on one Apple Silicon Mac, not yet on Linux or a rented
+server; the guide ends with a list of what has not been tried.
 
 ## Keys
 
-Your seed phrase is read only from an interactive terminal, used once to add an
-app key, and never written to disk. The code wipes it from memory after use; no
-test checks that. The app key can post as
-your account but cannot move funds or change who owns it. Use a test account.
+Your recovery phrase is read only from an interactive terminal, used once to
+add an app key, and never written to disk. The code wipes it from memory after
+use; no test checks that. The app key can post as your account but cannot move
+funds or change who owns it. Use a test account.
 
 ## Licence
 
