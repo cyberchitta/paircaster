@@ -169,7 +169,7 @@ selfcast info
 }
 ```
 
-Shards 1 and 2 hold about 1.68 million accounts each and nearly all the messages; shard 0 holds no accounts. The same data comes straight from Snapchain's API with `curl http://localhost:3381/v1/info`, unformatted.
+Shards 1 and 2 hold about 1.68 million accounts each and nearly all the messages; shard 0 holds no accounts, and `numShards` counts only the two that do. The snapshot has all three. The same data comes straight from Snapchain's API with `curl http://localhost:3381/v1/info`, unformatted.
 
 ## Why sync is slow
 

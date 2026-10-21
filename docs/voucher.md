@@ -2,7 +2,7 @@
 title: Checking a voucher
 ---
 
-A voucher says they ran the tutorial. Part of that can be checked by anyone, on any node. We ask vouchers to post the vouching cast with `selfcast cast`, so it is signed by the app key Selfcast added for them. Look the account's keys up:
+A voucher says they ran the guide. Part of that can be checked by anyone, on any node. We ask vouchers to post the vouching cast with `selfcast cast`, so it is signed by the app key Selfcast added for them. Look the account's keys up:
 
 ```run
 curl -s "http://localhost:3381/v1/signersByFid?fid=FID" | jq '.signers[] | select(.source == "SIGNER_SOURCE_OFFCHAIN")'

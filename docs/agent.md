@@ -10,7 +10,7 @@ What the skill tells the agent:
 
 - **Check the node first.** Run `selfcast node status` before reading, and say how far behind the node is in every answer.
 - **Reads only, until you say otherwise.** It runs no write until you enable writes in that conversation, and that lasts for the conversation only.
-- **Your words, its relay.** For each write it runs the command with `--dry-run`, shows you the text `selfcast` printed, exactly as printed, and waits for your yes before running it again with `--yes`.
+- **You approve Selfcast's text, not the agent's.** For each write it runs the command with `--dry-run`, shows you the text `selfcast` printed, exactly as printed, and waits for your yes before running it again with `--yes`. `selfcast` writes that text from the message it signs, so within one run it cannot show one thing and send another. The two runs are separate commands, though: the `--yes` run prints the text again from what it actually sent, and the skill shows you that too, so check that it matches what you approved.
 - **Never a recovery phrase.** It never runs `key add`, never asks for a phrase, and refuses one if it is pasted in: you run `key add` in your own terminal.
 
 Each write is its own command so that your agent's harness can gate it apart from the reads: let reads run, ask you before each write, and refuse `selfcast key` to the agent. How to say that is up to the harness. In Claude Code, for example:
@@ -34,7 +34,7 @@ Rules like these match the command's text, so another spelling (options first, a
 
 </limit>
 
-What the agent cannot do yet: no reactions or replies to a cast (so no “most liked”), no search, no channels, no username lookup, nothing older than an account's newest 1000 messages.
+What the agent cannot read yet: the reactions or replies to a cast (so no “most liked”), search results, channels, usernames (accounts are named by FID), and anything older than an account's newest 1000 messages.
 
 ---
 

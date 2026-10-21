@@ -3,9 +3,15 @@ title: Selfcast
 dek: Farcaster from your own Snapchain node, for people and their AI agents. No API keys from anyone.
 ---
 
+<warning>
+
+**Read the code before you give it your recovery phrase.** As with any code from the internet, review it yourself, or have someone you trust or an AI agent review it, and use a test account either way. [Safety](safety.md) lists the files that handle the phrase.
+
+</warning>
+
 <note>
 
-**Selfcast is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs while Selfcast was being built; where a command has changed since, the guide shows the current one, so what you see may differ in small ways. Paths under your home directory are shown as `~`.
+**Selfcast is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs while Selfcast was being built; where a command has changed since, the guide shows the current one, so what you see may differ in small ways. Paths under your home directory are shown as `~`. To run it on a clean machine and report what happened, see [Testing Selfcast](testing.md).
 
 </note>
 
@@ -16,7 +22,7 @@ dek: Farcaster from your own Snapchain node, for people and their AI agents. No 
 - **Your recovery phrase stays in your terminal.** `selfcast key add` reads it from the terminal only, never from a file, an argument, a pipe or an environment variable, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
 - **You see what is signed, and every write is checked.** Before a write, `selfcast` shows the message it is about to sign, written from the signed message itself. After sending, it reads the message back from the node before it calls it sent ([Writing](client.md#writing:-casts,-reactions,-follows)).
 - **Your AI agent uses the same commands.** A skill tells an agent to run `selfcast`, to stay read-only until you enable writes, and to show you `selfcast`'s own text before each one. Those are instructions, not a lock: an agent with a shell on your machine can send anything the app key allows ([Your AI agent](agent.md)).
-- **Farcaster from the command line.** Read profiles, casts and a feed; cast and delete, like and unlike, follow and unfollow. One use among many: each cast shows the app that posted it, so you can keep or drop casts by app ([Filtering by client](client.md#filtering-by-client)).
+- **Farcaster from the command line.** Read profiles, casts and a feed; cast and delete, like and unlike, follow and unfollow. Each cast shows the app that posted it, so you can keep or drop casts by app ([Filtering by client](client.md#filtering-by-client)).
 - **What it costs.** Docker, about 800 GB of free disk while the snapshot downloads and unpacks, and time: the download and unpack took about 12 hours on the test machine, and the node then has to catch up with the network ([why that is slow](node.md#why-sync-is-slow)).
 
 ## Quickstart
@@ -93,6 +99,7 @@ A read node does not decide what goes on the network; validators do. When you po
 3. [Giving your AI agent Farcaster](agent.md)
 4. [Safety](safety.md)
 5. [Checking a voucher](voucher.md)
+6. [Testing Selfcast on a clean machine](testing.md)
 
 ## Not tried yet
 

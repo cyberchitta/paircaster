@@ -332,8 +332,10 @@ For every write:
    node.`
 3. Ask the user to confirm. Stop if they don't.
 4. Run the same command with `--yes` in place of `--dry-run`. With
-   `--yes` the CLI prints the same text to stderr and sends without
-   asking at the terminal. Show its JSON result.
+   `--yes` the CLI prints the text again to stderr, from the message it
+   sends, and sends without asking at the terminal. Show that text exactly
+   as printed, then its JSON result, so the user can check it matches what
+   they approved.
 
 The user may say they don't need steps 1 to 3 for the rest of this
 conversation. Then run the write with `--yes` directly and show the text it
