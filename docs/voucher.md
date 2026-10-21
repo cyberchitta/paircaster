@@ -37,6 +37,30 @@ curl -s "https://crackle.farcaster.xyz:3381/v1/signersByFid?fid=3356360" | jq '.
 }
 ```
 
+## Our own account
+
+The same check works on what the test account has sent with Selfcast. On a node we do not run, every cast and delete held for it is signed by that key:
+
+```run
+curl -s "https://crackle.farcaster.xyz:3381/v1/castsByFid?fid=3356360" | jq -c '.messages[] | {type: .data.type, hash, signer}'
+```
+
+```output
+{"type":"MESSAGE_TYPE_CAST_REMOVE","hash":"0xf1f1a93b7ebb7d840572fed96a9baf855edc1ae2","signer":"0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e"}
+{"type":"MESSAGE_TYPE_CAST_ADD","hash":"0x6734c1e81150dc1dea7f5546a61e48014a9bafb3","signer":"0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e"}
+{"type":"MESSAGE_TYPE_CAST_REMOVE","hash":"0xc4345d967d04c37340513285543217b833024466","signer":"0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e"}
+{"type":"MESSAGE_TYPE_CAST_ADD","hash":"0x3820fb679133cd50df09d95beb8a5fbe2553069d","signer":"0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e"}
+```
+
+| Hash | What it is |
+|---|---|
+| `0xf1f1a93b…` | The delete of the first test cast, from [Writing](client.md#writing:-casts,-reactions,-follows) |
+| `0x6734c1e8…` | The [tester call](https://farcaster.xyz/selfcast/0x6734c1e8) |
+| `0xc4345d96…` | The delete of an earlier copy of the tester call |
+| `0x3820fb67…` | The first cast sent through our own node |
+
+A deleted cast leaves only its delete: the node keeps the `CAST_REMOVE` and drops the cast. The like, unlike, follow and unfollow in [Writing](client.md#writing:-casts,-reactions,-follows)'s table do not show here, and not in `reactionsByFid` or `linksByFid` either: those list only what is current, and each was undone.
+
 <limit>
 
 This is evidence, not proof. Another client can make a key with the same settings, and at least one other client uses the same six scopes with a shorter expiry. Nothing on chain shows which node a message went through, so the node half of a vouch rests on the voucher's report.
