@@ -122,7 +122,9 @@ pub struct Target<'a> {
 }
 
 /// `named` is the `--node` given, if any; without one the node is this
-/// machine's own, at `default`.
+/// machine's own, at `default`. Nothing here infers which machine a URL
+/// reaches: through an SSH tunnel `localhost` is another machine, and
+/// Snapchain makes a new `peer_id` each start, so the user says.
 pub fn target<'a>(named: Option<&'a str>, default: &'a str) -> Target<'a> {
     Target {
         url: named.unwrap_or(default),
