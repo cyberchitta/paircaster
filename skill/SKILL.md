@@ -322,7 +322,9 @@ For every write:
    It starts `Send as @<username> (FID <fid>), signed by app key <key>,
    dated <time>:`, and then gives the cast text (each line after `| `,
    with control characters escaped) or the one action, for example `Like
-   cast <FID:HASH>`.
+   cast <FID:HASH>`. For a follow or a reaction, a last line names the
+   other account as the node knows it: `FID 37 is @balajis.eth on this
+   node.`
 3. Ask the user to confirm. Stop if they don't.
 4. Run the same command with `--yes` in place of `--dry-run`. With
    `--yes` the CLI prints the same text to stderr and sends without
@@ -353,21 +355,31 @@ write, and refuse `selfcast key` to the agent. Do not change any permission
 setting yourself. How to express this, and whether it holds in every mode,
 is the harness's own; check its documentation.
 
-For example, in Claude Code (`.claude/settings.json`; syntax as documented
-on 2026-10-20, not yet tried in a session):
+Tried once in Claude Code, on 2026-10-21, with these rules in
+`.claude/settings.local.json`:
 
 ```json
 {
   "permissions": {
-    "ask": ["Bash(selfcast cast *)", "Bash(selfcast follow *)"],
-    "deny": ["Bash(selfcast key *)"]
+    "ask": ["Bash(*selfcast cast *)", "Bash(*selfcast delete *)", "Bash(*selfcast react *)",
+            "Bash(*selfcast unreact *)", "Bash(*selfcast follow *)", "Bash(*selfcast unfollow *)",
+            "Bash(*selfcast resend*)"],
+    "deny": ["Bash(*selfcast key *)"]
   }
 }
 ```
 
-with one `ask` rule for each write subcommand.
+- The `deny` rule held: `target/release/selfcast key --help` was refused.
+- The `ask` rules did not prompt. With `--node` between `selfcast` and
+  `cast` the pattern cannot match, so always write `selfcast`, then the
+  subcommand, then its arguments and flags. The session was also in auto
+  mode, which ran the write without a prompt. Whether the `ask` rules
+  prompt outside auto mode was not tried.
 
-**Limits:** such rules usually match the command as written, so always
-write `selfcast`, then the subcommand, then its arguments and flags. A
-different spelling (options first, a full path, `sh -c '…'`) may not match,
-and a mode that skips prompts skips these too.
+**Limits:** these rules match the command's text, and a different spelling
+(options first, another path, `sh -c '…'`) or a mode that skips prompts
+gets past them. They are a convenience, not a boundary. On the user's own
+machine an agent with a shell can send anything the app key allows. What
+holds is the key's scope: casts, deletes, reactions and follows, never the
+account, its funds or its keys; and `selfcast key add` reads the phrase
+only from a terminal, which an agent's shell does not have.
