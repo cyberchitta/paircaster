@@ -4,8 +4,8 @@ Your own Farcaster read node, and a client and AI agent skill that read from
 it. No API keys from anyone: you furnish the compute, Snapchain syncs the
 network, and `selfcast` reads and writes through your node.
 
-- **Tutorial and quickstart:** [cyberchitta.github.io/selfcast](https://cyberchitta.github.io/selfcast/)
-  (source: [`docs/index.html`](docs/index.html))
+- **Tutorial and quickstart:** [selfcast.cyberchitta.cc](https://selfcast.cyberchitta.cc/)
+  (source: [`docs/index.md`](docs/index.md))
 - **Testing it for us:** [`docs/testing.md`](docs/testing.md)
 - **Farcaster documentation we found wrong, and the fixes we sent upstream:**
   [`docs/upstream-fixes.md`](docs/upstream-fixes.md)
@@ -17,7 +17,7 @@ network, and `selfcast` reads and writes through your node.
 | `crates/core` | Message construction, feed and profile assembly, with no network access |
 | `crates/cli` | The `selfcast` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
 | `skill/` | An agent skill that drives `selfcast` |
-| `docs/` | The microsite and the documents above |
+| `docs/` | The microsite's pages and the documents above; the `site-build` branch holds the toolchain that builds them |
 
 ## Status
 
