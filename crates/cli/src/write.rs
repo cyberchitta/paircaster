@@ -21,6 +21,7 @@ use selfcast_core::build::{
     cast_type_for, sign,
 };
 use selfcast_core::cast::{CastRef, MessageHash, ParseRefError, Target};
+use selfcast_core::node::{ShardSync, SyncState};
 use selfcast_core::profile::{Followers, Profile};
 use selfcast_core::proto::{
     Body, CastParent, CastType, Embed, EmbedTarget, FarcasterNetwork, LinkTarget, MessageData,
@@ -34,6 +35,7 @@ use crate::clock;
 use crate::invocation;
 use crate::keystore::{KeyStore, KeyStoreError, LoadedKey};
 use crate::outbox::{self, Outbox, OutboxError};
+use crate::status;
 use crate::tty::{Tty, TtyError};
 
 /// How long to wait for the node to show a sent message.
@@ -129,19 +131,85 @@ pub enum WriteError {
     },
     #[error(
         "{count} message(s) from an earlier write are saved but not seen sent; \
-         run `{selfcast} resend` first"
+         run `{selfcast} resend` {}{behind}",
+        .behind.when("first", "once the node shows them")
     )]
-    Unsent { count: usize, selfcast: String },
+    Unsent {
+        count: usize,
+        selfcast: String,
+        behind: Behind,
+    },
     #[error("not confirmed; nothing was sent")]
     Declined,
     #[error("the node says it would not accept this message; nothing was sent")]
     Invalid,
     #[error(
         "sent, but the node did not show it within a minute. It is saved at {}; \
-         run `{selfcast} resend` to check and send it again",
-        .path.display()
+         run `{selfcast} resend` {}{behind}",
+        .path.display(),
+        .behind.when("to check and send it again", "once the node shows it")
     )]
-    NotConfirmed { path: PathBuf, selfcast: String },
+    NotConfirmed {
+        path: PathBuf,
+        selfcast: String,
+        behind: Behind,
+    },
+}
+
+/// The message shards the node is too far behind on to show a message from
+/// these FIDs within the wait; each becomes a line of the error.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Behind {
+    shards: Vec<(u64, ShardSync)>,
+    selfcast: String,
+}
+
+impl Behind {
+    /// When to run `resend`: `now` with no shard behind, else `later`.
+    fn when(&self, now: &'static str, later: &'static str) -> &'static str {
+        match self.shards.is_empty() {
+            true => now,
+            false => later,
+        }
+    }
+}
+
+impl std::fmt::Display for Behind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.shards.iter().try_for_each(|(fid, shard)| {
+            write!(
+                f,
+                "\nShard {}, which holds FID {fid}'s messages, is {} behind the network; \
+                 the node shows them only once it catches up (see `{} node status`)",
+                shard.id,
+                status::duration(shard.seconds_behind),
+                self.selfcast,
+            )
+        })
+    }
+}
+
+/// Which of `fids` sit on a shard further behind than the wait for a send.
+fn behind(state: &SyncState, fids: &[u64], selfcast: String) -> Behind {
+    let wait = CONFIRM_EVERY.as_secs() * u64::from(CONFIRM_TRIES);
+    Behind {
+        shards: fids
+            .iter()
+            .filter_map(|&fid| Some((fid, *state.shard_of(fid)?)))
+            .filter(|(_, shard)| shard.seconds_behind > wait)
+            .collect(),
+        selfcast,
+    }
+}
+
+/// `behind` on the node's current state. It only adds to an error already
+/// being reported, so a failed read leaves it out rather than replace that
+/// error.
+async fn behind_now(node: &Node, fids: &[u64]) -> Behind {
+    match node.sync_state().await {
+        Ok(state) => behind(&state, fids, invocation::selfcast()),
+        Err(_) => Behind::default(),
+    }
 }
 
 /// `--json` output of a write command, version 1:
@@ -285,7 +353,7 @@ pub async fn send(
         return dry_run(node, &signed, &what, data.fid, &shown, json).await;
     }
     let outbox = Outbox::open().map_err(WriteError::from)?;
-    refuse_if_unsent(&outbox)?;
+    refuse_if_unsent(node, &outbox).await?;
     ensure_registered(node, &loaded).await?;
     let (signed, data, what, shown) = prepare(node, &loaded, &action).await?;
     confirm(&shown, flags.yes)?;
@@ -353,14 +421,23 @@ pub async fn resend(node: &Node, json: bool) -> Result<(), CliError> {
     Ok(())
 }
 
-fn refuse_if_unsent(outbox: &Outbox) -> Result<(), WriteError> {
-    match outbox.unsent()?.len() {
-        0 => Ok(()),
-        count => Err(WriteError::Unsent {
-            count,
-            selfcast: invocation::selfcast(),
-        }),
+async fn refuse_if_unsent(node: &Node, outbox: &Outbox) -> Result<(), CliError> {
+    let unsent = outbox.unsent().map_err(WriteError::from)?;
+    if unsent.is_empty() {
+        return Ok(());
     }
+    let mut fids = unsent
+        .iter()
+        .map(|path| Ok(decode(&outbox::read(path).map_err(WriteError::from)?)?.fid))
+        .collect::<Result<Vec<_>, CliError>>()?;
+    fids.sort_unstable();
+    fids.dedup();
+    Err(WriteError::Unsent {
+        count: unsent.len(),
+        selfcast: invocation::selfcast(),
+        behind: behind_now(node, &fids).await,
+    }
+    .into())
 }
 
 async fn ensure_registered(node: &Node, loaded: &LoadedKey) -> Result<(), CliError> {
@@ -627,6 +704,7 @@ async fn deliver(
     Err(WriteError::NotConfirmed {
         path: saved.to_path_buf(),
         selfcast: invocation::selfcast(),
+        behind: behind_now(node, &[data.fid]).await,
     }
     .into())
 }
@@ -678,8 +756,10 @@ mod tests {
     use selfcast_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
     use selfcast_core::time::Timestamp;
 
+    use selfcast_core::node::{ShardSync, SyncState};
+
     use super::{
-        What, cast_text, confirmation, decode, embed_arg, kind_name, shows, subject, what,
+        What, behind, cast_text, confirmation, decode, embed_arg, kind_name, shows, subject, what,
     };
 
     fn hash(byte: u8) -> MessageHash {
@@ -858,5 +938,28 @@ mod tests {
         assert_eq!(cast_text("gm").expect("fits").kind, CastType::Cast);
         let err = cast_text(&"a".repeat(1025)).expect_err("too long");
         assert!(err.starts_with("1025 bytes"), "{err}");
+    }
+
+    #[test]
+    fn behind_names_only_shards_past_the_wait() {
+        let shard = |id, seconds_behind| ShardSync {
+            id,
+            height: 1,
+            seconds_behind,
+        };
+        let state = SyncState {
+            version: "0.14.3".to_owned(),
+            shards: vec![shard(0, 3), shard(1, 60), shard(2, 15_580)],
+        };
+        let lagging = behind(&state, &[3, 3_356_360], "selfcast".to_owned());
+        assert_eq!(
+            lagging.to_string(),
+            "\nShard 2, which holds FID 3356360's messages, is 4h19m behind the network; \
+             the node shows them only once it catches up (see `selfcast node status`)"
+        );
+        assert_eq!(lagging.when("first", "later"), "later");
+        let current = behind(&state, &[3], "selfcast".to_owned());
+        assert_eq!(current.to_string(), "");
+        assert_eq!(current.when("first", "later"), "first");
     }
 }

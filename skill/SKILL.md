@@ -217,8 +217,10 @@ following thousands is slow. For a short named list, use `casts`.
 **Run once, on Farcaster's public node.** On 2026-10-21 a test account
 sent a cast, a like, an unlike, a delete, a follow and an unfollow through
 `crackle`, each run by an agent as described below, and each read back from
-`crackle` afterwards. None has yet been sent through the user's own node,
-and `resend` has not been run.
+`crackle` afterwards. One cast has since gone through the user's own node
+while it was hours behind on the account's shard: it reached the network,
+but the node did not show it, so it stayed in the outbox. `resend` has not
+been run.
 
 ### Read-only until the user enables writes
 
@@ -304,9 +306,15 @@ Errors you will see, and what to do:
 - `… message(s) from an earlier write are saved but not seen sent; run …
   resend first`: new writes are refused until `resend` has run. Ask the
   user before running it, and say what it will send (it prints each one).
+  When it ends `resend once the node shows them`, a next line `Shard …,
+  which holds FID …'s messages, is … behind the network` says `resend`
+  cannot succeed until that shard catches up (`node status`). The time is
+  the shard's lag, not how long catching up takes. Tell the user, and
+  offer to wait rather than retry.
 - `sent, but the node did not show it within a minute …`: run `resend`
   later to check and send it again. Do not write the same thing again:
-  that would be a second message.
+  that would be a second message. The same `Shard … is … behind the
+  network` line may follow, with the same meaning.
 - `the node says it would not accept this message; nothing was sent`.
 - `this needs a terminal …`: you ran a write without `--yes` or
   `--dry-run`. Follow the steps below instead.

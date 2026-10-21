@@ -180,7 +180,15 @@ How a write goes:
 3. It saves the signed message to an outbox, then submits it to your node (`POST /v1/submitMessage`). Your node checks it against what it holds and passes it on to the validators; it does not keep it.
 4. It reads the message back from your node. Only then does it report the write as sent; every write above was read back. If it does not show up within a minute, `selfcast resend` sends the saved message again later.
 
-Because your node checks a write against what it holds, it has to be synced to accept one.
+Because your node checks a write against what it holds, it has to be synced far enough to know your app key to accept one.
+
+**A node that is behind blocks writes after the first.** Snapchain keeps each account on one *shard*, and a node can be seconds behind on one shard and hours behind on another. Your node passes a write on at once, but shows it only once your account's shard has caught up. Until then the write stays in the outbox, and `selfcast` refuses every new write until `selfcast resend` sees the waiting one on your node. On a node still syncing, that can be hours. The error says why, and how far behind that shard is (not how long it will take to catch up), for example:
+
+```output
+Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the node shows them only once it catches up (see `selfcast node status`)
+```
+
+A write sent this way reaches the network even though your node does not show it yet. Do not send it again: `resend` sends the same message, and a new write would be a second one. A node that catches up faster would fix this; that is Snapchain's to change ([Why sync is slow](node.md#why-sync-is-slow)).
 
 An account needs *storage* to post: units rented on-chain, which the node records. Snapchain refuses messages from an account with none, and when an account is over what its storage allows, it removes that account's oldest messages of that kind (Snapchain 0.14.3 source, `src/mempool/` and `src/storage/store/engine.rs`).
 

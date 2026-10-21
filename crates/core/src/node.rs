@@ -2,6 +2,7 @@ pub mod parse;
 
 use reqwest::{Client, Url};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, MessageHash, Reaction};
@@ -70,6 +71,30 @@ impl SyncState {
     pub fn seconds_behind(&self) -> Option<u64> {
         self.shards.iter().map(|s| s.seconds_behind).max()
     }
+
+    /// The shard that holds `fid`'s messages; `None` when the node reports
+    /// no message shards.
+    pub fn shard_of(&self, fid: u64) -> Option<&ShardSync> {
+        let count = self.shards.iter().filter(|s| s.id != 0).count();
+        let id = route_fid(fid, u32::try_from(count).ok()?)?;
+        self.shards.iter().find(|s| s.id == id)
+    }
+}
+
+/// Which of `count` message shards, numbered from 1, holds `fid`'s messages:
+/// the first four bytes of SHA-256 over the FID as a big-endian `u32`, mod
+/// `count`, plus one. Mirrors snapchain `src/mempool/routing.rs`,
+/// `ShardRouter::route_fid` (commit `f3e857f`). `None` when `count` is 0 or
+/// `fid` does not fit the `u32` Snapchain stores.
+pub fn route_fid(fid: u64, count: u32) -> Option<u32> {
+    let fid = u32::try_from(fid).ok()?;
+    let digest = Sha256::digest(fid.to_be_bytes());
+    let head = u32::from_be_bytes(
+        digest[..4]
+            .try_into()
+            .expect("a SHA-256 digest is 32 bytes"),
+    );
+    head.checked_rem(count).map(|r| r + 1)
 }
 
 /// A connection to one Snapchain node's HTTP API.

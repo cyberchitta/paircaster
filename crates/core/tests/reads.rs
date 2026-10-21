@@ -3,7 +3,7 @@ mod common;
 use common::{fixture, fixture_messages};
 use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
-use selfcast_core::node::parse;
+use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
 use selfcast_core::proto::ReactionType;
 use selfcast_core::signer::{Signer, app_of};
@@ -391,4 +391,41 @@ fn follower_counting_stops_at_the_cap_with_a_lower_bound() {
         last.step(&[1, 2, 3, 4], false, Some(4)),
         Some(Followers::Exact(4))
     );
+}
+
+/// From snapchain's `route_fid` (`src/mempool/routing.rs`, `f3e857f`),
+/// worked by hand with mainnet's two message shards.
+#[test]
+fn route_fid_matches_snapchain_for_known_fids() {
+    let routed: Vec<_> = [1, 2, 3, 194, 3_356_360]
+        .into_iter()
+        .map(|fid| node::route_fid(fid, 2))
+        .collect();
+    assert_eq!(routed, [Some(1), Some(2), Some(1), Some(1), Some(2)]);
+}
+
+#[test]
+fn route_fid_has_no_shard_without_shards_or_for_an_oversized_fid() {
+    assert_eq!(node::route_fid(3, 0), None);
+    assert_eq!(node::route_fid(u64::from(u32::MAX) + 1, 2), None);
+}
+
+#[test]
+fn shard_of_skips_the_block_shard_when_counting() {
+    let shard = |id| ShardSync {
+        id,
+        height: 1,
+        seconds_behind: u64::from(id) * 100,
+    };
+    let state = SyncState {
+        version: "0.14.3".to_owned(),
+        shards: vec![shard(0), shard(1), shard(2)],
+    };
+    assert_eq!(state.shard_of(3_356_360).map(|s| s.id), Some(2));
+    assert_eq!(state.shard_of(3).map(|s| s.id), Some(1));
+    let blocks_only = SyncState {
+        shards: vec![shard(0)],
+        ..state
+    };
+    assert_eq!(blocks_only.shard_of(3), None);
 }

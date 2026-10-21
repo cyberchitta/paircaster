@@ -387,7 +387,7 @@ fn shard_lines(shards: &[ShardV1]) -> String {
 }
 
 /// `3h12m`, `4m`, `45s`.
-fn duration(secs: u64) -> String {
+pub(crate) fn duration(secs: u64) -> String {
     match (secs / 3600, secs % 3600 / 60) {
         (0, 0) => format!("{secs}s"),
         (0, m) => format!("{m}m"),
