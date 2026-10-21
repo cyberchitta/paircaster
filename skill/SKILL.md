@@ -19,8 +19,10 @@ hosted service.
   response, passed through unversioned; prefer `node status`.)
 - Exit code 0 is success. On failure the command prints `error: …` to
   stderr and exits 1. Report the error text as it is.
-- `--node <url>` (or `SELFCAST_NODE`) picks the node. Leave it unset unless
-  the user names a node.
+- `--node <url>` picks the node; without it, the node on this machine
+  (`http://localhost:3381`). Leave it out unless the user names a node, and
+  when they do, put it in every command, so the node a command uses is
+  always in the command.
 - Never ask for, accept, or type a recovery phrase. Commands that need one
   read it from the terminal themselves, and the user types it.
 
@@ -43,10 +45,12 @@ log file: `status` reads the same state. The download takes hours, so do not
 poll it in a loop. Check when the user asks, or at long intervals if they
 asked you to keep an eye on it.
 
-`status` asks the node first and reads the download from disk only when no
-node answers. If `--node` or `SELFCAST_NODE` points at another machine's
-node, `status` reports that node, not a download or disk on this machine;
-if that node does not answer, it is an error.
+Without `--node`, `status` reports the node installed on this machine: it
+asks the node first, and reads the download from the install directory only
+when no node answers. With `--node`, it reports that node only, wherever it
+is, with no download and `disk: null`; if that node does not answer, it is
+an error. Use `--node` for a node reached through an SSH tunnel too: its
+address is `localhost`, but it is not this machine's node.
 
 `phase` says which fields are present. Every phase also has `disk`.
 Where the table says *offer*, suggest the command; run it only if the user
@@ -63,8 +67,9 @@ asked for that outcome ("resume it", "fix it").
 
 `disk` is `{ "free_bytes", "total_bytes", "low" }` for the filesystem
 holding the install directory, or `null` if that directory does not exist
-here or the node is on another machine. When `low` is `true` (under 15% free), tell the user: the snapshot
-still to come and the node's growing database both need room.
+here or `--node` named a node. When `low` is `true` (under 15% free), tell
+the user: the snapshot still to come and the node's growing database both
+need room.
 
 Example, mid-download:
 

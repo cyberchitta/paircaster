@@ -16,18 +16,18 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use selfcast_core::Node;
 
+/// Where a node's HTTP API answers when `--node` is not given: Snapchain's
+/// own compose file publishes it on this port.
+const DEFAULT_NODE: &str = "http://localhost:3381";
+
 /// Farcaster from your own Snapchain node.
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
-    /// Node HTTP API base URL.
-    #[arg(
-        long,
-        env = "SELFCAST_NODE",
-        default_value = "http://localhost:3381",
-        global = true
-    )]
-    node: String,
+    /// Node HTTP API base URL [default: http://localhost:3381, the node on
+    /// this machine].
+    #[arg(long, global = true)]
+    node: Option<String>,
     /// Print machine-readable JSON instead of human output.
     #[arg(long, global = true)]
     json: bool,
@@ -123,23 +123,27 @@ async fn main() -> ExitCode {
 }
 
 async fn run(cli: Cli) -> Result<(), CliError> {
+    let named = cli.node.as_deref();
+    let node = named.unwrap_or(DEFAULT_NODE);
     match cli.command {
-        Command::Info => print(&Node::new(&cli.node)?.info().await?, cli.json),
+        Command::Info => print(&Node::new(node)?.info().await?, cli.json),
         Command::Profile { fid, all_followers } => {
-            reads::profile(&Node::new(&cli.node)?, fid, all_followers, cli.json).await?
+            reads::profile(&Node::new(node)?, fid, all_followers, cli.json).await?
         }
-        Command::Feed(args) => reads::feed(&Node::new(&cli.node)?, &args, cli.json).await?,
-        Command::Casts(args) => reads::casts(&Node::new(&cli.node)?, &args, cli.json).await?,
-        Command::Cast(args) => send(&cli.node, args.into_parts(), cli.json).await?,
-        Command::Delete(args) => send(&cli.node, args.into_parts(), cli.json).await?,
-        Command::React(args) => send(&cli.node, args.into_parts(false), cli.json).await?,
-        Command::Unreact(args) => send(&cli.node, args.into_parts(true), cli.json).await?,
-        Command::Follow(args) => send(&cli.node, args.into_parts(false), cli.json).await?,
-        Command::Unfollow(args) => send(&cli.node, args.into_parts(true), cli.json).await?,
-        Command::Resend => write::resend(&Node::new(&cli.node)?, cli.json).await?,
-        Command::Key(KeyCommand::Add) => key_add::run(&Node::new(&cli.node)?, cli.json).await?,
+        Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
+        Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
+        Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
+        Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
+        Command::React(args) => send(node, args.into_parts(false), cli.json).await?,
+        Command::Unreact(args) => send(node, args.into_parts(true), cli.json).await?,
+        Command::Follow(args) => send(node, args.into_parts(false), cli.json).await?,
+        Command::Unfollow(args) => send(node, args.into_parts(true), cli.json).await?,
+        Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
+        Command::Key(KeyCommand::Add) => key_add::run(&Node::new(node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
-        Command::Node(NodeCommand::Status(args)) => status::run(&cli.node, args, cli.json).await?,
+        Command::Node(NodeCommand::Status(args)) => {
+            status::run(status::target(named, DEFAULT_NODE), args, cli.json).await?
+        }
         Command::Node(NodeCommand::Pause(args)) => control::pause(args).await?,
         Command::Node(NodeCommand::Resume(args)) => control::resume(args).await?,
     }

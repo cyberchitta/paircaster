@@ -1,8 +1,11 @@
 //! `selfcast node status`: which phase the node is in (downloading the
 //! snapshot, unpacking it, stopped, syncing, ready) and how far along.
 //!
-//! The node is asked first; only when nothing answers, and the node is on
-//! this machine, is the snapshot download read from disk.
+//! The node is asked first. Without `--node` the node asked is the one
+//! installed on this machine, so when nothing answers the snapshot download
+//! is read from its install directory, and the disk holding that directory
+//! is reported. A node named with `--node` may be anywhere, so only it is
+//! reported.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -54,8 +57,8 @@ pub struct StatusArgs {
 /// before anything is written. `ready` has the same fields as `syncing`.
 ///
 /// Every phase also carries `disk`, the filesystem holding the Snapchain
-/// install directory, or `null` when that directory does not exist or the
-/// node is not on this machine: `"disk": { "free_bytes": 3400000000000,
+/// install directory, or `null` when that directory does not exist or
+/// `--node` named a node: `"disk": { "free_bytes": 3400000000000,
 /// "total_bytes": 3600000000000, "low": false }`. `low` is under 15% free.
 #[derive(Debug, Serialize)]
 struct StatusV1 {
@@ -110,9 +113,26 @@ struct ShardV1 {
     seconds_behind: u64,
 }
 
-pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), CliError> {
+/// The node `status` reports on.
+#[derive(Debug, PartialEq)]
+pub struct Target<'a> {
+    url: &'a str,
+    /// The node installed on this machine, so its install directory is here.
+    here: bool,
+}
+
+/// `named` is the `--node` given, if any; without one the node is this
+/// machine's own, at `default`.
+pub fn target<'a>(named: Option<&'a str>, default: &'a str) -> Target<'a> {
+    Target {
+        url: named.unwrap_or(default),
+        here: named.is_none(),
+    }
+}
+
+pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(), CliError> {
     let dir = snapshot::install_dir(args.dir)?;
-    let local = is_local(node_url);
+    let (node_url, local) = (target.url, target.here);
     let phase = match Node::new(node_url)?.sync_state().await {
         Ok(state) => synced(state),
         Err(selfcast_core::Error::Transport(_)) if local => on_disk(
@@ -147,13 +167,6 @@ pub async fn run(node_url: &str, args: StatusArgs, json: bool) -> Result<(), Cli
     };
     crate::out::line(format_args!("{out}"));
     Ok(())
-}
-
-/// Whether `node_url` names this machine, so that the snapshot download and
-/// the disk read here are the node's own.
-fn is_local(node_url: &str) -> bool {
-    reqwest::Url::parse(node_url)
-        .is_ok_and(|u| matches!(u.host_str(), Some("localhost" | "127.0.0.1" | "[::1]")))
 }
 
 /// Under this share of the disk free, the node's growing database is at risk.
@@ -387,8 +400,8 @@ mod tests {
     use selfcast_core::node::{ShardSync, SyncState};
 
     use super::{
-        Chunk, Observed, Phase, bytes_per_second, duration, eta_seconds, is_local, is_low, on_disk,
-        synced,
+        Chunk, Observed, Phase, Target, bytes_per_second, duration, eta_seconds, is_low, on_disk,
+        synced, target,
     };
 
     const MB: u64 = 1_000_000;
@@ -480,20 +493,29 @@ mod tests {
     }
 
     #[test]
-    fn only_loopback_nodes_are_local() {
+    fn without_node_the_node_is_this_machines_own() {
+        const DEFAULT: &str = "http://localhost:3381";
+        assert_eq!(
+            target(None, DEFAULT),
+            Target {
+                url: DEFAULT,
+                here: true
+            }
+        );
         [
             "http://localhost:3381",
-            "http://127.0.0.1:3381",
-            "http://[::1]:3381",
-        ]
-        .iter()
-        .for_each(|u| assert!(is_local(u), "{u}"));
-        [
             "https://crackle.farcaster.xyz:3381",
-            "http://192.168.1.5:3381",
-            "not a url",
         ]
         .iter()
-        .for_each(|u| assert!(!is_local(u), "{u}"));
+        .for_each(|u| {
+            assert_eq!(
+                target(Some(u), DEFAULT),
+                Target {
+                    url: u,
+                    here: false
+                },
+                "{u}"
+            )
+        });
     }
 }
