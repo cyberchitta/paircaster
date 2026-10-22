@@ -279,8 +279,8 @@ selfcast viewer state              # what the page shows: thread, selected cast,
   `selfcast://selfcast/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a cast
   selected in that thread. What `viewer open` shows never changes it, so
   `cast` and `selected` say what is on screen, `user_selected` what the user
-  chose. In Shala, `shala selection` gives the same moniker when the viewer
-  is what the user touched last.
+  chose. When `shala selection` says the user was last in selfcast's app,
+  this is where to look: Shala does not carry the viewer's selection.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
 - The page shows no images and opens no links: a link shows its address.

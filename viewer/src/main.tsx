@@ -92,15 +92,12 @@ function App() {
       });
   }, []);
 
-  // What the owner does becomes their selection: in the page's state, and
-  // in Shala's when Shala hosts it.
+  // What the owner does becomes their selection, in the page's state, which
+  // a tell reads under either host. Never what a tell or reveal did.
   const point = (thread: Thread, chosen: string | null) => {
     const focus = refOf(thread.cast);
-    const cast = all(thread).find((c) => refOf(c) === (chosen ?? focus))!;
-    const moniker = monikerOf(focus) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
-    live.current.userSelected = moniker;
+    live.current.userSelected = monikerOf(focus) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
     save(live.current);
-    host?.select({ moniker, label: about(thread, cast), state: { node: live.current.node } });
   };
 
   const open = async (ref: string, back = false) => {

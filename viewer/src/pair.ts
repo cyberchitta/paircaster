@@ -38,7 +38,6 @@ export function pairHost(token: string, project: string): Host {
         .catch(() => null);
       return { kept, start: () => void poll(handlers) };
     },
-    select: () => {},
     keep: (view) => void call("PUT", "keep", view ?? null).catch(() => {}),
   };
 }

@@ -1,5 +1,6 @@
-// What the viewer needs from whatever hosts it: tells in, answers out, one
-// kept value, and a place to report what the owner points at. Shala carries
+// What the viewer needs from whatever hosts it: tells in, answers out, and
+// one kept value. What the owner points at is the page's own state, read by
+// a tell, under either host. Shala carries
 // these over postMessage (`shala.ts`); pair-ui, in a plain browser, over
 // HTTP (`pair.ts`). The viewer above this is the same in both.
 
@@ -13,8 +14,6 @@ export type Handlers = {
   onTell(body: unknown): Promise<Answer>;
 };
 
-export type Selection = { moniker: string; label: string; state?: unknown };
-
 export type Host = {
   // The project monikers name.
   project: string;
@@ -23,8 +22,6 @@ export type Host = {
   // Listens, and gives back what was kept. `start` says the page can now
   // answer; call it once the kept view is shown.
   connect(handlers: Handlers): Promise<{ kept: unknown; start(): void }>;
-  // Only for what the owner did, never for what a tell or reveal did.
-  select(selection: Selection | null): void;
   keep(view: unknown): void;
 };
 
