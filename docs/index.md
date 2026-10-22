@@ -1,6 +1,6 @@
 ---
 title: Selfcast
-dek: Farcaster from your own Snapchain node, for people and their AI agents. No API keys from anyone.
+dek: Farcaster from your own Snapchain node, and a page where you and your AI agent look at the same thread. No API keys from anyone.
 ---
 
 <warning>
@@ -17,6 +17,7 @@ dek: Farcaster from your own Snapchain node, for people and their AI agents. No 
 
 ## What you get
 
+- **A thread you and your agent look at together.** Your agent opens a thread in a page in your browser. You follow its replies and click the cast you mean, and the agent reads what you chose. The page reads your node itself ([Looking at a thread together](agent.md#looking-at-a-thread-together)).
 - **Your own node, no API keys.** `selfcast` reads from the Snapchain node on your machine, at `http://localhost:3381` unless you point it elsewhere, so what you read does not pass through anyone else's server ([what you just did](#what-you-just-did)).
 - **No server needed.** It can run on a machine you already use. Snapchain's own snapshot download starts over after a short network drop, so `selfcast` has its own, which you can pause and resume where it stopped. A node on a laptop syncs only while the laptop is awake; after a 40-minute sleep it reconnected and carried on ([The snapshot](node.md#the-snapshot), [Sleep](node.md#sleep,-shutdown-and-logout)).
 - **Your recovery phrase stays in your terminal.** `selfcast key add` reads it from the terminal only, never from a file, an argument, a pipe or an environment variable, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
@@ -140,6 +141,7 @@ Each idea is explained where the guide first uses it.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text. Also embeds.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
+- The viewer built on a machine that did not already have Bun, the `wasm32-unknown-unknown` target and `wasm-bindgen-cli`; the viewer in browsers other than one.
 - A node set up by another guide, other than Farcaster's public node: its address behind a web proxy, or its install directory for `node status`.
 
 ## Going further

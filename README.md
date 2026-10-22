@@ -1,7 +1,8 @@
 # Selfcast
 
-Your own Farcaster read node, and a client and AI agent skill that read from
-it. No API keys from anyone: you furnish the compute, Snapchain syncs the
+Your own Farcaster read node, a client and AI agent skill that read from it,
+and a page where you and your agent look at the same thread. No API keys from
+anyone: you furnish the compute, Snapchain syncs the
 network, and `selfcast` reads and writes through your node.
 
 > **Read the code before you give it your recovery phrase.** As with any code

@@ -59,6 +59,69 @@ Rules like these match the command's text, so another spelling (options first, a
 
 </limit>
 
+## Looking at a thread together
+
+The agent can show you a thread instead of describing it: a page in your browser that reads your node, where you follow replies and go back without the agent. When you click a cast, the agent can read which one you chose. You and the agent are looking at the same page.
+
+The page is built into `selfcast` only with the `viewer` feature, which the quickstart's `cargo install` leaves out. Building it needs [Bun](https://bun.sh), the WebAssembly target, and `wasm-bindgen-cli` at the version in `Cargo.lock`. From the clone:
+
+```run
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
+cd viewer && bun install && bun build.ts && cd ..
+cargo install --path crates/cli --locked --features viewer
+```
+
+```output
+dist/: index.html 3247 bytes, viewer.js 908697 (wasm 656291)
+```
+
+`bun build.ts` prints the line above; the other steps print their usual output. Then start the page and open the address it prints:
+
+```run
+selfcast viewer serve
+```
+
+```output
+open the viewer at http://127.0.0.1:63677/?pair=42909cb06db6d5baacdcceccccf3ecbe769860af1788d5515b7d2a632033ff1d
+stop it with Ctrl-C
+```
+
+It keeps running, on `127.0.0.1` only, and the page can reach only the node `selfcast` reads from. The address carries a token; a page opened without it is refused. The agent then shows a thread with `viewer open`, and asks the page what it shows with `viewer state`:
+
+```run
+selfcast viewer open 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+selfcast viewer state
+```
+
+```output
+revealed selfcast://selfcast/thread/3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+message: thread of 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d: 0 casts above, 1 reply, from http://localhost:3381
+told selfcast
+message: the thread of 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d by @selfcast ("This cast went out through my own Snapchain node, signed by an app key I added w"), 0 casts above it, 1 reply
+result: {"back":[],"cast":"3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d","node":"http://localhost:3381","selected":null,"user_selected":null,"view":"thread"}
+```
+
+Click the reply in the page, and the agent asks again:
+
+```run
+selfcast viewer state
+```
+
+```output
+told selfcast
+message: the thread of 3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24 by @selfcast ("How: selfcast node fetch-snapshot cd ~/snapchain && ./snapchain.sh up selfcast k"), 1 cast above it, 1 reply
+result: {"back":["3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d"],"cast":"3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24","node":"http://localhost:3381","selected":null,"user_selected":"selfcast://selfcast/thread/3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24","view":"thread"}
+```
+
+The page opened the reply's own thread, `back` holds the one you came from, and `user_selected` is the cast you last clicked or opened in the page. What the agent opens never changes it, so `cast` and `selected` say what is on screen and `user_selected` what you chose. The skill tells the agent that this is the cast you are pointing at.
+
+<limit>
+
+The page cannot tell whether you are looking at it, or who chose what it shows. It shows no images. `viewer open` and `viewer state` fail when no page is open, and say so.
+
+</limit>
+
 What the agent cannot read yet: the reactions to a cast (so no “most liked”; replies it can read), search results, channels, finding an account by username (accounts are named by FID; mentions come with their usernames), and anything older than an account's newest 1000 messages.
 
 ---

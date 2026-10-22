@@ -154,6 +154,34 @@ selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --exclude-app 915
 
 The node's pages of replies repeat: a shard that runs out starts again from its first reply, and the last page leads back to the first. So `selfcast` reads pages until one brings no reply it has not seen.
 
+## Threads
+
+```run
+selfcast thread 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+```
+
+```output
+--- the cast ---
+2026-10-21T11:32:08Z  fid 3356360  0x3820fb679133cd50df09d95beb8a5fbe2553069d  app 3356360
+  This cast went out through my own Snapchain node, signed by an app key I added with a gasless KEY_ADD message. No API key, no hosted service, no one else's server.
+  
+  Selfcast: run your own Farcaster read node, plus a CLI and an agent skill that use it.
+
+--- 1 replies ---
+2026-10-21T19:04:46Z  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
+  How:
+  selfcast node fetch-snapshot
+  cd ~/snapchain && ./snapchain.sh up
+  selfcast key add
+  selfcast cast "…"
+  
+  The phrase is typed once at a terminal and never stored. This reply was sent by an AI agent through the Selfcast skill, after I approved the CLI's own confirmation text.
+  
+  github.com/cyberchitta/selfcast
+```
+
+A cast with the casts it replies to, root first, and its direct replies: the newest 100, oldest first (`--limit` changes the number). To see a thread in a page instead, with your agent, see [Looking at a thread together](agent.md#looking-at-a-thread-together).
+
 ## Writing: casts, reactions, follows
 
 The examples are from a test account, `@selfcast` (FID 3356360). They went through Farcaster's public node `crackle` because the test node had not yet synced the new account: a node has to have seen an account to accept its writes.
