@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { makeRuntime, type Selfcast } from "./runtime";
-import { type Answer, findHost } from "./host";
+import { type Answer, connect } from "pair-ui/page";
 import {
   type Account,
   type Cast,
@@ -20,8 +20,9 @@ const DEFAULT_NODE = "http://localhost:3381";
 // The tell bodies this build takes: `{ selfcast: 1, get: "state" }`.
 const PROTOCOL = 1;
 
-// Shala, pair-ui, or nothing: a page opened as a plain file has no host.
-const host = findHost();
+// The pair-ui host in a browser, a framing host such as Shala, or nothing: a
+// page opened as a plain file has no host.
+const host = await connect();
 
 type View = { thread: Thread | null; error: string | null; loading: boolean };
 
@@ -78,18 +79,16 @@ function App() {
 
   useEffect(() => {
     if (!host) return;
-    host
-      .connect({
-        onReveal: async (moniker, state) => reveal(load, live.current, moniker, state),
-        onTell: async (body) => tell(live.current, body),
-      })
-      .then(async ({ kept, start }) => {
-        if (isKept(kept)) {
-          live.current.userSelected = kept.user_selected;
-          await load(kept).catch(() => {});
-        }
-        start();
-      });
+    const kept = host.kept;
+    const restored = isKept(kept)
+      ? ((live.current.userSelected = kept.user_selected), load(kept).catch(() => {}))
+      : Promise.resolve();
+    restored.then(() =>
+      host.start({
+        reveal: (moniker, state) => reveal(load, live.current, moniker, state),
+        tell: (body) => tell(live.current, body),
+      }),
+    );
   }, []);
 
   // What the owner does becomes their selection, in the page's state, which

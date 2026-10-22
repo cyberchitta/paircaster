@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts and threads from the node, showing a thread to the user in the viewer page (in Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts and threads from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -260,30 +260,35 @@ one up (run `thread` on it for more). `--limit` caps the replies as in
 ## Viewer
 
 A read-only page that shows a thread the way a Farcaster client does, beside
-the user, in Shala (the app that hosts it). The page reads the node itself,
-so the user can follow replies and go back without you. Use it when the user
-wants to look at a conversation with you, not to read one yourself: for that,
-`thread --json` is the read.
+the user: in their browser, or in Shala if they use it. The page reads the
+node itself, so the user can follow replies and go back without you. Use it
+when the user wants to look at a conversation with you, not to read one
+yourself: for that, `thread --json` is the read.
 
 ```
+selfcast viewer serve              # host the page on 127.0.0.1 until stopped; prints its address
 selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened
 selfcast viewer state              # what the page shows: thread, selected cast, Back trail
 ```
 
-- `open` reads from `--node` as the other commands do, and the page can
-  reach only the nodes Shala allows for this project (`localhost:3381` to
-  start). Exit 1, with Shala's or the page's reason, when it could not
-  show the cast or the page is not open in Shala.
+- **`serve` keeps running.** Run it in the background, or ask the user to
+  run it in a terminal, and give them the address it prints to open. It
+  reads from `--node`, and the page can reach only that node. A selfcast
+  built without the `viewer` feature says so and serves nothing.
+- `open` and `state` go to the page `serve` hosts when it is running, and
+  otherwise to Shala. Exit 1, with the page's or the host's reason, when it
+  could not show the cast or no page is open.
 - **What the user points at is `user_selected` in `viewer state`**: the
   cast they last clicked or opened, as
   `selfcast://selfcast/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a cast
   selected in that thread. What `viewer open` shows never changes it, so
   `cast` and `selected` say what is on screen, `user_selected` what the user
-  chose. When `shala selection` says the user was last in selfcast's app,
-  this is where to look: Shala does not carry the viewer's selection.
+  chose. In Shala, when `shala selection` says the user was last in
+  selfcast's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
-- The page shows no images and opens no links: a link shows its address.
+- The page shows no images. In Shala it opens no links: a link shows its
+  address.
 
 ## Writes
 

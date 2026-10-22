@@ -71,7 +71,7 @@ enum Command {
     Unfollow(write::FollowArgs),
     /// Send again any message an earlier write saved but did not see sent.
     Resend,
-    /// Drive the viewer page hosted in Shala: open a thread, read what it
+    /// Serve the viewer page, or drive it: open a thread, read what it
     /// shows.
     #[command(subcommand)]
     Viewer(viewer::ViewerCommand),
@@ -156,7 +156,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
         Command::Viewer(command) => {
             Node::new(node)?;
-            viewer::run(&command, node)?
+            viewer::run(&command, node).await?
         }
         Command::Key(KeyCommand::Add) => key_add::run(&Node::new(node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,

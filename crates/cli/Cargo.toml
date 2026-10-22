@@ -11,8 +11,14 @@ rust-version.workspace = true
 name = "selfcast"
 path = "src/main.rs"
 
+[features]
+# Compiles the viewer page (viewer/dist, built by `bun build.ts` in viewer/)
+# into the binary, for `selfcast viewer serve`. Release builds turn it on.
+viewer = []
+
 [dependencies]
 selfcast-core.workspace = true
+pair-ui.workspace = true
 clap.workspace = true
 flate2.workspace = true
 getrandom.workspace = true
