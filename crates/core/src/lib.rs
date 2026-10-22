@@ -8,6 +8,7 @@ pub mod feed;
 pub mod key_add;
 pub mod message;
 pub mod node;
+pub mod output;
 pub mod profile;
 pub mod proto;
 pub mod signer;

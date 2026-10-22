@@ -3,6 +3,7 @@ mod control;
 mod invocation;
 mod key_add;
 mod keystore;
+mod mcp;
 mod out;
 mod outbox;
 mod reads;
@@ -54,6 +55,8 @@ enum Command {
     Casts(reads::CastsArgs),
     /// Show the replies to a cast, oldest first.
     Replies(reads::RepliesArgs),
+    /// Show a cast with the casts it replies to, root first, and its replies.
+    Thread(reads::ThreadArgs),
     /// Post a cast, or a reply with --reply-to.
     Cast(write::CastArgs),
     /// Delete one of the account's casts.
@@ -68,6 +71,9 @@ enum Command {
     Unfollow(write::FollowArgs),
     /// Send again any message an earlier write saved but did not see sent.
     Resend,
+    /// Serve the viewer as an MCP Apps page, over stdin and stdout. The page
+    /// reads the node itself; the server offers one tool, `view`.
+    Mcp,
     /// Manage the account's app keys.
     #[command(subcommand)]
     Key(KeyCommand),
@@ -112,6 +118,8 @@ enum CliError {
     Write(#[from] write::WriteError),
     #[error(transparent)]
     Status(#[from] status::StatusError),
+    #[error("mcp: {0}")]
+    Mcp(#[from] std::io::Error),
 }
 
 #[tokio::main]
@@ -137,6 +145,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
         Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
+        Command::Thread(args) => reads::thread(&Node::new(node)?, &args, cli.json).await?,
         Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
         Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
         Command::React(args) => send(node, args.into_parts(false), cli.json).await?,
@@ -144,6 +153,10 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Follow(args) => send(node, args.into_parts(false), cli.json).await?,
         Command::Unfollow(args) => send(node, args.into_parts(true), cli.json).await?,
         Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
+        Command::Mcp => {
+            Node::new(node)?;
+            mcp::run(mcp::Origin::of(node)).await?
+        }
         Command::Key(KeyCommand::Add) => key_add::run(&Node::new(node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
         Command::Node(NodeCommand::Status(args)) => {

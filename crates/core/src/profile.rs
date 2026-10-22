@@ -1,6 +1,6 @@
 //! A profile, assembled from an account's user data, follows and followers.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::proto::UserDataType;
 use crate::time::Timestamp;
@@ -139,9 +139,28 @@ impl FollowerTally {
     }
 }
 
+/// Accounts' user data, by FID.
+pub type Users = BTreeMap<u64, Vec<UserDatum>>;
+
+/// Usernames by FID; an account with none is absent.
+pub type Names = HashMap<u64, String>;
+
+/// The username of each account in `users` that has one.
+pub fn names_of(users: &Users) -> Names {
+    users
+        .iter()
+        .filter_map(|(fid, data)| username(data).map(|n| (*fid, n)))
+        .collect()
+}
+
 /// The account's username, the newest one set; `None` when it has none.
 pub fn username(user_data: &[UserDatum]) -> Option<String> {
     latest(user_data, UserDataType::Username)
+}
+
+/// The account's display name, the newest one set; `None` when it has none.
+pub fn display_name(user_data: &[UserDatum]) -> Option<String> {
+    latest(user_data, UserDataType::Display)
 }
 
 fn latest(user_data: &[UserDatum], kind: UserDataType) -> Option<String> {

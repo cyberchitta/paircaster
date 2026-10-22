@@ -1,4 +1,5 @@
 pub mod parse;
+pub mod reads;
 
 use reqwest::{Client, Url};
 use serde_json::Value;
@@ -11,7 +12,7 @@ use crate::error::{Error, NodeErrorBody};
 use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
-use crate::thread::ReplyTally;
+use crate::thread::{Ancestors, ChainTop, ReplyTally};
 
 /// Per shard, so a page holds up to this many times the shard count.
 const FOLLOWER_PAGE_SIZE: u32 = 1000;
@@ -175,6 +176,32 @@ impl Node {
                 _ => return Ok(tally.into_casts()),
             }
         }
+    }
+
+    /// The casts `cast` replies to, root first: its parent, that cast's
+    /// parent, and so on, reading at most `max` of them. A parent the node
+    /// does not hold ends the chain.
+    pub async fn ancestors(&self, cast: &Cast, max: usize) -> Result<Ancestors, Error> {
+        let mut casts: Vec<Cast> = Vec::new();
+        let mut next = cast.parent_cast();
+        let top = loop {
+            let Some(id) = next else {
+                break ChainTop::Root;
+            };
+            if casts.len() == max {
+                break ChainTop::Cut(id);
+            }
+            match self.cast_by_id(id.fid, &id.hash).await {
+                Ok(parent) => {
+                    next = parent.parent_cast();
+                    casts.push(parent);
+                }
+                Err(e) if parse::is_not_found(&e) => break ChainTop::Missing(id),
+                Err(e) => return Err(e),
+            }
+        };
+        casts.reverse();
+        Ok(Ancestors { casts, top })
     }
 
     /// `GET /v1/userDataByFid`, every page.

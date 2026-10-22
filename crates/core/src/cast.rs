@@ -141,6 +141,15 @@ pub struct Cast {
 }
 
 impl Cast {
+    /// The cast this one replies to; `None` for a cast that starts a thread,
+    /// in a channel (a URL parent) or not.
+    pub fn parent_cast(&self) -> Option<CastRef> {
+        match self.parent {
+            Some(Target::Cast(r)) => Some(r),
+            Some(Target::Url(_)) | None => None,
+        }
+    }
+
     /// The text with each mention written in where it was made: `@username`,
     /// or `@fid:N` for an account `names` has no username for. `None` when a
     /// position falls inside a character, which the network allows.

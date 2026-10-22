@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/cli"]
+members = ["crates/core", "crates/cli", "crates/wasm"]
 
 [workspace.package]
 version = "0.0.1"
@@ -22,6 +22,7 @@ bip39 = { version = "2", default-features = false, features = ["std", "zeroize"]
 blake3 = "1"
 clap = { version = "4", features = ["derive", "env"] }
 ed25519-dalek = "2"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 flate2 = "1"
 getrandom = "0.4"
 hex = "0.4"
@@ -34,5 +35,13 @@ serde_json = "1"
 sha2 = "0.10"
 tar = "0.4"
 thiserror = "2"
-tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread", "time"] }
 zeroize = "1"
+
+# The viewer's WebAssembly, built by viewer/build.ts: small over fast.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

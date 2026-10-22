@@ -15,6 +15,7 @@ bip32.workspace = true
 bip39.workspace = true
 blake3.workspace = true
 ed25519-dalek.workspace = true
+futures-util.workspace = true
 hex.workspace = true
 k256.workspace = true
 prost.workspace = true
@@ -31,3 +32,8 @@ alloy-primitives = { workspace = true, features = ["k256"] }
 
 [lints]
 workspace = true
+
+# Only for the viewer page: the key code pulls in getrandom 0.2, which needs
+# its browser source of randomness to build for WebAssembly.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
