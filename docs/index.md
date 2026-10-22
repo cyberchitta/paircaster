@@ -72,6 +72,23 @@ Syncing (Snapchain 0.14.3): 47h07m behind at most.
 Disk: 3165 GB free of 3996 GB.
 ```
 
+### Already running a Snapchain node?
+
+If another guide has already given you a synced mainnet node, skip steps 2 and 3: install `selfcast` (step 1) and point it at that node. On the machine the node runs on, there is nothing to set, because `selfcast` asks `http://localhost:3381`, Snapchain's own port, however the node was installed. Elsewhere, reach the node's API [through SSH](client.md#where-to-run-selfcast), or name its address with `--node` on every command, reads and writes alike:
+
+```run
+selfcast node status --node http://127.0.0.1:3381
+```
+
+```output
+Ready (Snapchain 0.14.3): every shard within a minute of its newest block.
+  shard 0: height 48642234, 1s behind
+  shard 1: height 49318266, 0s behind
+  shard 2: height 49153538, 0s behind
+```
+
+If nothing answers at that address, it says `could not reach node` and exits 1. The guide's own writes went through a node it did not set up, Farcaster's public node, with `--node` ([Writing](client.md#writing:-casts,-reactions,-follows)).
+
 ## What you just did
 
 ```
@@ -123,6 +140,7 @@ Each idea is explained where the guide first uses it.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text. Also embeds.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
+- A node set up by another guide, other than Farcaster's public node: its address behind a web proxy, or its install directory for `node status`.
 
 ## Going further
 
