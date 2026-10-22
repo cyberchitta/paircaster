@@ -4,8 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "build": "bun build.ts",
-    "dev": "bun dev/host.ts"
+    "build": "bun build.ts"
   },
   "dependencies": {
     "preact": "11.0.1"

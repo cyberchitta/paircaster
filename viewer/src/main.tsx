@@ -1,8 +1,8 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import { connect, type Host, type HostContext, inHost, type ToolResult } from "./host";
 import { makeRuntime, type Selfcast } from "./runtime";
+import { type Answer, connect, inFrame, keep, ready, select } from "./shala";
 import {
   type Account,
   type Cast,
@@ -15,64 +15,91 @@ import {
   segments,
 } from "./thread";
 
+// The node the CLI reads when --node is not given.
+const DEFAULT_NODE = "http://localhost:3381";
+// The tell bodies this build takes: `{ selfcast: 1, get: "state" }`.
+const PROTOCOL = 1;
+
 type View = { thread: Thread | null; error: string | null; loading: boolean };
 
-// What the `view` tool hands the page.
-type Opened = { cast: string; node: string };
+// Where the page is, as Shala keeps it across restarts.
+type Place = { node: string; cast: string; trail: string[] };
+
+// What the page shows, read by the message handlers, which outlive a render.
+type Live = { node: string; thread: Thread | null; selected: string | null; trail: string[] };
 
 function App() {
-  const [view, setView] = useState<View>({ thread: null, error: null, loading: true });
+  const [view, setView] = useState<View>({ thread: null, error: null, loading: false });
   const [trail, setTrail] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const runtime = useRef<Selfcast | null>(null);
+  const latest = useRef(0);
+  const live = useRef<Live>({ node: DEFAULT_NODE, thread: null, selected: null, trail: [] });
+  live.current = { ...live.current, thread: view.thread, selected, trail };
 
-  const load = async (ref: string) => {
-    const rt = runtime.current;
-    if (!rt) return false;
+  // Shows `place` with `chosen` selected, or throws and changes nothing; a
+  // load overtaken by a later one changes nothing.
+  const load = async (place: Place, chosen: string | null = null): Promise<Thread> => {
+    const seq = ++latest.current;
+    if (runtime.current?.node !== place.node) runtime.current = makeRuntime(place.node);
     setView((v) => ({ ...v, loading: true }));
     try {
-      setView({ thread: await rt.thread(ref), error: null, loading: false });
-      setSelected(null);
+      const thread = await runtime.current.thread(place.cast);
+      if (chosen && !all(thread).some((c) => refOf(c) === chosen)) {
+        throw new Error(`${chosen} is not in the thread of ${place.cast}`);
+      }
+      if (seq !== latest.current) return thread;
+      live.current = { node: place.node, thread, selected: chosen, trail: place.trail };
+      setView({ thread, error: null, loading: false });
+      setTrail(place.trail);
+      setSelected(chosen);
+      keep(place);
       window.scrollTo(0, 0);
-      return true;
+      return thread;
     } catch (e) {
-      setView((v) => ({ ...v, error: String(e instanceof Error ? e.message : e), loading: false }));
-      return false;
+      if (seq === latest.current) setView((v) => ({ ...v, loading: false }));
+      throw e;
     }
   };
 
   useEffect(() => {
-    if (!inHost()) return;
+    if (!inFrame()) return;
     connect({
-      onToolResult: (result: ToolResult, host: Host) => {
-        if (result.isError) {
-          setView((v) => ({ ...v, error: result.content?.[0]?.text ?? "the tool failed", loading: false }));
-          return;
-        }
-        const opened = result.structuredContent as Opened;
-        runtime.current = makeRuntime(host, opened.node);
-        setTrail([]);
-        load(opened.cast);
-      },
-      onContext: applyTheme,
+      onReveal: async (moniker, state) => reveal(load, live.current, moniker, state),
+      onTell: async (body) => tell(live.current, body),
+    }).then(async (kept) => {
+      if (isPlace(kept)) await load(kept).catch(() => {});
+      ready();
     });
   }, []);
 
-  useEffect(() => {
-    const rt = runtime.current;
-    if (rt && view.thread) rt.setState(...describe(view.thread, selected, trail));
-  }, [view.thread, selected, trail]);
+  // What the owner does becomes their selection in Shala.
+  const point = (thread: Thread, chosen: string | null) => {
+    const focus = refOf(thread.cast);
+    const cast = all(thread).find((c) => refOf(c) === (chosen ?? focus))!;
+    const moniker = monikerOf(focus) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
+    select({ moniker, label: about(thread, cast), state: { node: live.current.node } });
+  };
 
   const open = async (ref: string, back = false) => {
     if (!view.thread) return;
     const from = refOf(view.thread.cast);
-    if (await load(ref)) setTrail((t) => (back ? t.slice(0, -1) : [...t, from]));
+    const next = back ? trail.slice(0, -1) : [...trail, from];
+    try {
+      point(await load({ node: live.current.node, cast: ref, trail: next }), null);
+    } catch (e) {
+      setView((v) => ({ ...v, error: String(e instanceof Error ? e.message : e) }));
+    }
   };
 
-  const select = (cast: Cast) => setSelected(refOf(cast));
+  const choose = (cast: Cast) => {
+    if (!view.thread || selected === refOf(cast)) return;
+    setSelected(refOf(cast));
+    point(view.thread, refOf(cast));
+  };
 
-  if (!inHost()) return <p class="note">This page runs inside an MCP Apps host, opened by Selfcast's <code>view</code> tool.</p>;
-  if (!view.thread) return <p class="note">{view.error ?? "Waiting for a thread…"}</p>;
+  if (!inFrame()) return <p class="note">This page runs in Shala, opened by <code>selfcast viewer open</code>.</p>;
+  if (!view.thread) return <p class="note">{view.error ?? (view.loading ? "Reading the node…" : "No thread open yet.")}</p>;
   return (
     <main class={view.loading ? "loading" : ""}>
       {trail.length > 0 && (
@@ -81,22 +108,68 @@ function App() {
         </button>
       )}
       {view.error && <p class="error">{view.error}</p>}
-      <ThreadView
-        thread={view.thread}
-        selected={selected}
-        onOpen={(ref) => open(ref)}
-        onSelect={select}
-        onLink={(url) => runtime.current?.openLink(url)}
-      />
+      <ThreadView thread={view.thread} selected={selected} onOpen={(ref) => open(ref)} onSelect={choose} />
     </main>
   );
+}
+
+const SCHEME = "selfcast";
+const monikerOf = (cast: string) => `${SCHEME}://${location.host}/thread/${cast}`;
+
+// `selfcast://<project>/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a
+// cast selected in it.
+function parseMoniker(moniker: string): { cast: string; chosen: string | null } | null {
+  const prefix = `${SCHEME}://${location.host}/thread/`;
+  if (!moniker.startsWith(prefix)) return null;
+  const [cast, fragment] = moniker.slice(prefix.length).split("#", 2);
+  const chosen = fragment?.startsWith("cast=") ? fragment.slice(5) : null;
+  return cast ? { cast, chosen } : null;
+}
+
+async function reveal(
+  load: (place: Place, chosen: string | null) => Promise<Thread>,
+  now: Live,
+  moniker: string,
+  state: unknown,
+): Promise<Answer> {
+  const target = parseMoniker(moniker);
+  if (!target) return { ok: false, message: `not a thread in this project: ${moniker}` };
+  const node = isObject(state) && typeof state.node === "string" ? state.node : now.node;
+  const thread = await load({ node, cast: target.cast, trail: [] }, target.chosen);
+  const counts = `${count(thread.ancestors.length, "cast")} above, ${count(thread.replies.length, "reply", "replies")}, from ${node}`;
+  return { ok: true, message: `thread of ${target.cast}${target.chosen ? `, ${target.chosen} selected` : ""}: ${counts}` };
+}
+
+async function tell(now: Live, body: unknown): Promise<Answer> {
+  if (!isObject(body) || body.selfcast !== PROTOCOL) {
+    return { ok: false, message: `this page takes selfcast: ${PROTOCOL}; run the selfcast that built it` };
+  }
+  if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
+  if (!now.thread) return { ok: true, message: "no thread open", result: { view: null, node: now.node } };
+  const [text, state] = describe(now.thread, now.selected, now.trail);
+  return { ok: true, message: text, result: { ...state, node: now.node } };
+}
+
+const count = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+
+const isPlace = (v: unknown): v is Place =>
+  isObject(v) && typeof v.node === "string" && typeof v.cast === "string" && Array.isArray(v.trail);
+
+const all = (thread: Thread) => [...thread.ancestors, thread.cast, ...thread.replies];
+
+// One line naming a cast, for the owner and the agent.
+function about(thread: Thread, c: Cast): string {
+  const who = thread.accounts.find((a) => a.fid === c.fid)?.username;
+  const words = (c.display_text ?? c.text).replace(/\s+/g, " ").slice(0, 80);
+  return `${refOf(c)} by ${who ? "@" + who : "fid " + c.fid} ("${words}")`;
 }
 
 type Actions = {
   selected: string | null;
   onOpen(ref: string): void;
-  onSelect(cast: Cast, account: Account | undefined): void;
-  onLink(url: string): void;
+  onSelect(cast: Cast): void;
 };
 
 function ThreadView({ thread, ...actions }: { thread: Thread } & Actions) {
@@ -110,9 +183,7 @@ function ThreadView({ thread, ...actions }: { thread: Thread } & Actions) {
       <Top top={thread.top} onOpen={actions.onOpen} />
       {thread.ancestors.map((c) => card(c, "ancestor"))}
       {card(thread.cast, "focus")}
-      <h2 class="replies">
-        {thread.replies.length === 1 ? "1 reply" : `${thread.replies.length} replies`}
-      </h2>
+      <h2 class="replies">{count(thread.replies.length, "reply", "replies")}</h2>
       {thread.replies.map((c) => card(c, "reply"))}
     </>
   );
@@ -134,17 +205,17 @@ type Role = "ancestor" | "focus" | "reply";
 
 type CardProps = { cast: Cast; role: Role; accounts: Map<number, Account>; now: number } & Actions;
 
-function CastCard({ cast, role, accounts, now, selected, onOpen, onSelect, onLink }: CardProps) {
+function CastCard({ cast, role, accounts, now, selected, onOpen, onSelect }: CardProps) {
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
-  const click = () => (role === "focus" ? onSelect(cast, account) : onOpen(ref));
+  const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
   return (
     <article
       class={`cast ${role}${selected === ref ? " selected" : ""}`}
       data-cast={ref}
       tabIndex={0}
       onClick={click}
-      onFocus={() => onSelect(cast, account)}
+      onFocus={() => onSelect(cast)}
       onKeyDown={(e) => e.key === "Enter" && click()}
     >
       <div class="rail">
@@ -153,8 +224,8 @@ function CastCard({ cast, role, accounts, now, selected, onOpen, onSelect, onLin
       </div>
       <div class="body">
         <Meta cast={cast} account={account} now={now} />
-        <Text cast={cast} clamp={role !== "focus"} onLink={onLink} />
-        <Embeds cast={cast} onOpen={onOpen} onLink={onLink} />
+        <Text cast={cast} clamp={role !== "focus"} />
+        <Embeds cast={cast} onOpen={onOpen} />
       </div>
     </article>
   );
@@ -185,7 +256,8 @@ function Meta({ cast, account, now }: { cast: Cast; account: Account | undefined
   );
 }
 
-function Text({ cast, clamp, onLink }: { cast: Cast; clamp: boolean; onLink(url: string): void }) {
+// Shala's sandbox opens no links, so a link shows its address and stops there.
+function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
   const [open, setOpen] = useState(!clamp);
   const long = (cast.display_text ?? cast.text).split("\n").length > 12 || cast.text.length > 700;
   return (
@@ -193,7 +265,7 @@ function Text({ cast, clamp, onLink }: { cast: Cast; clamp: boolean; onLink(url:
       <p class={`text${open || !long ? "" : " clamped"}`}>
         {segments(cast).map((s, i) =>
           s.kind === "link" ? (
-            <a key={i} href={s.url} onClick={(e) => (e.preventDefault(), e.stopPropagation(), onLink(s.url))}>
+            <a key={i} href={s.url} title={s.url} onClick={(e) => (e.preventDefault(), e.stopPropagation())}>
               {s.text}
             </a>
           ) : s.kind === "mention" ? (
@@ -214,15 +286,15 @@ function Text({ cast, clamp, onLink }: { cast: Cast; clamp: boolean; onLink(url:
   );
 }
 
-function Embeds({ cast, onOpen, onLink }: { cast: Cast; onOpen(ref: string): void; onLink(url: string): void }) {
+function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
   if (cast.embeds.length === 0) return null;
   return (
     <div class="embeds">
       {cast.embeds.map((e, i) =>
         "url" in e ? (
-          <button key={i} class="chip" title={e.url} onClick={(ev) => (ev.stopPropagation(), onLink(e.url))}>
+          <span key={i} class="chip" title={e.url}>
             {hostOf(e.url)}
-          </button>
+          </span>
         ) : (
           <button key={i} class="chip" onClick={(ev) => (ev.stopPropagation(), onOpen(refOf(e.cast)))}>
             quoted cast · fid {e.cast.fid}
@@ -241,25 +313,14 @@ function hostOf(url: string): string {
   }
 }
 
-// The page's current state, for the model: one line, and the same as data.
+// What the page shows: one line, and the same as data.
 function describe(thread: Thread, selected: string | null, back: string[]): [string, Record<string, unknown>] {
-  const accounts = new Map(thread.accounts.map((a) => [a.fid, a]));
-  const all = [...thread.ancestors, thread.cast, ...thread.replies];
-  const about = (c: Cast) => {
-    const who = accounts.get(c.fid)?.username;
-    const words = (c.display_text ?? c.text).replace(/\s+/g, " ").slice(0, 80);
-    return `${refOf(c)} by ${who ? "@" + who : "fid " + c.fid} ("${words}")`;
-  };
-  const chosen = all.find((c) => refOf(c) === selected);
+  const chosen = all(thread).find((c) => refOf(c) === selected);
   const text =
-    `Selfcast viewer: the thread of ${about(thread.cast)}, ${thread.ancestors.length} casts above it, ` +
-    `${thread.replies.length} replies.` +
-    (chosen ? ` The user has selected ${about(chosen)}.` : "");
+    `the thread of ${about(thread, thread.cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
+    count(thread.replies.length, "reply", "replies") +
+    (chosen ? `; selected ${about(thread, chosen)}` : "");
   return [text, { view: "thread", cast: refOf(thread.cast), selected, back }];
-}
-
-function applyTheme(context: HostContext) {
-  if (context.theme) document.documentElement.dataset.theme = context.theme;
 }
 
 render(<App />, document.getElementById("app")!);

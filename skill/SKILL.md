@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds and accounts' casts from the node, with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts and threads from the node, showing a thread to the user in the viewer page (in Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -230,6 +230,18 @@ above. Example, the replies from one app (here the test account's own key):
 included: run `replies` again on the reply. A cast with no replies, and a
 cast the node does not hold, both give `"casts":[]`.
 
+### `selfcast thread <FID:HASH> --json`
+
+A cast in its conversation: the casts it replies to, root first, then the
+cast, then its direct replies, oldest first. The shape is
+`{"version":1,"top":…,"ancestors":[…],"cast":{…},"replies":[…],"accounts":[…]}`,
+with casts as above and `accounts` as `{"fid","username","display_name"}` for
+every author and mention. `top` says where `ancestors` stops: `"root"` at a
+cast that replies to no cast, `{"missing":{"fid","hash"}}` at a parent this
+node does not hold, `{"cut":{"fid","hash"}}` after 50 casts, naming the next
+one up (run `thread` on it for more). `--limit` caps the replies as in
+`replies`. A cast the node does not hold exits 1.
+
 ### What reads cannot do yet
 
 - No reactions to a cast, so no "most liked", "who reacts most" or "top
@@ -244,6 +256,31 @@ cast the node does not hold, both give `"casts":[]`.
 - [Account stats](examples/account-stats.md): one account's week, from its
   own casts.
 - [A feed of a list of accounts](examples/community-feed.md).
+
+## Viewer
+
+A read-only page that shows a thread the way a Farcaster client does, beside
+the user, in Shala (the app that hosts it). The page reads the node itself,
+so the user can follow replies and go back without you. Use it when the user
+wants to look at a conversation with you, not to read one yourself: for that,
+`thread --json` is the read.
+
+```
+selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened
+selfcast viewer state              # what the page shows: thread, selected cast, Back trail
+```
+
+- `open` reads from `--node` as the other commands do, and the page can
+  reach only the nodes Shala allows for this project (`localhost:3381` to
+  start). Exit 1, with Shala's or the page's reason, when it could not
+  show the cast or the page is not open in Shala.
+- **The user points with `shala selection`**, not `viewer state`. Clicking
+  a cast, or opening one, makes it their selection:
+  `selfcast://selfcast/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a cast
+  selected in that thread. What `viewer open` shows is not their selection.
+- `viewer state` cannot tell whether the user is looking, or who chose what
+  it shows.
+- The page shows no images and opens no links: a link shows its address.
 
 ## Writes
 

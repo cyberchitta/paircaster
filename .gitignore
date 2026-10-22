@@ -3,3 +3,4 @@ _notes
 /target
 /viewer/node_modules
 /viewer/wasm
+/viewer/dist

@@ -1,6 +1,8 @@
-// Builds the viewer into one HTML file with everything inline: the Rust
-// reads compiled to WebAssembly (crates/wasm), its glue, the page's script
-// and style. `selfcast mcp` embeds the result, so it is committed.
+// Builds the viewer into `dist/`: `index.html` with the style inline, and
+// `viewer.js` holding the Rust reads compiled to WebAssembly (crates/wasm),
+// its glue and the page's script. Shala's page policy refuses inline
+// scripts. Shala serves `dist/` as the project's App tab and claims the
+// `selfcast` scheme for it from the meta tag.
 //
 // Needs the wasm32-unknown-unknown target and wasm-bindgen-cli at the
 // version in Cargo.lock.
@@ -25,7 +27,7 @@ if (!built.success) {
   console.error(built.logs.join("\n"));
   process.exit(1);
 }
-const script = (await built.outputs[0].text()).replaceAll("</script", "<\\/script");
+const script = await built.outputs[0].text();
 const style = await Bun.file(`${import.meta.dir}/src/viewer.css`).text();
 
 const html = `<!doctype html>
@@ -33,14 +35,16 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="shala-scheme" content="selfcast">
 <title>Selfcast</title>
 <style>${style}</style>
 </head>
 <body>
 <div id="app"></div>
-<script type="module">${script}</script>
+<script type="module" src="viewer.js"></script>
 </body>
 </html>
 `;
-await Bun.write(`${import.meta.dir}/dist/viewer.html`, html);
-console.log(`dist/viewer.html: ${html.length} bytes (wasm ${wasm.byteLength})`);
+await Bun.write(`${import.meta.dir}/dist/viewer.js`, script);
+await Bun.write(`${import.meta.dir}/dist/index.html`, html);
+console.log(`dist/: index.html ${html.length} bytes, viewer.js ${script.length} (wasm ${wasm.byteLength})`);

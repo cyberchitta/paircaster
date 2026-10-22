@@ -3,13 +3,13 @@ mod control;
 mod invocation;
 mod key_add;
 mod keystore;
-mod mcp;
 mod out;
 mod outbox;
 mod reads;
 mod snapshot;
 mod status;
 mod tty;
+mod viewer;
 mod write;
 
 use std::process::ExitCode;
@@ -71,9 +71,10 @@ enum Command {
     Unfollow(write::FollowArgs),
     /// Send again any message an earlier write saved but did not see sent.
     Resend,
-    /// Serve the viewer as an MCP Apps page, over stdin and stdout. The page
-    /// reads the node itself; the server offers one tool, `view`.
-    Mcp,
+    /// Drive the viewer page hosted in Shala: open a thread, read what it
+    /// shows.
+    #[command(subcommand)]
+    Viewer(viewer::ViewerCommand),
     /// Manage the account's app keys.
     #[command(subcommand)]
     Key(KeyCommand),
@@ -118,8 +119,8 @@ enum CliError {
     Write(#[from] write::WriteError),
     #[error(transparent)]
     Status(#[from] status::StatusError),
-    #[error("mcp: {0}")]
-    Mcp(#[from] std::io::Error),
+    #[error(transparent)]
+    Viewer(#[from] viewer::ViewerError),
 }
 
 #[tokio::main]
@@ -153,9 +154,9 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Follow(args) => send(node, args.into_parts(false), cli.json).await?,
         Command::Unfollow(args) => send(node, args.into_parts(true), cli.json).await?,
         Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
-        Command::Mcp => {
+        Command::Viewer(command) => {
             Node::new(node)?;
-            mcp::run(mcp::Origin::of(node)).await?
+            viewer::run(&command, node)?
         }
         Command::Key(KeyCommand::Add) => key_add::run(&Node::new(node)?, cli.json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
