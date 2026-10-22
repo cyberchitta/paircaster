@@ -17,8 +17,11 @@ hosted service.
   another version, tell the user this skill is out of date rather than
   guessing at the fields. (`info --json` is the node's own `/v1/info`
   response, passed through unversioned; prefer `node status`.)
-- Exit code 0 is success. On failure the command prints `error: …` to
-  stderr and exits 1. Report the error text as it is.
+- Exit code 0 is success. When the command runs and fails, it prints
+  `error: …` to stderr and exits 1. When it was called wrongly (an unknown
+  subcommand, a missing or invalid argument), it prints `error: …` and a
+  usage hint and exits 2: fix the command rather than reporting a failure.
+  Report the error text as it is.
 - `--node <url>` picks the node; without it, the node on this machine
   (`http://localhost:3381`). Leave it out unless the user names a node, and
   when they do, put it in every command, so the node a command uses is
