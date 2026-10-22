@@ -248,6 +248,8 @@ The log lives with the container and goes when the container is removed: by `./s
 
 With OrbStack set to pause in sleep and the lid closed for 40 minutes, the node wrote nothing, the container did not restart, and on waking it reconnected to peers and caught up at the same rate as before. It came back 40 minutes further behind. A node on a laptop is only syncing while the laptop is awake.
 
+After a restart with the node running, it came back without being started, and had caught up within minutes. Two settings do this: OrbStack's `app.start_at_login` (`orb config show`) starts Docker when you log in, and Snapchain's `docker-compose.yml` gives the node's container `restart: always`, so Docker starts it again. OrbStack is an app, so the node is not expected to start before someone logs in. With another Docker setup, check that Docker itself starts at boot or login. A container removed by `./snapchain.sh down` is not there to restart; start it with `./snapchain.sh up`.
+
 ## Upgrades
 
 The bootstrap script adds a weekly cron job that upgrades Snapchain, unless `~/snapchain/.env` contains `SKIP_CRONTAB=true`. The quickstart adds it, so upgrades happen by hand. The weekly job also runs `docker system prune --volumes -f` after each upgrade (the `autoupgrade` branch of `snapchain.sh`), which deletes every stopped container and unused volume on the machine, not only Snapchain's. On a server used only for the node that is harmless; on your own computer it is not. To upgrade:

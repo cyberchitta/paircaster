@@ -172,15 +172,21 @@ The newest casts of one or more accounts, merged, newest first. FIDs are
 separate arguments or comma-separated.
 
 ```json
-{"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+{"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
 ```
 
 Per cast:
 
 - `hash` and `fid` identify it. `timestamp` is UTC, ISO 8601.
 - `text` may be empty when the cast is only an embed.
-- `mentions[]` are `{fid, position}`, where `position` is a byte offset into
-  `text`.
+- `text` is as posted, without the names of the accounts it mentions.
+  `display_text` has each one written in as `@username`, or `@fid:N` for an
+  account with no username; quote this one. It is `null` in the rare case a
+  mention's position falls inside a character; then use `text` and say the
+  names are missing.
+- `mentions[]` are `{fid, username, position}`: `username` is `null` when the
+  account has none, and `position` is a byte offset into `text`. Example:
+  `{"text":" can you post the four URLs you intended to reference?","display_text":"@balajis.eth can you post the four URLs you intended to reference?","mentions":[{"fid":37,"username":"balajis.eth","position":0}]}`.
 - `embeds[]` are `{"url": …}` or `{"cast": {fid, hash}}`.
 - `parent` is `null` for a top-level cast, `{"cast": {fid, hash}}` for a
   reply, or `{"url": …}` for a cast in a channel.
@@ -205,11 +211,29 @@ would see. The shape is `{"version":1,"fid":…,"casts":[…]}`, with casts as
 above. It reads each followed account, eight at a time, so an account
 following thousands is slow. For a short named list, use `casts`.
 
+### `selfcast replies <FID:HASH> --json`
+
+The direct replies to one cast, oldest first. The shape is
+`{"version":1,"parent":{"fid":…,"hash":"0x…"},"casts":[…]}`, with casts as
+above. Example, the replies from one app (here the test account's own key):
+
+```json
+{"version":1,"parent":{"fid":37,"hash":"0xcd34bb7404d899df69fda5e8ca17d3f1aa1e9268"},"casts":[{"hash":"0xcaec87736a1eee7fcd0351cf0b1e9c4e4defa505","fid":3356360,"timestamp":"2026-10-22T06:51:30Z","text":"Two of these claims can be measured from a read node. …","display_text":"Two of these claims can be measured from a read node. …","mentions":[],"embeds":[],"parent":{"cast":{"fid":37,"hash":"0xcd34bb7404d899df69fda5e8ca17d3f1aa1e9268"}},"signer":"0xffac…212e","app_fid":3356360}]}
+```
+
+(Text and signer shortened here.) Every reply is read before `--limit`
+(default 100, at most 1000) keeps the newest, so `--include-app` and
+`--exclude-app` do not cut the list short. Replies to replies are not
+included: run `replies` again on the reply. A cast with no replies, and a
+cast the node does not hold, both give `"casts":[]`.
+
 ### What reads cannot do yet
 
-- No reactions or replies to a cast, so no "most liked", "who reacts most"
-  or "top casts". Say this, rather than estimating from other fields.
-- No search, no channels, no username lookup.
+- No reactions to a cast, so no "most liked", "who reacts most" or "top
+  casts". Say this, rather than estimating from other fields. Reply counts
+  come from `replies`.
+- No search, no channels, and no finding an account by its username
+  (accounts are named by FID; mentions come with their usernames).
 - Nothing older than an account's newest 1000 messages.
 
 ### Examples

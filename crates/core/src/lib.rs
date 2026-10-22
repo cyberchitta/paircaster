@@ -11,6 +11,7 @@ pub mod node;
 pub mod profile;
 pub mod proto;
 pub mod signer;
+pub mod thread;
 pub mod time;
 
 pub use error::Error;

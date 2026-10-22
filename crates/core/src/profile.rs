@@ -139,6 +139,11 @@ impl FollowerTally {
     }
 }
 
+/// The account's username, the newest one set; `None` when it has none.
+pub fn username(user_data: &[UserDatum]) -> Option<String> {
+    latest(user_data, UserDataType::Username)
+}
+
 fn latest(user_data: &[UserDatum], kind: UserDataType) -> Option<String> {
     user_data
         .iter()

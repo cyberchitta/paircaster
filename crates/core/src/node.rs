@@ -11,9 +11,13 @@ use crate::error::{Error, NodeErrorBody};
 use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
+use crate::thread::ReplyTally;
 
 /// Per shard, so a page holds up to this many times the shard count.
 const FOLLOWER_PAGE_SIZE: u32 = 1000;
+
+/// Per shard, as for followers.
+const REPLY_PAGE_SIZE: u32 = 1000;
 
 /// One page of a paged read. `next_page_token` is `None` on the last page.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,6 +143,38 @@ impl Node {
     pub async fn cast_by_id(&self, fid: u64, hash: &MessageHash) -> Result<Cast, Error> {
         let query = [fid_param(fid), ("hash", hash.to_string())];
         parse::cast_by_id(self.get("v1/castById", &query).await?)
+    }
+
+    /// `GET /v1/castsByParent`: replies to a cast. Pages repeat; see
+    /// [`ReplyTally`].
+    pub async fn casts_by_parent(
+        &self,
+        parent: &CastRef,
+        page: &PageRequest,
+    ) -> Result<Page<Cast>, Error> {
+        let query = with_page(
+            &[fid_param(parent.fid), ("hash", parent.hash.to_string())],
+            page,
+        );
+        parse::casts(self.get("v1/castsByParent", &query).await?)
+    }
+
+    /// Every reply to `parent`, each once: pages are read until one brings
+    /// no new reply or there is no next page.
+    pub async fn replies(&self, parent: &CastRef) -> Result<Vec<Cast>, Error> {
+        let mut tally = ReplyTally::default();
+        let mut request = PageRequest {
+            page_size: Some(REPLY_PAGE_SIZE),
+            page_token: None,
+        };
+        loop {
+            let page = self.casts_by_parent(parent, &request).await?;
+            let fresh = tally.add_page(page.items);
+            match page.next_page_token {
+                Some(token) if fresh => request.page_token = Some(token),
+                _ => return Ok(tally.into_casts()),
+            }
+        }
     }
 
     /// `GET /v1/userDataByFid`, every page.

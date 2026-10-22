@@ -59,7 +59,7 @@ Rules like these match the command's text, so another spelling (options first, a
 
 </limit>
 
-What the agent cannot read yet: the reactions or replies to a cast (so no “most liked”), search results, channels, usernames (accounts are named by FID), and anything older than an account's newest 1000 messages.
+What the agent cannot read yet: the reactions to a cast (so no “most liked”; replies it can read), search results, channels, finding an account by username (accounts are named by FID; mentions come with their usernames), and anything older than an account's newest 1000 messages.
 
 ---
 

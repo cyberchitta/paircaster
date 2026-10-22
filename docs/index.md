@@ -92,6 +92,18 @@ Your node keeps its own copy of the network's messages: casts, reactions, follow
 
 A read node does not decide what goes on the network; validators do. When you post, your node checks the message against what it has, passes it on to the validators, and keeps nothing itself ([Snapchain's node types](https://snapchain.farcaster.xyz/node-types#message-submission-and-the-mempool)). The message is on the network only once it comes back in a read, which is why `selfcast` reads every write back before it calls it sent.
 
+## The protocol in brief
+
+Each idea is explained where the guide first uses it.
+
+- **FID.** An account is a number, registered on-chain to its custody address ([Accounts and FIDs](client.md#accounts-and-fids)).
+- **Custody address.** The Ethereum address that owns an FID. Its key comes from the recovery phrase and can do anything with the account ([Accounts and FIDs](client.md#accounts-and-fids)).
+- **App key.** A key the custody key authorises to post as the account, and nothing more. `selfcast` adds one with a `KEY_ADD` message, which costs nothing, rather than an on-chain transaction ([Adding an app key](client.md#adding-an-app-key)).
+- **Message.** Everything an account does, a cast, a like, a follow, a profile field, is a message signed by an app key ([Casts, and what a message is](client.md#casts,-and-what-a-message-is)).
+- **Read node and validators.** Your node keeps a copy of the network and passes your writes on; validators decide what goes on the network ([What you just did](#what-you-just-did)).
+- **Shard.** Snapchain splits accounts across shards, which a node syncs separately ([Writing](client.md#writing:-casts,-reactions,-follows)).
+- **Storage.** Rented on-chain for a year at a time. Over its limit, an account's oldest messages are dropped ([Storage](client.md#storage)).
+
 ## The rest of the guide
 
 1. [Running the node](node.md)
@@ -101,6 +113,7 @@ A read node does not decide what goes on the network; validators do. When you po
 5. [Safety](safety.md)
 6. [Checking a voucher](voucher.md)
 7. [Testing Selfcast on a clean machine](testing.md)
+8. [Contributions upstream](upstream.md)
 
 ## Not tried yet
 
@@ -109,13 +122,13 @@ A read node does not decide what goes on the network; validators do. When you po
 - `key add` and `delete` through your own node. Three casts, a like and its undo, and a follow and its undo have gone through the test node; `key add` and the delete went through Farcaster's public node `crackle`.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text. Also embeds.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
-- `./snapchain.sh upgrade`; a reboot or logout with the node running; whether Docker starts again at login.
+- `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
 
 ## Going further
 
 - **Your node's API.** Everything `selfcast` reads is plain HTTP on `localhost:3381`, as the `curl` in [Casts, and what a message is](client.md#casts,-and-what-a-message-is) shows. Paging uses `reverse=true` (not `1`) and `pageToken`. To build your own interface, read the API directly or run `selfcast` with `--json`, whose output carries a version number.
 - **Validators.** Your read node does not need to run one: it syncs from the network and forwards your writes to them.
-- **Upstream.** Snapchain's documentation is at [snapchain.farcaster.xyz](https://snapchain.farcaster.xyz), its code at [github.com/farcasterxyz/snapchain](https://github.com/farcasterxyz/snapchain), and the protocol at [github.com/farcasterxyz/protocol](https://github.com/farcasterxyz/protocol). Where the documentation and what we saw disagree, the repository's `docs/upstream-fixes.md` lists it.
+- **Upstream.** Snapchain's documentation is at [snapchain.farcaster.xyz](https://snapchain.farcaster.xyz), its code at [github.com/farcasterxyz/snapchain](https://github.com/farcasterxyz/snapchain), and the protocol at [github.com/farcasterxyz/protocol](https://github.com/farcasterxyz/protocol). Where the documentation and what we saw disagree, the repository's `docs/upstream-fixes.md` lists it; what we have filed is on [Contributions upstream](upstream.md).
 
 ---
 

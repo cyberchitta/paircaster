@@ -52,6 +52,8 @@ enum Command {
     Feed(reads::FeedArgs),
     /// Show recent casts from the accounts named, newest first.
     Casts(reads::CastsArgs),
+    /// Show the replies to a cast, oldest first.
+    Replies(reads::RepliesArgs),
     /// Post a cast, or a reply with --reply-to.
     Cast(write::CastArgs),
     /// Delete one of the account's casts.
@@ -134,6 +136,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         }
         Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
+        Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
         Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
         Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
         Command::React(args) => send(node, args.into_parts(false), cli.json).await?,

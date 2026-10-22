@@ -44,6 +44,21 @@ dwr  fid 3
 
 The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile 3 --all-followers` reads every one: 630,232 for this account, in 7.6 seconds, or 36 the first time, before the node had them cached.
 
+An FID is issued on-chain, by Farcaster's ID registry contract on OP Mainnet (chain 10), to an Ethereum address: the account's *custody address*. The key behind that address comes from the account's recovery phrase and owns the account ([Adding an app key](#adding-an-app-key)). Your node records each registration, so it can say which FID an address owns. For the test account `@selfcast`, used in the examples below:
+
+```run
+curl -s 'http://localhost:3381/v1/onChainIdRegistryEventByAddress?address=0x337596dD506856c952a89554DE28064146b901D0' | jq '{type, chainId, fid, custody: .idRegisterEventBody.to}'
+```
+
+```output
+{
+  "type": "EVENT_TYPE_ID_REGISTER",
+  "chainId": 10,
+  "fid": 3356360,
+  "custody": "0x337596dd506856c952a89554de28064146b901d0"
+}
+```
+
 ## Casts, and what a message is
 
 ```run
@@ -87,7 +102,17 @@ selfcast casts 3 --limit 1 --json
 ```
 
 ```output
-{"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+{"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+```
+
+A mention is not in a cast's `text`: the message carries the mentioned account's FID and a byte position, and a client writes the name in. `selfcast` looks the names up and writes them in for you, as `display_text` in JSON (`@fid:N` for an account with no username):
+
+```run
+selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '.casts[] | select(.hash | startswith("0xeb68dbec")) | {text, display_text, mentions}'
+```
+
+```output
+{"text":" can you post the four URLs you intended to reference?","display_text":"@balajis.eth can you post the four URLs you intended to reference?","mentions":[{"fid":37,"username":"balajis.eth","position":0}]}
 ```
 
 ## The feed
@@ -97,6 +122,37 @@ selfcast feed 2 --limit 5
 ```
 
 The same as `casts`, over every account FID 2 follows: what that account would see. It reads the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future are left out.
+
+## Replies
+
+```run
+selfcast replies 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+```
+
+```output
+2026-10-21T19:04:46Z  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
+  How:
+  selfcast node fetch-snapshot
+  cd ~/snapchain && ./snapchain.sh up
+  selfcast key add
+  selfcast cast "…"
+  
+  The phrase is typed once at a terminal and never stored. This reply was sent by an AI agent through the Selfcast skill, after I approved the CLI's own confirmation text.
+  
+  github.com/cyberchitta/selfcast
+```
+
+The direct replies to one cast, oldest first (`/v1/castsByParent`). A reply to that reply is not listed: run `replies` on it. `--include-app` and `--exclude-app` work as for `casts`, over every reply. A busier thread, FID 37's cast `0x50184b62…`, has 48 replies, and 6 of them come from apps other than the Farcaster app:
+
+```run
+selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --exclude-app 9152 --json | jq -c '{replies: (.casts | length), apps: (.casts | map(.app_fid) | unique)}'
+```
+
+```output
+{"replies":6,"apps":[2904,11279,16823,1351215,3356360]}
+```
+
+The node's pages of replies repeat: a shard that runs out starts again from its first reply, and the last page leads back to the first. So `selfcast` reads pages until one brings no reply it has not seen.
 
 ## Writing: casts, reactions, follows
 
@@ -197,9 +253,39 @@ selfcast resend --node https://crackle.farcaster.xyz:3381
 ```output
 Resending 0x3820fb679133cd50df09d95beb8a5fbe2553069d as FID 3356360: cast "This cast went out through my own Snapchain node, signed by an app key I added with a gasless KEY_ADD message. No API key, no hosted service, no one else's server.\n\nSelfcast: run your own Farcaster read node, plus a CLI and an agent skill that use it."
 Resent 1 message(s); the node shows each.
-``` A node that catches up faster would fix this; that is Snapchain's to change ([Why sync is slow](node.md#why-sync-is-slow)).
+```
 
-An account needs *storage* to post: units rented on-chain, which the node records. Snapchain refuses messages from an account with none, and when an account is over what its storage allows, it removes that account's oldest messages of that kind (Snapchain 0.14.3 source, `src/mempool/` and `src/storage/store/engine.rs`).
+A node that catches up faster would fix this; that is Snapchain's to change ([Why sync is slow](node.md#why-sync-is-slow)).
+
+## Storage
+
+An account needs *storage* to post. It is rented on-chain for a year at a time, and your node records each payment. The test account's, paid when it signed up in the Farcaster app:
+
+```run
+curl -s 'http://localhost:3381/v1/onChainEventsByFid?fid=3356360&event_type=EVENT_TYPE_STORAGE_RENT' | jq -c '.events[] | {chainId, units: .storageRentEventBody.units, paid: .blockTimestamp, expires: .storageRentEventBody.expiry}'
+```
+
+```output
+{"chainId":10,"units":1,"paid":1792557391,"expires":1824093391}
+```
+
+`paid` and `expires` are Unix times, 365 days apart. What the account may keep, by kind of message, and how much of it is used:
+
+```run
+curl -s 'http://localhost:3381/v1/storageLimitsByFid?fid=3356360' | jq -c '.limits[] | {name, limit, used}'
+```
+
+```output
+{"name":"CASTS","limit":300,"used":7}
+{"name":"LINKS","limit":600,"used":2}
+{"name":"REACTIONS","limit":600,"used":2}
+{"name":"USER_DATA","limit":75,"used":6}
+{"name":"VERIFICATIONS","limit":15,"used":2}
+{"name":"USERNAME_PROOFS","limit":6,"used":0}
+{"name":"STORAGE_LENDS","limit":1,"used":1}
+```
+
+Snapchain refuses messages from an account with no storage. Once an account is over a limit, the node drops that account's oldest messages of that kind to make room (Snapchain 0.14.3 source, `src/mempool/` and `src/storage/store/engine.rs`). This happens all the time: over the three days of network events a node keeps by default, ours recorded 13,465 casts and 45,049 reactions dropped this way.
 
 ## Adding an app key
 

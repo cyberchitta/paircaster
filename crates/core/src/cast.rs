@@ -1,5 +1,6 @@
 //! Casts and reactions as Selfcast works with them, past the `node` boundary.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -137,6 +138,48 @@ pub struct Cast {
     pub embeds: Vec<Target>,
     pub parent: Option<Target>,
     pub signer: SignerKey,
+}
+
+impl Cast {
+    /// The text with each mention written in where it was made: `@username`,
+    /// or `@fid:N` for an account `names` has no username for. `None` when a
+    /// position falls inside a character, which the network allows.
+    /// Positions are in bounds and ascending, as parsing checked.
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, SignerKey};
+    /// use selfcast_core::proto::CastType;
+    /// use selfcast_core::time::Timestamp;
+    /// let cast = |text: &str, positions: &[u32]| Cast {
+    ///     id: CastRef { fid: 1, hash: MessageHash::from_bytes(&[0; 20]).unwrap() },
+    ///     timestamp: Timestamp::from_farcaster(0),
+    ///     kind: CastType::Cast,
+    ///     text: text.to_owned(),
+    ///     mentions: positions.iter().zip([3, 4]).map(|(&position, fid)| Mention { fid, position }).collect(),
+    ///     embeds: vec![],
+    ///     parent: None,
+    ///     signer: SignerKey::from_bytes(&[1; 32]).unwrap(),
+    /// };
+    /// let names = HashMap::from([(3, "dwr".to_owned())]);
+    /// assert_eq!(cast("hi  and ", &[3, 8]).display_text(&names).unwrap(), "hi @dwr and @fid:4");
+    /// assert_eq!(cast("é", &[1]).display_text(&names), None);
+    /// ```
+    pub fn display_text(&self, names: &HashMap<u64, String>) -> Option<String> {
+        let mut out = String::with_capacity(self.text.len());
+        let mut from = 0;
+        for m in &self.mentions {
+            let at = m.position as usize;
+            out.push_str(self.text.get(from..at)?);
+            match names.get(&m.fid) {
+                Some(name) => out.push_str(&format!("@{name}")),
+                None => out.push_str(&format!("@fid:{}", m.fid)),
+            }
+            from = at;
+        }
+        out.push_str(self.text.get(from..)?);
+        Some(out)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

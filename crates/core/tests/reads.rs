@@ -1,5 +1,7 @@
 mod common;
 
+use std::collections::{BTreeSet, HashMap};
+
 use common::{fixture, fixture_messages};
 use selfcast_core::cast::{Cast, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
@@ -7,6 +9,7 @@ use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
 use selfcast_core::proto::ReactionType;
 use selfcast_core::signer::{Signer, app_of};
+use selfcast_core::thread::ReplyTally;
 use selfcast_core::time::Timestamp;
 
 const FOLLOWED: [u64; 3] = [2, 194, 17];
@@ -104,6 +107,86 @@ fn a_page_that_brings_no_new_follower_ends_the_count() {
     let fresh: Vec<bool> = pages.iter().map(|p| tally.add_page(p)).collect();
     assert_eq!(fresh, [true, true, false, false]);
     assert_eq!(tally.count(), 4);
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn repeating_reply_pages_give_each_reply_once() {
+    let page = |n: u32| {
+        parse::casts(fixture(&format!("castsByParent-37-0x50184b62-p{n}.json")))
+            .expect("replies parse")
+    };
+    let mut tally = ReplyTally::default();
+    let fresh: Vec<bool> = (1..=3).map(|n| tally.add_page(page(n).items)).collect();
+    assert_eq!(fresh, [true, true, false], "page 3 is page 1 again");
+    assert!(
+        page(3).next_page_token.is_some(),
+        "the node never ends the paging"
+    );
+    let all = parse::casts(fixture("castsByParent-37-0x50184b62-all.json")).expect("parse");
+    let hashes = |casts: &[Cast]| casts.iter().map(|c| c.id.hash).collect::<BTreeSet<_>>();
+    let replies = tally.into_casts();
+    assert_eq!(replies.len(), 48);
+    assert_eq!(hashes(&replies), hashes(&all.items));
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn mentions_are_written_in_where_they_were_made() {
+    let replies = parse::casts(fixture("castsByParent-37-0x50184b62-all.json")).expect("parse");
+    let mentioned: Vec<&Cast> = replies
+        .items
+        .iter()
+        .filter(|c| !c.mentions.is_empty())
+        .collect();
+    assert_eq!(mentioned.len(), 12);
+    let names: HashMap<u64, String> = mentioned
+        .iter()
+        .flat_map(|c| &c.mentions)
+        .map(|m| (m.fid, format!("n{}", m.fid)))
+        .collect();
+    for cast in mentioned {
+        let shown = cast
+            .display_text(&names)
+            .expect("positions fall between characters");
+        let added: usize = cast.mentions.iter().map(|m| names[&m.fid].len() + 1).sum();
+        assert_eq!(shown.len(), cast.text.len() + added, "{}", cast.id);
+        let first = &cast.mentions[0];
+        let at = first.position as usize;
+        assert_eq!(&shown[..at], &cast.text[..at]);
+        assert!(shown[at..].starts_with(&format!("@{}", names[&first.fid])));
+    }
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn mention_positions_the_network_refuses_are_refused() {
+    let raw = fixture("castsByFid-3.json");
+    let with = |edit: &dyn Fn(&mut serde_json::Value)| {
+        let mut page = raw.clone();
+        let cast = page["messages"]
+            .as_array_mut()
+            .expect("messages")
+            .iter_mut()
+            .find(|m| {
+                m["hash"]
+                    .as_str()
+                    .is_some_and(|h| h.starts_with("0x9579611f"))
+            })
+            .expect("the cast with a mention at its end");
+        edit(&mut cast["data"]["castAddBody"]);
+        parse::casts(page)
+    };
+    assert!(with(&|_| {}).is_ok());
+    assert!(
+        with(&|b| b["mentionsPositions"][0] = 35.into()).is_err(),
+        "past the end"
+    );
+    let unsorted = |b: &mut serde_json::Value| {
+        b["mentions"] = serde_json::json!([3, 2]);
+        b["mentionsPositions"] = serde_json::json!([5, 4]);
+    };
+    assert!(with(&unsorted).is_err(), "not ascending");
 }
 
 /// The newest non-empty value of one user data type in a raw

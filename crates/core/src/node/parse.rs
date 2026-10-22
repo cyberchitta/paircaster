@@ -343,6 +343,18 @@ fn mentions(add: &CastAddBody) -> Result<Vec<Mention>, Error> {
     if add.mentions.len() != add.mentions_positions.len() {
         return Err(bad("mentions and mentionsPositions differ in length"));
     }
+    // Snapchain refuses either (v0.14.3 `src/core/validations/cast.rs`).
+    let text_len = add.text.len();
+    if add
+        .mentions_positions
+        .iter()
+        .any(|&p| p as usize > text_len)
+    {
+        return Err(bad("a mention position is past the end of the text"));
+    }
+    if add.mentions_positions.windows(2).any(|w| w[0] > w[1]) {
+        return Err(bad("mention positions are not in ascending order"));
+    }
     Ok(add
         .mentions
         .iter()

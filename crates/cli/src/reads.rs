@@ -1,15 +1,18 @@
-//! `selfcast profile`, `selfcast feed` and `selfcast casts`, and their
+//! `selfcast profile`, `selfcast feed`, `selfcast casts` and
+//! `selfcast replies`, and their
 //! `--json` output.
 //!
 //! The JSON shapes are an external format the agent skill depends on. Each is
 //! version 1; a change to a shape bumps its `version`.
 
-use selfcast_core::cast::{Cast, Target};
+use selfcast_core::cast::{Cast, CastRef, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
-use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Profile};
+use selfcast_core::profile::{self, FOLLOWER_COUNT_CAP, Followers, Profile};
 use selfcast_core::signer::Signer;
 use selfcast_core::{Error, Node};
+use std::collections::{BTreeSet, HashMap};
+
 use serde::Serialize;
 use tokio::task::JoinSet;
 
@@ -36,11 +39,31 @@ pub struct CastsArgs {
 }
 
 #[derive(Debug, clap::Args)]
+pub struct RepliesArgs {
+    /// The cast whose replies to show, as FID:HASH.
+    #[arg(value_name = "FID:HASH")]
+    cast: CastRef,
+    /// How many replies to show: the newest LIMIT, oldest first. Every
+    /// reply is read before filtering, so filtering by app does not shorten
+    /// the list below LIMIT while more replies match.
+    #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(1..=1000))]
+    limit: u32,
+    #[command(flatten)]
+    apps: AppArgs,
+}
+
+#[derive(Debug, clap::Args)]
 struct CastFilter {
     /// How many casts to show. Filtering by app looks only at each
     /// account's newest LIMIT casts, so it can show fewer.
     #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=1000))]
     limit: u32,
+    #[command(flatten)]
+    apps: AppArgs,
+}
+
+#[derive(Debug, clap::Args)]
+struct AppArgs {
     /// Only casts posted from these apps, by the app's FID. Repeat the flag
     /// or separate FIDs with commas. Casts from an unknown app are left out.
     #[arg(
@@ -56,8 +79,8 @@ struct CastFilter {
     exclude_app: Vec<u64>,
 }
 
-impl CastFilter {
-    fn apps(&self) -> AppFilter {
+impl AppArgs {
+    fn filter(&self) -> AppFilter {
         match (self.include_app.is_empty(), self.exclude_app.is_empty()) {
             (false, _) => AppFilter::Only(self.include_app.iter().copied().collect()),
             (true, false) => AppFilter::Not(self.exclude_app.iter().copied().collect()),
@@ -121,8 +144,9 @@ struct ProfileV1<'a> {
 ///       "hash": "0x…",
 ///       "fid": 1235,
 ///       "timestamp": "2024-03-03T09:46:40Z",
-///       "text": "…",
-///       "mentions": [{ "fid": 1236, "position": 5 }],
+///       "text": "gm  and hi",
+///       "display_text": "gm @alice and hi",
+///       "mentions": [{ "fid": 1236, "username": "alice", "position": 3 }],
 ///       "embeds": [{ "url": "https://…" }, { "cast": { "fid": 1237, "hash": "0x…" } }],
 ///       "parent": { "cast": { "fid": 1237, "hash": "0x…" } },
 ///       "signer": "0x…",
@@ -134,7 +158,11 @@ struct ProfileV1<'a> {
 ///
 /// `casts` is newest first, after any `--include-app` or `--exclude-app`
 /// filter. `parent` is `null`, `{ "cast": … }` or
-/// `{ "url": … }`. `mentions[].position` is a byte offset into `text`.
+/// `{ "url": … }`. `text` is as posted, without the mentioned names;
+/// `mentions[].position` is a byte offset into it. `display_text` has each
+/// mention written in as `@username`, or `@fid:N` for an account with no
+/// username (`mentions[].username` is then `null`); it is `null` when a
+/// position falls inside a character, which the network allows.
 /// `app_fid` is the account of the app whose key signed the cast, or `null`
 /// when that key is no longer listed or its registration names no app.
 #[derive(Serialize)]
@@ -160,13 +188,36 @@ struct CastsV1<'a> {
     casts: Vec<CastV1<'a>>,
 }
 
+/// `selfcast replies <FID:HASH> --json`, version 1:
+///
+/// ```json
+/// { "version": 1, "parent": { "fid": 37, "hash": "0x…" }, "casts": [ … ] }
+/// ```
+///
+/// `parent` is the cast asked about. Each element of `casts` has the same
+/// shape as in `feed`, but oldest first: the newest `--limit` replies after
+/// any app filter, in the order they were posted.
+#[derive(Serialize)]
+struct RepliesV1<'a> {
+    version: u32,
+    parent: ParentV1,
+    casts: Vec<CastV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct ParentV1 {
+    fid: u64,
+    hash: String,
+}
+
 #[derive(Serialize)]
 struct CastV1<'a> {
     hash: String,
     fid: u64,
     timestamp: String,
     text: &'a str,
-    mentions: Vec<MentionV1>,
+    display_text: Option<String>,
+    mentions: Vec<MentionV1<'a>>,
     embeds: Vec<TargetV1<'a>>,
     parent: Option<TargetV1<'a>>,
     signer: String,
@@ -174,8 +225,9 @@ struct CastV1<'a> {
 }
 
 #[derive(Serialize)]
-struct MentionV1 {
+struct MentionV1<'a> {
     fid: u64,
+    username: Option<&'a str>,
     position: u32,
 }
 
@@ -206,20 +258,47 @@ pub async fn profile(node: &Node, fid: u64, all_followers: bool, json: bool) -> 
 pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error> {
     let follows = node.all_follows_by_fid(args.fid).await?;
     let items = newest_casts(node, follows, &args.filter).await?;
+    let names = mention_names(node, &items).await?;
     if json {
-        crate::out::line(format_args!("{}", to_json(&feed_v1(args.fid, &items))));
+        crate::out::line(format_args!(
+            "{}",
+            to_json(&feed_v1(args.fid, &items, &names))
+        ));
     } else {
-        items.iter().for_each(print_item);
+        items.iter().for_each(|i| print_item(i, &names));
     }
     Ok(())
 }
 
 pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Error> {
     let items = newest_casts(node, args.fids.clone(), &args.filter).await?;
+    let names = mention_names(node, &items).await?;
     if json {
-        crate::out::line(format_args!("{}", to_json(&casts_v1(&args.fids, &items))));
+        crate::out::line(format_args!(
+            "{}",
+            to_json(&casts_v1(&args.fids, &items, &names))
+        ));
     } else {
-        items.iter().for_each(print_item);
+        items.iter().for_each(|i| print_item(i, &names));
+    }
+    Ok(())
+}
+
+pub async fn replies(node: &Node, args: &RepliesArgs, json: bool) -> Result<(), Error> {
+    let casts = node.replies(&args.cast).await?;
+    let authors: BTreeSet<u64> = casts.iter().map(|c| c.id.fid).collect();
+    let signers = fetch_signers(node, authors).await?;
+    let limit = args.limit as usize;
+    let mut items = feed::assemble(casts, &signers, &args.apps.filter(), clock::now(), limit);
+    items.reverse();
+    let names = mention_names(node, &items).await?;
+    if json {
+        crate::out::line(format_args!(
+            "{}",
+            to_json(&replies_v1(&args.cast, &items, &names))
+        ));
+    } else {
+        items.iter().for_each(|i| print_item(i, &names));
     }
     Ok(())
 }
@@ -239,45 +318,83 @@ async fn newest_casts(
     Ok(feed::assemble(
         casts,
         &signers,
-        &filter.apps(),
+        &filter.apps.filter(),
         clock::now(),
         limit,
     ))
 }
 
-/// Each account's casts and app keys, `FETCH_AT_ONCE` accounts at a time.
-/// The first error stops the rest.
+/// Each account's casts and app keys.
 async fn fetch_all(
     node: &Node,
     follows: Vec<u64>,
     page: PageRequest,
 ) -> Result<(Vec<Cast>, Vec<Signer>), Error> {
-    let mut pending = follows.into_iter();
+    let fetched = per_account(follows, |fid| {
+        let (node, page) = (node.clone(), page.clone());
+        async move {
+            let (casts, signers) =
+                tokio::try_join!(node.casts_by_fid(fid, &page), node.signers_by_fid(fid))?;
+            Ok((casts.items, signers))
+        }
+    })
+    .await?;
+    let (casts, signers): (Vec<_>, Vec<_>) = fetched.into_iter().unzip();
+    Ok((casts.concat(), signers.concat()))
+}
+
+/// The app keys of each of `fids`.
+async fn fetch_signers(node: &Node, fids: BTreeSet<u64>) -> Result<Vec<Signer>, Error> {
+    let fetched = per_account(fids, |fid| {
+        let node = node.clone();
+        async move { node.signers_by_fid(fid).await }
+    })
+    .await?;
+    Ok(fetched.concat())
+}
+
+/// The username of each account mentioned in `items` that has one.
+async fn mention_names(node: &Node, items: &[FeedItem]) -> Result<HashMap<u64, String>, Error> {
+    let fids: BTreeSet<u64> = items
+        .iter()
+        .flat_map(|i| i.cast.mentions.iter().map(|m| m.fid))
+        .collect();
+    let fetched = per_account(fids, |fid| {
+        let node = node.clone();
+        async move { Ok((fid, profile::username(&node.user_data_by_fid(fid).await?))) }
+    })
+    .await?;
+    Ok(fetched
+        .into_iter()
+        .filter_map(|(fid, name)| name.map(|n| (fid, n)))
+        .collect())
+}
+
+/// `fetch` for each of `fids`, `FETCH_AT_ONCE` at a time, in no set order.
+/// The first error stops the rest.
+async fn per_account<T, F, Fut>(
+    fids: impl IntoIterator<Item = u64>,
+    fetch: F,
+) -> Result<Vec<T>, Error>
+where
+    T: Send + 'static,
+    F: Fn(u64) -> Fut,
+    Fut: Future<Output = Result<T, Error>> + Send + 'static,
+{
+    let mut pending = fids.into_iter();
     let mut running = JoinSet::new();
-    let (mut casts, mut signers) = (Vec::new(), Vec::new());
+    let mut out = Vec::new();
     loop {
         while running.len() < FETCH_AT_ONCE
             && let Some(fid) = pending.next()
         {
-            running.spawn(fetch_one(node.clone(), fid, page.clone()));
+            running.spawn(fetch(fid));
         }
         let Some(done) = running.join_next().await else {
-            return Ok((casts, signers));
+            return Ok(out);
         };
-        let (c, s) = done.expect("a feed fetch does not panic")?;
-        casts.extend(c);
-        signers.extend(s);
+        out.push(done.expect("a node fetch does not panic")?);
     }
-}
-
-async fn fetch_one(
-    node: Node,
-    fid: u64,
-    page: PageRequest,
-) -> Result<(Vec<Cast>, Vec<Signer>), Error> {
-    let (casts, signers) =
-        tokio::try_join!(node.casts_by_fid(fid, &page), node.signers_by_fid(fid))?;
-    Ok((casts.items, signers))
 }
 
 fn profile_v1(p: &Profile) -> ProfileV1<'_> {
@@ -299,33 +416,56 @@ fn profile_v1(p: &Profile) -> ProfileV1<'_> {
     }
 }
 
-fn feed_v1(fid: u64, items: &[FeedItem]) -> FeedV1<'_> {
+fn feed_v1<'a>(fid: u64, items: &'a [FeedItem], names: &'a Names) -> FeedV1<'a> {
     FeedV1 {
         version: 1,
         fid,
-        casts: items.iter().map(|i| cast_v1(&i.cast, i.app_fid)).collect(),
+        casts: casts_json(items, names),
     }
 }
 
-fn casts_v1<'a>(fids: &'a [u64], items: &'a [FeedItem]) -> CastsV1<'a> {
+fn casts_v1<'a>(fids: &'a [u64], items: &'a [FeedItem], names: &'a Names) -> CastsV1<'a> {
     CastsV1 {
         version: 1,
         fids,
-        casts: items.iter().map(|i| cast_v1(&i.cast, i.app_fid)).collect(),
+        casts: casts_json(items, names),
     }
 }
 
-fn cast_v1(c: &Cast, app_fid: Option<u64>) -> CastV1<'_> {
+fn replies_v1<'a>(parent: &CastRef, items: &'a [FeedItem], names: &'a Names) -> RepliesV1<'a> {
+    RepliesV1 {
+        version: 1,
+        parent: ParentV1 {
+            fid: parent.fid,
+            hash: parent.hash.to_string(),
+        },
+        casts: casts_json(items, names),
+    }
+}
+
+/// Usernames of mentioned accounts, by FID; an account with none is absent.
+type Names = HashMap<u64, String>;
+
+fn casts_json<'a>(items: &'a [FeedItem], names: &'a Names) -> Vec<CastV1<'a>> {
+    items
+        .iter()
+        .map(|i| cast_v1(&i.cast, i.app_fid, names))
+        .collect()
+}
+
+fn cast_v1<'a>(c: &'a Cast, app_fid: Option<u64>, names: &'a Names) -> CastV1<'a> {
     CastV1 {
         hash: c.id.hash.to_string(),
         fid: c.id.fid,
         timestamp: c.timestamp.to_string(),
         text: &c.text,
+        display_text: c.display_text(names),
         mentions: c
             .mentions
             .iter()
             .map(|m| MentionV1 {
                 fid: m.fid,
+                username: names.get(&m.fid).map(String::as_str),
                 position: m.position,
             })
             .collect(),
@@ -378,7 +518,7 @@ fn followers_line(f: Followers) -> String {
     }
 }
 
-fn print_item(item: &FeedItem) {
+fn print_item(item: &FeedItem, names: &Names) {
     let c = &item.cast;
     let app = item
         .app_fid
@@ -387,7 +527,8 @@ fn print_item(item: &FeedItem) {
         "{}  fid {}  {}  {app}",
         c.timestamp, c.id.fid, c.id.hash
     ));
-    c.text
+    c.display_text(names)
+        .unwrap_or_else(|| c.text.clone())
         .lines()
         .for_each(|l| crate::out::line(format_args!("  {l}")));
     crate::out::line("");
@@ -401,7 +542,7 @@ mod tests {
     use selfcast_core::proto::CastType;
     use selfcast_core::time::Timestamp;
 
-    use super::{casts_v1, feed_v1, profile_v1, to_json};
+    use super::{casts_v1, feed_v1, profile_v1, replies_v1, to_json};
 
     fn item() -> FeedItem {
         let hash = MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes");
@@ -410,7 +551,7 @@ mod tests {
                 id: CastRef { fid: 2, hash },
                 timestamp: Timestamp::from_farcaster(0),
                 kind: CastType::Cast,
-                text: "hi @x".to_owned(),
+                text: "hi ".to_owned(),
                 mentions: vec![Mention {
                     fid: 9,
                     position: 3,
@@ -423,24 +564,42 @@ mod tests {
         }
     }
 
+    fn names() -> super::Names {
+        [(9, "alice".to_owned())].into()
+    }
+
     fn cast_json() -> String {
         let h = format!("0x{}", "ab".repeat(20));
         let signer = format!("0x{}", "01".repeat(32));
         format!(
-            r#"{{"hash":"{h}","fid":2,"timestamp":"2021-01-01T00:00:00Z","text":"hi @x","mentions":[{{"fid":9,"position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}},"signer":"{signer}","app_fid":9152}}"#
+            r#"{{"hash":"{h}","fid":2,"timestamp":"2021-01-01T00:00:00Z","text":"hi ","display_text":"hi @alice","mentions":[{{"fid":9,"username":"alice","position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}},"signer":"{signer}","app_fid":9152}}"#
         )
     }
 
     #[test]
     fn feed_json_is_version_1() {
         let expected = format!(r#"{{"version":1,"fid":3,"casts":[{}]}}"#, cast_json());
-        assert_eq!(to_json(&feed_v1(3, &[item()])), expected);
+        assert_eq!(to_json(&feed_v1(3, &[item()], &names())), expected);
     }
 
     #[test]
     fn casts_json_is_version_1() {
         let expected = format!(r#"{{"version":1,"fids":[2,5],"casts":[{}]}}"#, cast_json());
-        assert_eq!(to_json(&casts_v1(&[2, 5], &[item()])), expected);
+        assert_eq!(to_json(&casts_v1(&[2, 5], &[item()], &names())), expected);
+    }
+
+    #[test]
+    fn replies_json_is_version_1() {
+        let parent = CastRef {
+            fid: 37,
+            hash: MessageHash::from_bytes(&[0xcd; 20]).expect("20 bytes"),
+        };
+        let expected = format!(
+            r#"{{"version":1,"parent":{{"fid":37,"hash":"0x{}"}},"casts":[{}]}}"#,
+            "cd".repeat(20),
+            cast_json()
+        );
+        assert_eq!(to_json(&replies_v1(&parent, &[item()], &names())), expected);
     }
 
     #[test]
