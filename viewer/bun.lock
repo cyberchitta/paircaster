@@ -5,7 +5,7 @@
     "": {
       "name": "selfcast-viewer",
       "dependencies": {
-        "pair-ui": "github:cyberchitta/pair-ui#5ad81afb307f53d658dc86e52041e901eacf6305",
+        "pair-ui": "github:cyberchitta/pair-ui#a7ff54f06edecea10760dbdf21453a31f7f75149",
         "preact": "11.0.1",
       },
       "devDependencies": {
@@ -25,7 +25,7 @@
 
     "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
 
-    "pair-ui": ["pair-ui@github:cyberchitta/pair-ui#5ad81af", {}, "cyberchitta-pair-ui-5ad81af", "sha512-yVagVDWLhgoHkl147AlBfykVoeorNxa4DP1dNrBPO+qyTq2JdqQY8lc9qipbxNFGr3w/HcXVfM6NgV7+Fbvfvw=="],
+    "pair-ui": ["pair-ui@github:cyberchitta/pair-ui#a7ff54f", {}, "cyberchitta-pair-ui-a7ff54f", "sha512-AO3a0S5O1aOSFNVxQTJIjIYGbxJH4Hhc09/QJdY+ZtEGkAuhoDPG1n3KPSvLzHDgI5g0MybzkRcSquQxqGiYAw=="],
 
     "preact": ["preact@11.0.1", "", { "peerDependencies": { "preact-render-to-string": ">=6.7.0" }, "optionalPeers": ["preact-render-to-string"] }, "sha512-TNNwEq++jYNHy747LziCjPRVgEwnLSOIOAw/oYcjI3Tdnubx2EXtt76I0an8PATvUWtx/DX1kFIg1eFN+O/fkw=="],
 

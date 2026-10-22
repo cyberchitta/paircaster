@@ -53,8 +53,8 @@ function App() {
   live.current = { ...live.current, thread: view.thread, selected, trail };
 
   // Shows `place` with `chosen` selected, or throws and changes nothing; a
-  // load overtaken by a later one changes nothing.
-  const load = async (place: Place, chosen: string | null = null): Promise<Thread> => {
+  // load overtaken by a later one changes nothing and returns null.
+  const load = async (place: Place, chosen: string | null = null): Promise<Thread | null> => {
     const seq = ++latest.current;
     if (runtime.current?.node !== place.node) runtime.current = makeRuntime(place.node);
     setView((v) => ({ ...v, loading: true }));
@@ -63,7 +63,7 @@ function App() {
       if (chosen && !all(thread).some((c) => refOf(c) === chosen)) {
         throw new Error(`${chosen} is not in the thread of ${place.cast}`);
       }
-      if (seq !== latest.current) return thread;
+      if (seq !== latest.current) return null;
       live.current = { ...live.current, node: place.node, thread, selected: chosen, trail: place.trail };
       setView({ thread, error: null, loading: false });
       setTrail(place.trail);
@@ -104,7 +104,8 @@ function App() {
     const from = refOf(view.thread.cast);
     const next = back ? trail.slice(0, -1) : [...trail, from];
     try {
-      point(await load({ node: live.current.node, cast: ref, trail: next }), null);
+      const thread = await load({ node: live.current.node, cast: ref, trail: next });
+      if (thread) point(thread, null);
     } catch (e) {
       setView((v) => ({ ...v, error: String(e instanceof Error ? e.message : e) }));
     }
@@ -145,7 +146,7 @@ function parseMoniker(moniker: string): { cast: string; chosen: string | null } 
 }
 
 async function reveal(
-  load: (place: Place, chosen: string | null) => Promise<Thread>,
+  load: (place: Place, chosen: string | null) => Promise<Thread | null>,
   now: Live,
   moniker: string,
   state: unknown,
@@ -154,6 +155,7 @@ async function reveal(
   if (!target) return { ok: false, message: `not a thread in this project: ${moniker}` };
   const node = isObject(state) && typeof state.node === "string" ? state.node : now.node;
   const thread = await load({ node, cast: target.cast, trail: [] }, target.chosen);
+  if (!thread) return { ok: false, message: `${target.cast} was overtaken by a later reveal; this one changed nothing` };
   const counts = `${count(thread.ancestors.length, "cast")} above, ${count(thread.replies.length, "reply", "replies")}, from ${node}`;
   return { ok: true, message: `thread of ${target.cast}${target.chosen ? `, ${target.chosen} selected` : ""}: ${counts}` };
 }
