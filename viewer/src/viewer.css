@@ -96,6 +96,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   padding: 2px 10px;
   font-size: 13px;
   color: var(--dim);
+  text-decoration: none;
 }
 .chip:hover { color: var(--accent); }
 

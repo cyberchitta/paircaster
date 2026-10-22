@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { makeRuntime, type Selfcast } from "./runtime";
-import { type Answer, connect, inFrame, keep, ready, select } from "./shala";
+import { type Answer, findHost } from "./host";
 import {
   type Account,
   type Cast,
@@ -20,13 +20,27 @@ const DEFAULT_NODE = "http://localhost:3381";
 // The tell bodies this build takes: `{ selfcast: 1, get: "state" }`.
 const PROTOCOL = 1;
 
+// Shala, pair-ui, or nothing: a page opened as a plain file has no host.
+const host = findHost();
+
 type View = { thread: Thread | null; error: string | null; loading: boolean };
 
 // Where the page is, as Shala keeps it across restarts.
 type Place = { node: string; cast: string; trail: string[] };
 
+// What the host keeps: the place, and what the owner last chose.
+type Kept = Place & { user_selected: string | null };
+
 // What the page shows, read by the message handlers, which outlive a render.
-type Live = { node: string; thread: Thread | null; selected: string | null; trail: string[] };
+// `userSelected` is the moniker of what the owner last clicked or opened, and
+// only that: what a tell or reveal shows does not change it.
+type Live = {
+  node: string;
+  thread: Thread | null;
+  selected: string | null;
+  trail: string[];
+  userSelected: string | null;
+};
 
 function App() {
   const [view, setView] = useState<View>({ thread: null, error: null, loading: false });
@@ -34,7 +48,7 @@ function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const runtime = useRef<Selfcast | null>(null);
   const latest = useRef(0);
-  const live = useRef<Live>({ node: DEFAULT_NODE, thread: null, selected: null, trail: [] });
+  const live = useRef<Live>({ node: DEFAULT_NODE, thread: null, selected: null, trail: [], userSelected: null });
   live.current = { ...live.current, thread: view.thread, selected, trail };
 
   // Shows `place` with `chosen` selected, or throws and changes nothing; a
@@ -49,11 +63,11 @@ function App() {
         throw new Error(`${chosen} is not in the thread of ${place.cast}`);
       }
       if (seq !== latest.current) return thread;
-      live.current = { node: place.node, thread, selected: chosen, trail: place.trail };
+      live.current = { ...live.current, node: place.node, thread, selected: chosen, trail: place.trail };
       setView({ thread, error: null, loading: false });
       setTrail(place.trail);
       setSelected(chosen);
-      keep(place);
+      save(live.current);
       window.scrollTo(0, 0);
       return thread;
     } catch (e) {
@@ -63,22 +77,30 @@ function App() {
   };
 
   useEffect(() => {
-    if (!inFrame()) return;
-    connect({
-      onReveal: async (moniker, state) => reveal(load, live.current, moniker, state),
-      onTell: async (body) => tell(live.current, body),
-    }).then(async (kept) => {
-      if (isPlace(kept)) await load(kept).catch(() => {});
-      ready();
-    });
+    if (!host) return;
+    host
+      .connect({
+        onReveal: async (moniker, state) => reveal(load, live.current, moniker, state),
+        onTell: async (body) => tell(live.current, body),
+      })
+      .then(async ({ kept, start }) => {
+        if (isKept(kept)) {
+          live.current.userSelected = kept.user_selected;
+          await load(kept).catch(() => {});
+        }
+        start();
+      });
   }, []);
 
-  // What the owner does becomes their selection in Shala.
+  // What the owner does becomes their selection: in the page's state, and
+  // in Shala's when Shala hosts it.
   const point = (thread: Thread, chosen: string | null) => {
     const focus = refOf(thread.cast);
     const cast = all(thread).find((c) => refOf(c) === (chosen ?? focus))!;
     const moniker = monikerOf(focus) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
-    select({ moniker, label: about(thread, cast), state: { node: live.current.node } });
+    live.current.userSelected = moniker;
+    save(live.current);
+    host?.select({ moniker, label: about(thread, cast), state: { node: live.current.node } });
   };
 
   const open = async (ref: string, back = false) => {
@@ -98,7 +120,7 @@ function App() {
     point(view.thread, refOf(cast));
   };
 
-  if (!inFrame()) return <p class="note">This page runs in Shala, opened by <code>selfcast viewer open</code>.</p>;
+  if (!host) return <p class="note">Open this page with <code>selfcast viewer open</code>.</p>;
   if (!view.thread) return <p class="note">{view.error ?? (view.loading ? "Reading the node…" : "No thread open yet.")}</p>;
   return (
     <main class={view.loading ? "loading" : ""}>
@@ -114,12 +136,12 @@ function App() {
 }
 
 const SCHEME = "selfcast";
-const monikerOf = (cast: string) => `${SCHEME}://${location.host}/thread/${cast}`;
+const monikerOf = (cast: string) => `${SCHEME}://${host!.project}/thread/${cast}`;
 
 // `selfcast://<project>/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a
 // cast selected in it.
 function parseMoniker(moniker: string): { cast: string; chosen: string | null } | null {
-  const prefix = `${SCHEME}://${location.host}/thread/`;
+  const prefix = `${SCHEME}://${host!.project}/thread/`;
   if (!moniker.startsWith(prefix)) return null;
   const [cast, fragment] = moniker.slice(prefix.length).split("#", 2);
   const chosen = fragment?.startsWith("cast=") ? fragment.slice(5) : null;
@@ -145,14 +167,24 @@ async function tell(now: Live, body: unknown): Promise<Answer> {
     return { ok: false, message: `this page takes selfcast: ${PROTOCOL}; run the selfcast that built it` };
   }
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
-  if (!now.thread) return { ok: true, message: "no thread open", result: { view: null, node: now.node } };
+  const common = { node: now.node, user_selected: now.userSelected };
+  if (!now.thread) return { ok: true, message: "no thread open", result: { view: null, ...common } };
   const [text, state] = describe(now.thread, now.selected, now.trail);
-  return { ok: true, message: text, result: { ...state, node: now.node } };
+  return { ok: true, message: text, result: { ...state, ...common } };
 }
 
 const count = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+
+function save(now: Live) {
+  if (!now.thread) return;
+  const kept: Kept = { node: now.node, cast: refOf(now.thread.cast), trail: now.trail, user_selected: now.userSelected };
+  host?.keep(kept);
+}
+
+const isKept = (v: unknown): v is Kept =>
+  isPlace(v) && "user_selected" in v && (v.user_selected === null || typeof v.user_selected === "string");
 
 const isPlace = (v: unknown): v is Place =>
   isObject(v) && typeof v.node === "string" && typeof v.cast === "string" && Array.isArray(v.trail);
@@ -256,7 +288,8 @@ function Meta({ cast, account, now }: { cast: Cast; account: Account | undefined
   );
 }
 
-// Shala's sandbox opens no links, so a link shows its address and stops there.
+// Where the host opens no links (Shala's sandbox), a link shows its address
+// and stops there.
 function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
   const [open, setOpen] = useState(!clamp);
   const long = (cast.display_text ?? cast.text).split("\n").length > 12 || cast.text.length > 700;
@@ -265,9 +298,9 @@ function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
       <p class={`text${open || !long ? "" : " clamped"}`}>
         {segments(cast).map((s, i) =>
           s.kind === "link" ? (
-            <a key={i} href={s.url} title={s.url} onClick={(e) => (e.preventDefault(), e.stopPropagation())}>
+            <Link key={i} url={s.url}>
               {s.text}
-            </a>
+            </Link>
           ) : s.kind === "mention" ? (
             <span key={i} class="mention">
               {s.text}
@@ -292,9 +325,9 @@ function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
     <div class="embeds">
       {cast.embeds.map((e, i) =>
         "url" in e ? (
-          <span key={i} class="chip" title={e.url}>
+          <Link key={i} url={e.url} chip>
             {hostOf(e.url)}
-          </span>
+          </Link>
         ) : (
           <button key={i} class="chip" onClick={(ev) => (ev.stopPropagation(), onOpen(refOf(e.cast)))}>
             quoted cast · fid {e.cast.fid}
@@ -302,6 +335,22 @@ function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
         ),
       )}
     </div>
+  );
+}
+
+function Link({ url, chip, children }: { url: string; chip?: boolean; children: preact.ComponentChildren }) {
+  const opens = host?.opensLinks ?? false;
+  return (
+    <a
+      class={chip ? "chip" : undefined}
+      href={url}
+      title={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => (opens ? e.stopPropagation() : (e.preventDefault(), e.stopPropagation()))}
+    >
+      {children}
+    </a>
   );
 }
 

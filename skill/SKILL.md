@@ -274,10 +274,13 @@ selfcast viewer state              # what the page shows: thread, selected cast,
   reach only the nodes Shala allows for this project (`localhost:3381` to
   start). Exit 1, with Shala's or the page's reason, when it could not
   show the cast or the page is not open in Shala.
-- **The user points with `shala selection`**, not `viewer state`. Clicking
-  a cast, or opening one, makes it their selection:
+- **What the user points at is `user_selected` in `viewer state`**: the
+  cast they last clicked or opened, as
   `selfcast://selfcast/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a cast
-  selected in that thread. What `viewer open` shows is not their selection.
+  selected in that thread. What `viewer open` shows never changes it, so
+  `cast` and `selected` say what is on screen, `user_selected` what the user
+  chose. In Shala, `shala selection` gives the same moniker when the viewer
+  is what the user touched last.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
 - The page shows no images and opens no links: a link shows its address.
