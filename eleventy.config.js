@@ -12,6 +12,17 @@ const sgEleventy = path.join(
 );
 const includesDir = path.join(__dirname, '_includes');
 const site = JSON.parse(fs.readFileSync(path.join(__dirname, '_data', 'site.json'), 'utf8'));
+const contentDir = path.join(__dirname, 'content');
+
+// A diagram's SVG, for the diagram figure to put inline. `src` is relative to
+// the content root, as image paths are, and may not leave it.
+function readSvg(src) {
+  const file = path.resolve(contentDir, src);
+  if (!file.startsWith(contentDir + path.sep) || path.extname(file) !== '.svg') {
+    throw new Error(`diagram: src must be an .svg under the content root: ${src}`);
+  }
+  return fs.readFileSync(file, 'utf8');
+}
 
 // Boxes for a warning, what Paircaster cannot do, and a note.
 // Authored as <warning>, <limit> and <note>, each with a markdown body.
@@ -51,9 +62,13 @@ export default function (eleventyConfig) {
   eleventyConfig.amendLibrary('md', labelFences);
   eleventyConfig.addGlobalData('layout', 'layouts/page.ejs');
 
-  // Figures, authored as <showcase type="image" src frame alt caption />:
-  // the template is SG's, found in its eleventy dir.
-  const SHOWCASES = { image: 'primitives/image-figure.ejs' };
+  // Figures, authored as <showcase type="image" src frame alt caption />
+  // (SG's, found in its eleventy dir) or <showcase type="diagram" src alt
+  // caption /> (this site's, inline SVG).
+  const SHOWCASES = {
+    image: 'primitives/image-figure.ejs',
+    diagram: 'elements/diagram-figure.ejs',
+  };
 
   const renderCallouts = createCustomElementRenderer(
     {
@@ -61,7 +76,7 @@ export default function (eleventyConfig) {
       showcase: SHOWCASES,
     },
     includesDir,
-    { data: { site } },
+    { data: { site, readSvg } },
     Object.fromEntries(
       Object.entries(CALLOUTS).map(([tag, style]) => [tag, (body) => ({ body, ...style })]),
     ),

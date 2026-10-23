@@ -16,7 +16,10 @@ Pages use three boxes, `<warning>`, `<limit>` and `<note>`, each with a
 markdown body, and three labelled code fences: ` ```run `, ` ```output `
 and ` ```file <path> `. A screenshot is
 `<showcase type="image" src="images/<file>.webp" frame="WxH" alt="…" caption="…" />`,
-Supramental Gold's `image-figure`, with the file in `docs/images/`.
+Supramental Gold's `image-figure`, with the file in `docs/images/`. A
+diagram is `<showcase type="diagram" src="diagrams/<file>.svg" alt="…" />`,
+this branch's `elements/diagram-figure.ejs`: the SVG goes inline, drawn in
+the theme's colour variables, with the file in `docs/diagrams/`.
 
 Build only in CI or in a container that does not mount your home
 directory: a local build runs every dependency as you, and Paircaster's app

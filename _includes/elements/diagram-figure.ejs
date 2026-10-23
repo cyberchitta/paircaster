@@ -1,0 +1,32 @@
+<%
+  // A diagram, inline SVG in the house figure frame (SG's image-figure).
+  // Authored as <showcase type="diagram" src="diagrams/<file>.svg" alt="…" caption="…" />,
+  // with the file in main's docs/diagrams/.
+  //
+  // Inline, not an <img>, so the SVG can draw in the page's theme tokens
+  // (var(--color-base-content) and so on) and follows light and dark with no
+  // script. `src` is read at build time, relative to the site's content root,
+  // as image paths are. `alt` names the figure: the wrapper is role="img", so
+  // the SVG's own <title>, kept for viewing the file alone, is not read twice.
+  // Ids inside the SVG must be unique on the page: one diagram per page is
+  // safe, two need their ids kept apart.
+  //
+  // Local to this site until a second site needs it; then it moves to SG.
+  const str = (name) => (typeof locals[name] === 'string' ? locals[name] : '');
+  if (!str('src') || !str('alt')) throw new Error('diagram-figure: src and alt are required');
+  const svg = data.readSvg(str('src'));
+  const caption = str('caption');
+%>
+<style>.pc-diagram > svg { display: block; width: 100%; height: auto; }</style>
+<div class="not-prose bg-base-200 rounded-lg shadow-sm border border-base-300 overflow-hidden" style="margin: 2rem 0">
+  <figure class="m-0">
+    <div class="px-1 sm:px-4 py-1">
+      <div class="overflow-hidden bg-base-100 rounded border border-base-300 p-2 sm:p-4">
+        <div class="pc-diagram" role="img" aria-label="<%= str('alt') %>"><%- svg %></div>
+      </div>
+    </div>
+    <% if (caption) { %>
+    <figcaption class="px-1 sm:px-4 py-1 mt-0 mb-1" style="font-size: 0.8125rem; opacity: 0.7"><%= caption %></figcaption>
+    <% } %>
+  </figure>
+</div>
