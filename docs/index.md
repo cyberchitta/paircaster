@@ -198,7 +198,7 @@ Each idea is explained where the guide first uses it.
 ## Not tried yet
 
 - Linux beyond building `paircaster` and its viewer, Intel Macs, and rented servers; the [renting](node.md#renting-a-server-instead) advice is untested.
-- A node on a real remote server, reached [through SSH](client.md#where-to-run-paircaster); a write, `key add` or the viewer through a tunnel, and the viewer on the server with an agent there. The tunnel was tried only against a stand-in server on the same machine.
+- A node on a real remote server, reached [through SSH](client.md#where-to-run-paircaster); a write, `key add` or the viewer through a tunnel. The tunnel was tried only against a stand-in server on the same machine.
 - `key add` and `delete` through your own node. Three casts, a like and its undo, and a follow and its undo have gone through the test node; `key add` and the delete went through Farcaster's public node `crackle`.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text.
 - A cast sent with `--embed`.

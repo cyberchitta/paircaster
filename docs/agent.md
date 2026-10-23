@@ -73,6 +73,8 @@ The agent can show you a thread instead of describing it: a page in your browser
 
 ### Build it
 
+The easiest way is to ask your agent, in the clone, as in the [quickstart](index.md#quickstart): “Install Paircaster here, with the viewer.” It skips what your machine already has and builds `paircaster` again with the viewer. The same steps by hand follow.
+
 The page is built into `paircaster` only with the `viewer` feature, which the quickstart's build leaves out: building the page needs tools the rest of `paircaster` does not. They are [Bun](https://bun.sh), the WebAssembly target, and `wasm-bindgen-cli` at the same version as the `wasm-bindgen` in `Cargo.lock`. Install Bun with the command on its home page (on Linux it needs `unzip`), then open a new terminal so that `bun` is on your path. From the clone, find the `wasm-bindgen` version:
 
 ```run

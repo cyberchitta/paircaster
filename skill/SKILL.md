@@ -37,7 +37,36 @@ hosted service.
 When the user asks you to install Paircaster or set it up. Work in the
 clone: the directory with `Cargo.toml`, `crates/` and `skill/`. There is no
 release binary; `paircaster` is built from this source. Before each step,
-say what it installs and where.
+say what it installs and where. Run only the steps not yet done: to add
+the viewer to a working install, step 2's viewer build is all it takes,
+and `node status` (step 3) shows whether steps 4 and 5 are.
+
+**Ask where the node will run** before step 1, unless the user has said.
+The steps below put everything on this machine. If the node is to run on
+a server and you are on the user's own machine:
+
+- Steps 1, 4 and 5 are the server's, and so is a second `paircaster`
+  build (step 2, without the viewer), because `node resume` and
+  `node status` read the server's install directory. Give the user those
+  steps to run there, over their own SSH session; do not run them here
+  through `ssh`.
+- Here, only check `cargo` and build `paircaster` (step 2), with the viewer
+  if wanted. The app key is added here and stays here; the server holds no
+  key.
+- The user reaches the node with a tunnel, run in a terminal of their own
+  because it runs until stopped:
+  `ssh -N -L 3381:localhost:3381 <user>@<server>`. Do not open the
+  node's port to the internet instead.
+- With the tunnel up, the node answers at `localhost:3381`, but it is not
+  this machine's node: pass `--node http://localhost:3381` to every
+  command, `node status` and `viewer serve` included.
+- The viewer goes here, beside the browser: the page reads the node
+  through the same tunnel. The server needs no viewer.
+
+If the node is on a server and you are running on that server, not on the
+user's own machine, use the CLI only, and do not offer the viewer: its port changes on each run, so the user's browser would need a
+new tunnel every time. If the user wants it there, point them to the
+repository's issues.
 
 1. **Check what is there:** `git --version`, `cargo --version`,
    `docker info` (the node runs in Docker, which must be running), and
@@ -494,7 +523,8 @@ something to the shell.
 - **`serve` keeps running.** Run it in the background, or ask the user to
   run it in a terminal, and give them the address it prints to open. It
   reads from `--node`, and the page can reach only that node. A paircaster
-  built without the `viewer` feature says so and serves nothing.
+  built without the `viewer` feature says so and serves nothing; offer
+  the viewer build in *Install*, step 2.
 - `open` and `state` go to the page `serve` hosts when it is running, and
   otherwise to Shala. Exit 1, with the page's or the host's reason, when it
   could not show the cast or no page is open.
