@@ -54,7 +54,12 @@ pub enum ViewerError {
 pub enum ViewerCommand {
     /// Serve the viewer on 127.0.0.1, reading from --node, until stopped.
     /// Prints the address to open it at.
-    Serve,
+    Serve {
+        /// Show profile pictures. Each loads from the host its account chose,
+        /// which then learns your address and when you looked.
+        #[arg(long)]
+        images: bool,
+    },
     /// Open a cast's thread in the viewer, reading from --node.
     Open {
         /// The cast to show, as FID:HASH.
@@ -69,7 +74,7 @@ pub enum ViewerCommand {
 /// `node` is a URL already accepted by [`selfcast_core::Node::new`].
 pub async fn run(command: &ViewerCommand, node: &str) -> Result<(), ViewerError> {
     match command {
-        ViewerCommand::Serve => serve(node).await,
+        ViewerCommand::Serve { images } => serve(node, *images).await,
         ViewerCommand::Open { cast } => open(cast, node).await,
         ViewerCommand::State => state().await,
     }
@@ -144,7 +149,7 @@ fn state_body() -> Value {
     json!({ "selfcast": PROTOCOL, "get": "state" })
 }
 
-async fn serve(node: &str) -> Result<(), ViewerError> {
+async fn serve(node: &str, remote_images: bool) -> Result<(), ViewerError> {
     let build = embedded().ok_or(ViewerError::NotBuiltIn)?;
     let node: Origin = node_origin(node).parse()?;
     let host = Host::bind(Config {
@@ -153,6 +158,7 @@ async fn serve(node: &str) -> Result<(), ViewerError> {
         policy: Policy {
             connect: vec![node],
             wasm: true,
+            remote_images,
         },
         socket: socket_path(PROJECT),
     })

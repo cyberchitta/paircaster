@@ -1743,7 +1743,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "pair-ui"
 version = "0.0.1"
-source = "git+https://github.com/cyberchitta/pair-ui.git?rev=a7ff54f06edecea10760dbdf21453a31f7f75149#a7ff54f06edecea10760dbdf21453a31f7f75149"
+source = "git+https://github.com/cyberchitta/pair-ui.git?rev=0c4873e61cccddc146dd1f531afe1d1799c354ff#0c4873e61cccddc146dd1f531afe1d1799c354ff"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",

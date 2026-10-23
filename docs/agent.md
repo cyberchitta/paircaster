@@ -73,7 +73,7 @@ cargo install --path crates/cli --locked --features viewer
 ```
 
 ```output
-dist/: index.html 3247 bytes, viewer.js 908697 (wasm 656291)
+dist/: index.html 3329 bytes, viewer.js 909127 (wasm 656341)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output. Then start the page and open the address it prints:
@@ -87,7 +87,16 @@ open the viewer at http://127.0.0.1:63677/?pair=42909cb06db6d5baacdcceccccf3ecbe
 stop it with Ctrl-C
 ```
 
-It keeps running, on `127.0.0.1` only, and the page can reach only the node `selfcast` reads from. The address carries a token; a page opened without it is refused. The agent then shows a thread with `viewer open`, and asks the page what it shows with `viewer state`:
+It keeps running, on `127.0.0.1` only, and the page can reach only the node `selfcast` reads from. The address carries a token; a page opened without it is refused. With `--images` the page also shows profile pictures:
+
+```run
+selfcast viewer serve --images
+```
+
+```output
+open the viewer at http://127.0.0.1:59216/?pair=89ca3260eb3c0f58241ca683e4eb1574dc8dd575d657acbc7fddc0cf04564125
+stop it with Ctrl-C
+``` The agent then shows a thread with `viewer open`, and asks the page what it shows with `viewer state`:
 
 ```run
 selfcast viewer open 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
@@ -118,7 +127,7 @@ The page opened the reply's own thread, `back` holds the one you came from, and 
 
 <limit>
 
-The page cannot tell whether you are looking at it, or who chose what it shows. It shows no images. `viewer open` and `viewer state` fail when no page is open, and say so.
+The page cannot tell whether you are looking at it, or who chose what it shows. Without `--images` it loads nothing but from your node, and shows initials. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
 
 </limit>
 

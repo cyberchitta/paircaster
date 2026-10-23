@@ -261,10 +261,18 @@ function CastCard({ cast, role, accounts, now, selected, onOpen, onSelect }: Car
   );
 }
 
+// The picture loads only where the page policy allows remote images
+// (`viewer serve --images`); refused or broken, it falls back to initials.
 function Avatar({ account, fid }: { account: Account | undefined; fid: number }) {
+  const url = account?.pfp_url?.startsWith("https://") ? account.pfp_url : null;
+  const [failed, setFailed] = useState<string | null>(null);
   return (
     <div class="avatar" style={{ "--hue": hue(fid) }} aria-hidden="true">
-      {initials(account, fid)}
+      {url && failed !== url ? (
+        <img src={url} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(url)} />
+      ) : (
+        initials(account, fid)
+      )}
     </div>
   );
 }

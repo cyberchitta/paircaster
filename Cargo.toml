@@ -37,7 +37,7 @@ tar = "0.4"
 thiserror = "2"
 tokio = { version = "1", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread", "time"] }
 zeroize = "1"
-pair-ui = { git = "https://github.com/cyberchitta/pair-ui.git", rev = "a7ff54f06edecea10760dbdf21453a31f7f75149" }
+pair-ui = { git = "https://github.com/cyberchitta/pair-ui.git", rev = "0c4873e61cccddc146dd1f531afe1d1799c354ff" }
 
 # The viewer's WebAssembly, built by viewer/build.ts: small over fast.
 [profile.wasm]

@@ -138,7 +138,7 @@ pub fn replies_json(parent: &CastRef, items: &[FeedItem], names: &Names) -> Stri
 ///   "ancestors": [ … ],
 ///   "cast": { … },
 ///   "replies": [ … ],
-///   "accounts": [ { "fid": 2, "username": "v", "display_name": "Varun" } ]
+///   "accounts": [ { "fid": 2, "username": "v", "display_name": "Varun", "pfp_url": "https://…" } ]
 /// }
 /// ```
 ///
@@ -148,7 +148,7 @@ pub fn replies_json(parent: &CastRef, items: &[FeedItem], names: &Names) -> Stri
 /// hold; `{"cut": {"fid", "hash"}}` after 50 casts, naming the next one up.
 /// `replies` are the direct replies, as `replies` gives them. Every cast has
 /// the shape it has in `feed`. `accounts` has each author and each mentioned
-/// account once, by FID, with `null` for a name not set.
+/// account once, by FID, with `null` for a name or picture not set.
 pub fn thread_json(t: &Thread, users: &Users) -> String {
     let names = profile::names_of(users);
     to_json(&ThreadV1 {
@@ -163,6 +163,7 @@ pub fn thread_json(t: &Thread, users: &Users) -> String {
                 fid: *fid,
                 username: profile::username(data),
                 display_name: profile::display_name(data),
+                pfp_url: profile::pfp_url(data),
             })
             .collect(),
     })
@@ -236,6 +237,7 @@ struct AccountV1 {
     fid: u64,
     username: Option<String>,
     display_name: Option<String>,
+    pfp_url: Option<String>,
 }
 
 #[derive(Serialize)]

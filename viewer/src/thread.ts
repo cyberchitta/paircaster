@@ -17,7 +17,12 @@ export type Cast = {
   app_fid: number | null;
 };
 
-export type Account = { fid: number; username: string | null; display_name: string | null };
+export type Account = {
+  fid: number;
+  username: string | null;
+  display_name: string | null;
+  pfp_url: string | null;
+};
 
 export type Thread = {
   version: 1;

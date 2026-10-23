@@ -266,7 +266,7 @@ when the user wants to look at a conversation with you, not to read one
 yourself: for that, `thread --json` is the read.
 
 ```
-selfcast viewer serve              # host the page on 127.0.0.1 until stopped; prints its address
+selfcast viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
 selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened
 selfcast viewer state              # what the page shows: thread, selected cast, Back trail
 ```
@@ -287,8 +287,13 @@ selfcast viewer state              # what the page shows: thread, selected cast,
   selfcast's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
-- The page shows no images. In Shala it opens no links: a link shows its
-  address.
+- **Profile pictures only with `serve --images`.** Each then loads from
+  the server its account chose, which learns the user's address and when
+  they looked. Off by default: turn it on only when the user asks. Without
+  it, or where a picture fails, the page shows initials. Shala's page
+  policy refuses remote images, so in Shala there are none.
+- The page shows no images in casts. In Shala it opens no links: a link
+  shows its address.
 
 ## Writes
 

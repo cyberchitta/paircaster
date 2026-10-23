@@ -163,6 +163,12 @@ pub fn display_name(user_data: &[UserDatum]) -> Option<String> {
     latest(user_data, UserDataType::Display)
 }
 
+/// The account's profile picture URL, the newest one set; `None` when it has
+/// none.
+pub fn pfp_url(user_data: &[UserDatum]) -> Option<String> {
+    latest(user_data, UserDataType::Pfp)
+}
+
 fn latest(user_data: &[UserDatum], kind: UserDataType) -> Option<String> {
     user_data
         .iter()

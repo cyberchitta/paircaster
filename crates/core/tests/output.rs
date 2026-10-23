@@ -87,9 +87,15 @@ fn thread_json_is_version_1() {
         cast: item(),
         replies: vec![],
     };
-    let users = [username(2, "v"), username(9, "alice")].into();
+    let (fid, mut alice) = username(9, "alice");
+    alice.push(UserDatum {
+        kind: UserDataType::Pfp,
+        value: "https://i/a.png".to_owned(),
+        timestamp: Timestamp::from_farcaster(0),
+    });
+    let users = [username(2, "v"), (fid, alice)].into();
     let expected = format!(
-        r#"{{"version":1,"top":{{"missing":{{"fid":17,"hash":"0x{}"}}}},"ancestors":[{c}],"cast":{c},"replies":[],"accounts":[{{"fid":2,"username":"v","display_name":null}},{{"fid":9,"username":"alice","display_name":null}}]}}"#,
+        r#"{{"version":1,"top":{{"missing":{{"fid":17,"hash":"0x{}"}}}},"ancestors":[{c}],"cast":{c},"replies":[],"accounts":[{{"fid":2,"username":"v","display_name":null,"pfp_url":null}},{{"fid":9,"username":"alice","display_name":null,"pfp_url":"https://i/a.png"}}]}}"#,
         "ab".repeat(20),
         c = cast_json()
     );
