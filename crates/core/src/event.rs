@@ -106,6 +106,10 @@ impl EventWalk {
         }
     }
 
+    pub fn shard(&self) -> u32 {
+        self.shard
+    }
+
     /// Where the next page starts; `None` once the walk is over.
     pub fn next_id(&self) -> Option<u64> {
         self.next_id

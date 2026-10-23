@@ -6,9 +6,8 @@
 use selfcast_core::account::Account;
 use selfcast_core::cast::Reaction;
 use selfcast_core::cast::{CastRef, ChannelUrl};
-use selfcast_core::feed::{self, AppFilter, FeedItem};
+use selfcast_core::feed::{AppFilter, FeedItem};
 use selfcast_core::follow::Follow;
-use selfcast_core::node::PageRequest;
 use selfcast_core::node::reads::MAX_ANCESTORS;
 use selfcast_core::output;
 use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, names_of};
@@ -145,14 +144,8 @@ pub async fn profile(
     json: bool,
 ) -> Result<(), Error> {
     let fid = node.resolve(account).await?;
-    if !node.is_registered(fid).await? {
-        return Err(Error::NotRegistered(fid));
-    }
-    let user_data = node.user_data_by_fid(fid).await?;
-    let following = node.all_follows_by_fid(fid).await?.len();
     let cap = (!all_followers).then_some(FOLLOWER_COUNT_CAP);
-    let followers = node.follower_count(fid, cap).await?;
-    let profile = Profile::assemble(fid, &user_data, following, followers);
+    let profile = node.profile(fid, cap).await?;
     if json {
         crate::out::line(output::profile_json(&profile));
     } else {
@@ -163,8 +156,10 @@ pub async fn profile(
 
 pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error> {
     let fid = node.resolve(&args.account).await?;
-    let follows = node.all_follows_by_fid(fid).await?;
-    let items = newest_casts(node, follows, &args.filter).await?;
+    let f = &args.filter;
+    let items = node
+        .feed(fid, f.limit, &f.apps.filter(), clock::now())
+        .await?;
     let names = node.mention_names(&items).await?;
     if json {
         crate::out::line(output::feed_json(fid, &items, &names));
@@ -176,7 +171,10 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
 
 pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Error> {
     let fids = node.resolve_all(&args.accounts).await?;
-    let items = newest_casts(node, fids.clone(), &args.filter).await?;
+    let f = &args.filter;
+    let items = node
+        .newest_casts(fids.clone(), f.limit, &f.apps.filter(), clock::now())
+        .await?;
     let names = node.mention_names(&items).await?;
     if json {
         crate::out::line(output::casts_json(&fids, &items, &names));
@@ -187,13 +185,9 @@ pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Erro
 }
 
 pub async fn channel(node: &Node, args: &ChannelArgs, json: bool) -> Result<(), Error> {
-    let page = PageRequest {
-        page_size: Some(args.limit),
-        page_token: None,
-    };
-    let (casts, signers) = node.channel_casts(&args.channel, &page).await?;
-    let limit = args.limit as usize;
-    let items = feed::assemble(casts, &signers, &args.apps.filter(), clock::now(), limit);
+    let items = node
+        .channel(&args.channel, args.limit, &args.apps.filter(), clock::now())
+        .await?;
     let names = node.mention_names(&items).await?;
     if json {
         crate::out::line(output::channel_json(&args.channel, &items, &names));
@@ -249,13 +243,9 @@ fn print_follow(f: &Follow, names: &Names) {
 }
 
 pub async fn replies(node: &Node, args: &RepliesArgs, json: bool) -> Result<(), Error> {
-    let casts = node.replies(&args.cast).await?;
-    let signers = node
-        .signers_of(casts.iter().map(|c| c.id.fid).collect())
+    let items = node
+        .newest_replies(&args.cast, args.limit, &args.apps.filter(), clock::now())
         .await?;
-    let limit = args.limit as usize;
-    let mut items = feed::assemble(casts, &signers, &args.apps.filter(), clock::now(), limit);
-    items.reverse();
     let names = node.mention_names(&items).await?;
     if json {
         crate::out::line(output::replies_json(&args.cast, &items, &names));
@@ -284,27 +274,6 @@ pub async fn reactions(node: &Node, args: &ReactionsArgs, json: bool) -> Result<
         print_reactions(&reactions, &names_of(&users));
     }
     Ok(())
-}
-
-/// The newest casts across `fids`, after the filter.
-async fn newest_casts(
-    node: &Node,
-    fids: Vec<u64>,
-    filter: &CastFilter,
-) -> Result<Vec<FeedItem>, Error> {
-    let page = PageRequest {
-        page_size: Some(filter.limit),
-        page_token: None,
-    };
-    let (casts, signers) = node.casts_and_signers(fids, &page).await?;
-    let limit = filter.limit as usize;
-    Ok(feed::assemble(
-        casts,
-        &signers,
-        &filter.apps.filter(),
-        clock::now(),
-        limit,
-    ))
 }
 
 fn print_profile(p: &Profile) {

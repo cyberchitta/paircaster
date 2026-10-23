@@ -1,13 +1,9 @@
 //! `selfcast events`: what the node's shards merged, block by block.
 
-use selfcast_core::event::{Change, Event, EventBody, EventWalk};
-use selfcast_core::node::ShardSync;
+use selfcast_core::event::{Change, Event, EventBody};
 use selfcast_core::output;
 use selfcast_core::time::Timestamp;
 use selfcast_core::{Error, Node};
-
-/// How many events one request asks for.
-const PAGE_SIZE: u32 = 10_000;
 
 #[derive(Debug, clap::Args)]
 pub struct EventsArgs {
@@ -26,39 +22,9 @@ pub struct EventsArgs {
 }
 
 pub async fn run(node: &Node, args: &EventsArgs, json: bool) -> Result<(), Error> {
-    let state = node.sync_state().await?;
-    let shards: Vec<&ShardSync> = state
-        .shards
-        .iter()
-        .filter(|s| s.id != 0 && args.shard.is_none_or(|n| n == s.id))
-        .collect();
-    if let Some(n) = args.shard
-        && shards.is_empty()
-    {
-        return Err(Error::NoShard(n));
-    }
-    for shard in shards {
-        walk_shard(node, shard, args, json).await?;
-    }
-    Ok(())
-}
-
-async fn walk_shard(
-    node: &Node,
-    shard: &ShardSync,
-    args: &EventsArgs,
-    json: bool,
-) -> Result<(), Error> {
-    let start = match args.since {
-        Some(t) => node.first_event_since(shard.id, t, shard.height).await?,
-        None => 0,
-    };
-    let mut walk = EventWalk::new(shard.id, start, args.since, args.until);
-    while let Some(from) = walk.next_id() {
-        let page = node.events(shard.id, from, PAGE_SIZE).await?;
-        walk.add_page(page)?
-            .iter()
-            .for_each(|e| print_event(e, json));
+    let mut read = node.event_read(args.shard, args.since, args.until).await?;
+    while let Some(events) = node.next_events(&mut read).await? {
+        events.iter().for_each(|e| print_event(e, json));
     }
     Ok(())
 }

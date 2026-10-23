@@ -2,7 +2,7 @@
 //! alike. Requests run concurrently without a runtime of their own, so these
 //! work under tokio and in a browser.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 use std::future::Future;
 
 use futures_util::{StreamExt, TryStreamExt, future, stream};
@@ -12,9 +12,10 @@ use crate::account::Account;
 use crate::address::{self, Address};
 use crate::cast::{Cast, CastRef, ChannelUrl};
 use crate::error::Error;
-use crate::feed::FeedItem;
+use crate::event::{Event, EventWalk};
+use crate::feed::{self, AppFilter, FeedItem};
 use crate::follow::Follow;
-use crate::profile::{Names, Users, names_of};
+use crate::profile::{Names, Profile, Users, names_of};
 use crate::proto::ReactionType;
 use crate::reaction::CastReactions;
 use crate::signer::Signer;
@@ -27,7 +28,148 @@ const FETCH_AT_ONCE: usize = 8;
 /// How many casts a thread reads above the one asked about before it stops.
 pub const MAX_ANCESTORS: usize = 50;
 
+/// How many events one request asks for.
+const EVENT_PAGE_SIZE: u32 = 10_000;
+
+/// A read of the events in a window, shard after shard, a page at a time,
+/// from [`Node::event_read`] and advanced by [`Node::next_events`].
+#[derive(Debug)]
+pub struct EventRead {
+    shards: VecDeque<(u32, u64)>,
+    since: Option<Timestamp>,
+    until: Option<Timestamp>,
+    walk: Option<EventWalk>,
+}
+
 impl Node {
+    /// `fid`'s profile, its followers counted up to `cap`, or all of them
+    /// when `None`. An account the node has no registration for is an
+    /// error.
+    pub async fn profile(&self, fid: u64, cap: Option<usize>) -> Result<Profile, Error> {
+        if !self.is_registered(fid).await? {
+            return Err(Error::NotRegistered(fid));
+        }
+        let (user_data, following, followers) = future::try_join3(
+            self.user_data_by_fid(fid),
+            self.all_follows_by_fid(fid),
+            self.follower_count(fid, cap),
+        )
+        .await?;
+        Ok(Profile::assemble(
+            fid,
+            &user_data,
+            following.len(),
+            followers,
+        ))
+    }
+
+    /// The newest `limit` casts from the accounts `fid` follows that `apps`
+    /// admits. Each account's newest `limit` are read, so a filter can
+    /// leave fewer.
+    pub async fn feed(
+        &self,
+        fid: u64,
+        limit: u32,
+        apps: &AppFilter,
+        now: Timestamp,
+    ) -> Result<Vec<FeedItem>, Error> {
+        let follows = self.all_follows_by_fid(fid).await?;
+        self.newest_casts(follows, limit, apps, now).await
+    }
+
+    /// The newest `limit` casts across `fids` that `apps` admits, read as
+    /// for [`Node::feed`].
+    pub async fn newest_casts(
+        &self,
+        fids: Vec<u64>,
+        limit: u32,
+        apps: &AppFilter,
+        now: Timestamp,
+    ) -> Result<Vec<FeedItem>, Error> {
+        let (casts, signers) = self.casts_and_signers(fids, &page_of(limit)).await?;
+        Ok(feed::assemble(casts, &signers, apps, now, limit as usize))
+    }
+
+    /// The newest `limit` casts in `channel` that `apps` admits, from the
+    /// channel's newest `limit` on each shard.
+    pub async fn channel(
+        &self,
+        channel: &ChannelUrl,
+        limit: u32,
+        apps: &AppFilter,
+        now: Timestamp,
+    ) -> Result<Vec<FeedItem>, Error> {
+        let (casts, signers) = self.channel_casts(channel, &page_of(limit)).await?;
+        Ok(feed::assemble(casts, &signers, apps, now, limit as usize))
+    }
+
+    /// The newest `limit` replies to `parent` that `apps` admits, oldest
+    /// first. Every reply is read before filtering.
+    pub async fn newest_replies(
+        &self,
+        parent: &CastRef,
+        limit: u32,
+        apps: &AppFilter,
+        now: Timestamp,
+    ) -> Result<Vec<FeedItem>, Error> {
+        let casts = self.replies(parent).await?;
+        let signers = self
+            .signers_of(casts.iter().map(|c| c.id.fid).collect())
+            .await?;
+        let mut items = feed::assemble(casts, &signers, apps, now, limit as usize);
+        items.reverse();
+        Ok(items)
+    }
+
+    /// A read of the events in blocks at or after `since` and before
+    /// `until`, on `shard` or on every shard with events. A shard the node
+    /// does not have is an error.
+    pub async fn event_read(
+        &self,
+        shard: Option<u32>,
+        since: Option<Timestamp>,
+        until: Option<Timestamp>,
+    ) -> Result<EventRead, Error> {
+        let shards: VecDeque<(u32, u64)> = self
+            .sync_state()
+            .await?
+            .shards
+            .iter()
+            .filter(|s| s.id != 0 && shard.is_none_or(|n| n == s.id))
+            .map(|s| (s.id, s.height))
+            .collect();
+        match shard {
+            Some(n) if shards.is_empty() => Err(Error::NoShard(n)),
+            _ => Ok(EventRead {
+                shards,
+                since,
+                until,
+                walk: None,
+            }),
+        }
+    }
+
+    /// The next page of `read`'s events, which may be empty; `None` once
+    /// every shard is read.
+    pub async fn next_events(&self, read: &mut EventRead) -> Result<Option<Vec<Event>>, Error> {
+        loop {
+            if let Some(walk) = &mut read.walk
+                && let Some(from) = walk.next_id()
+            {
+                let page = self.events(walk.shard(), from, EVENT_PAGE_SIZE).await?;
+                return walk.add_page(page).map(Some);
+            }
+            let Some((shard, height)) = read.shards.pop_front() else {
+                return Ok(None);
+            };
+            let start = match read.since {
+                Some(t) => self.first_event_since(shard, t, height).await?,
+                None => 0,
+            };
+            read.walk = Some(EventWalk::new(shard, start, read.since, read.until));
+        }
+    }
+
     /// The thread around `id`, with the newest `limit` replies, and the user
     /// data of everyone in it.
     pub async fn thread(
@@ -170,6 +312,13 @@ impl Node {
             .flat_map(|i| i.cast.mentions.iter().map(|m| m.fid))
             .collect();
         Ok(names_of(&self.user_data_of(fids).await?))
+    }
+}
+
+fn page_of(limit: u32) -> PageRequest {
+    PageRequest {
+        page_size: Some(limit),
+        page_token: None,
     }
 }
 
