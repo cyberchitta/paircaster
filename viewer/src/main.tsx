@@ -243,13 +243,21 @@ function list(text: string, at: string): string[] {
   return casts;
 }
 
+// A cast's thread, with any failure naming the cast, so a refused list says
+// which of its casts the node could not give.
+function threadOf(runtime: Selfcast, cast: string, options?: { limit?: number }): Promise<Thread> {
+  return runtime.thread(cast, options).catch((e: unknown) => {
+    throw new Error(`${cast}: ${e instanceof Error ? e.message : String(e)}`);
+  });
+}
+
 async function read(runtime: Selfcast, spot: Spot): Promise<Shown> {
   if (spot.kind === "casts") {
-    const threads = await Promise.all(spot.casts.map((c) => runtime.thread(c, { limit: 1 })));
+    const threads = await Promise.all(spot.casts.map((c) => threadOf(runtime, c, { limit: 1 })));
     const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
     return { kind: "casts", casts: threads.map((t) => t.cast), accounts: [...accounts.values()] };
   }
-  const thread = await runtime.thread(spot.cast);
+  const thread = await threadOf(runtime, spot.cast);
   const stray = spot.only?.find((r) => !thread.replies.some((c) => refOf(c) === r));
   if (stray) throw new Error(`${stray} is not a reply to ${spot.cast}`);
   return { kind: "thread", thread, only: spot.only };

@@ -26,6 +26,9 @@ hosted service.
   (`http://localhost:3381`). Leave it out unless the user names a node, and
   when they do, put it in every command, so the node a command uses is
   always in the command.
+- Copy each `FID:HASH` whole from a command's output. Never type one from
+  memory, shorten it, or finish a partial one: a wrong hash is a cast the
+  node does not hold.
 - Never ask for, accept, or type a recovery phrase. Commands that need one
   read it from the terminal themselves, and the user types it.
 
@@ -293,7 +296,11 @@ shard merged it; `timestamp` is what the message claims. `--since` and
 A `cast_add` also carries the cast's `text`, `mentions` (`{fid, position}`),
 `embeds` and `parent`, as in `casts` but with no usernames: `text` is
 without the mentioned names, and there is no `display_text`. Name the
-casts you keep with `profile`, or show them with `thread`.
+casts you keep with `profile`, one FID at a time (`casts` with several
+FIDs and `--limit 1` returns one cast in all, not one per account), or show
+them with `thread`. A cast found here may have been deleted since: the
+node then no longer holds it, and `viewer open` refuses a list that
+includes it, naming the cast. Drop it and open the rest.
 
 The node keeps about three days of events, so this answers "this week"
 only for those days: say which days the count covers (the first line's
