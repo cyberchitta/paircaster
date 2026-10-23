@@ -1,5 +1,6 @@
 # The site's toolchain lives on the site-build branch. Fail if any of it,
-# or a script Eleventy would run, reaches this tree.
+# or a script Eleventy would run, reaches this tree. The site's package files
+# sit at the root there; the viewer's own, in viewer/, belong here.
 name: No site toolchain on main
 
 on: [push, pull_request]
@@ -14,5 +15,5 @@ jobs:
       - uses: actions/checkout@v6
       - run: |
           found=$(git ls-tree -r --name-only HEAD \
-            | grep -E '(^|/)(package\.json|bun\.lock|node_modules/)|^docs/.*\.(js|mjs|cjs|ts)$' || true)
+            | grep -E '^(package\.json|bun\.lock)$|(^|/)node_modules/|^docs/.*\.(js|mjs|cjs|ts)$' || true)
           if [ -n "$found" ]; then echo "Site toolchain files on this branch:"; echo "$found"; exit 1; fi
