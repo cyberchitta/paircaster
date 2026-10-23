@@ -21,8 +21,8 @@ from anyone: you furnish the compute. It has three parts:
  ┌──────────────────────────────────────────────────────────┐
  │  you ───┬──▶ paircaster ────────────HTTP──┐              │
  │         │    (command line)               ▼              │
- │  agent ─┘        │ viewer open      Snapchain node       │
- │                  ▼                  localhost:3381       │
+ │  agent ─┘        ▲ viewer open,     Snapchain node       │
+ │                  ▼ viewer state     localhost:3381       │
  │  you ──────▶ viewer page ───────────HTTP──▲              │
  │              (your browser)                              │
  └───────────────────────────────────────────┬──────────────┘
