@@ -94,14 +94,30 @@ cargo install --path crates/cli --locked --features viewer
 ```
 
 ```output
-dist/: index.html 3419 bytes, viewer.js 1232386 (wasm 892799)
+dist/: index.html 3419 bytes, viewer.js 1245675 (wasm 902684)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output.
 
 ### You start the page
 
-In a terminal of its own, since it keeps running, start the page and open the address it prints:
+Ask the agent in plain words. In this section the prompts are as typed, and the replies as the agent wrote them:
+
+> Start the viewer with profile pictures so we can look at threads together.
+
+It ran `selfcast viewer serve --images` in the background and answered:
+
+```output
+The viewer is running with profile pictures on. Open this address in your browser:
+
+http://127.0.0.1:62331/?pair=d378d2db50a261591237c7a8507453a1bd6bea3b9a1fa1b8e2a8c4244acf2ef4
+
+With pictures on, each one loads from whatever server that account chose for it. Those servers can see your IP address and when you looked.
+
+The page is blank until there's a thread on it. Name a cast or a conversation and I'll put it up, or click a cast on the page and I can see which one you picked. It keeps running until I stop it or this session ends.
+```
+
+You can also start it yourself, in a terminal of its own since it keeps running:
 
 ```run
 selfcast viewer serve
@@ -112,46 +128,53 @@ open the viewer at http://127.0.0.1:63677/?pair=42909cb06db6d5baacdcceccccf3ecbe
 stop it with Ctrl-C
 ```
 
-It listens on `127.0.0.1` only, and the page can reach only the node `selfcast` reads from. The address carries a token; a page opened without it is refused. The agent needs neither the address nor the token: its `viewer` commands reach the server through a local socket that only your user account can open. `selfcast viewer serve --images` also shows profile pictures (see the limit below).
+It listens on `127.0.0.1` only, and the page can reach only the node `selfcast` reads from. The address carries a token; a page opened without it is refused. The agent needs neither the address nor the token: its `viewer` commands reach the server through a local socket that only your user account can open.
 
 ### The agent shows you a thread
 
-Ask the agent to show you a thread. It runs `viewer open` with the cast as `FID:HASH` (the author's FID and the cast's hash, as every read returns them), then `viewer state` to see what the page shows:
+> Find Dan Romero's wishlists for a Farcaster client and a Snapchain node, and show me the client one.
 
-```run
-selfcast viewer open 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
-selfcast viewer state
-```
+It searched his newest casts, ran `selfcast viewer open 3:0x597007de6219f87fdf71ad5769db542c8f2d1dde`, and answered:
 
 ```output
-revealed selfcast://selfcast/thread/3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
-message: thread of 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d: 0 casts above, 1 reply, from http://localhost:3381
-told selfcast
-message: the thread of 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d by @selfcast ("This cast went out through my own Snapchain node, signed by an app key I added w"), 0 casts above it, 1 reply
-result: {"back":[],"cast":"3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d","node":"http://localhost:3381","selected":null,"user_selected":null,"view":"thread"}
+The viewer now shows Dan Romero's client wishlist with its 16 replies. He posted it on 16 October, starting with "Client wishlist", and it's a top-level post, so it isn't replying to anything.
+
+His Snapchain node wishlist went up seven minutes later, starting with "Snapchain node wishlist". It asks for two things: to sync only part of the network, and to keep no more than 7 days of content. I can put that one on the page too.
+
+I found both by searching his newest 1,000 casts for "wishlist", "client" and "node". Your node is caught up, so nothing recent should be missing.
 ```
 
-The `selfcast://…` line names the view, and `viewer open` takes that name too. In `result`, `view` and `cast` are what is on screen, `back` is what Back returns to, and `selected` lists casts the agent marked when it opened the view (none here).
+### Only what is worth reading
+
+> Show me just the replies worth reading.
+
+It read the thread with `selfcast thread --json`, chose six replies, and opened the thread with only those, in its order. The rest fold behind a "Show all" button. The reply names each cast by its author and a few of its words, so you can find it on the page, and says why it chose it:
+
+<showcase type="image" src="images/viewer-replies.webp" frame="1600x904" alt="The agent's reply in a terminal on the left, listing six replies with a reason for each; on the right, the client wishlist in the browser under the heading 6 of 16 replies, the first of them Dan Romero's own continuation of the list." caption="Six of the wishlist's 16 replies, in the agent's order." />
 
 ### You point, the agent reads
 
-Click the reply in the page. The agent learns what you clicked only when it next runs `viewer state`, so ask it about the cast you are on:
+> Now show me the node wishlist
 
-```run
-selfcast viewer state
-```
+It opened that thread. In the page, click KMac's reply, "Yes & filter only from specific signers": the page opens the reply's own thread, under the post it answers. Then ask about it:
+
+> What does the person I've selected want, and can Selfcast do it?
+
+The agent learns what you clicked only when it runs `viewer state`, and it ran that first:
 
 ```output
 told selfcast
-message: the thread of 3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24 by @selfcast ("How: selfcast node fetch-snapshot cd ~/snapchain && ./snapchain.sh up selfcast k"), 1 cast above it, 1 reply
-result: {"back":["3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d"],"cast":"3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24","node":"http://localhost:3381","selected":null,"user_selected":"selfcast://selfcast/thread/3356360:0x4853a7d5837632037621a83f1068c8b57ba5ed24","view":"thread"}
+message: the thread of 4163:0x45563785c747be1f0c407defdae26e3b5d4f596b by @kmacb.eth ("Yes & filter only from specific signers"), 1 cast above it, 0 replies
+result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"cast":"4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","node":"http://localhost:3381","selected":null,"user_selected":"selfcast://selfcast/thread/4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","view":"thread"}
 ```
 
-The page opened the reply's own thread, and `back` holds the one you came from. `user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. The skill tells the agent that this is the cast you are pointing at.
+`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, and `selected` lists casts the agent marked (none here). It then read the reply and the post above it, and answered:
+
+<showcase type="image" src="images/viewer-pointing.webp" frame="1600x904" alt="The agent's answer in a terminal on the left: Selfcast can filter what it reads by signer, but not what the node stores. On the right, the browser shows Dan Romero's Snapchain node wishlist with KMac's reply under it, opened by the click." caption="The reply you clicked, and the agent's answer about it." />
 
 <limit>
 
-The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` is always yours. Without `--images` it loads nothing but from your node, and shows initials. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
+The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` is always yours. Without `--images` it loads nothing but from your node, and shows initials; the screenshots above were taken with it. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
 
 </limit>
 
