@@ -1,9 +1,36 @@
 # Paircaster
 
-Your own Farcaster read node, a client and AI agent skill that read from it,
-and a page where you and your agent look at the same thread. No API keys from
-anyone: you furnish the compute, Snapchain syncs the
-network, and `paircaster` reads and writes through your node.
+Farcaster from your own Snapchain node, for you and your AI agent. No API keys
+from anyone: you furnish the compute. It has three parts:
+
+- **A node.** Snapchain, the software Farcaster's nodes run, set up by its own
+  installer and run in Docker. `paircaster` downloads its snapshot (about
+  800 GB), pausing and resuming where it stopped, and tells you how far the
+  node has got.
+- **A command-line client, `paircaster`.** It reads profiles, casts, threads,
+  follows and the network's recent messages from your node, and casts, reacts
+  and follows through it. You run it, and so does your agent, through the
+  skill in `skill/`.
+- **A viewer.** A page in your browser that shows threads the way a Farcaster
+  app does, reading your node itself. The agent puts threads on it, you click
+  the cast you mean, and the agent asks the page which one you chose. It reads
+  only, and is an option of `paircaster`, built with extra tools.
+
+```
+  your machine
+ ┌──────────────────────────────────────────────────────────┐
+ │  you ───┬──▶ paircaster ────────────HTTP──┐              │
+ │         │    (command line)               ▼              │
+ │  agent ─┘        │ viewer open      Snapchain node       │
+ │                  ▼                  localhost:3381       │
+ │  you ──────▶ viewer page ───────────HTTP──▲              │
+ │              (your browser)                              │
+ └───────────────────────────────────────────┬──────────────┘
+                                             │ gossip, UDP 3382
+                                             ▼
+                                     other Snapchain nodes
+                                     and the validators
+```
 
 > **Read the code before you give it your recovery phrase.** As with any code
 > from the internet, review it yourself, or have someone you trust or an AI
@@ -24,13 +51,16 @@ network, and `paircaster` reads and writes through your node.
 |---|---|
 | `crates/core` | Message construction, feed and profile assembly; network access only in its `node` module |
 | `crates/cli` | The `paircaster` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
+| `crates/wasm` | `paircaster-core`'s reads compiled to WebAssembly for the viewer, returning the same JSON as `paircaster <read> --json` |
+| `viewer/` | The viewer page (TypeScript, built with Bun), embedded in `paircaster` by its `viewer` feature |
 | `skill/` | An agent skill that drives `paircaster`; Claude Code started in the repo loads it through `.claude/skills/paircaster`, Codex through `.agents/skills/paircaster` |
 | `docs/` | The microsite's pages and the documents above; the `site-build` branch holds the toolchain that builds them |
 
 ## Status
 
-New. It has been run on one Apple Silicon Mac, not yet on Linux or a rented
-server; the guide ends with a list of what has not been tried.
+New. It has been run on one Apple Silicon Mac; on Linux, only building
+`paircaster` and its viewer has been tried, and it has not run on a rented
+server. The guide ends with a list of what has not been tried.
 
 ## Keys
 
