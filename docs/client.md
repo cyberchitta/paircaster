@@ -101,6 +101,19 @@ curl -s 'http://localhost:3381/v1/onChainIdRegistryEventByAddress?address=0x3375
 }
 ```
 
+An account can also show *verified addresses*: wallets it has proved it controls, with a signature from the wallet, so others can see them on its profile. They do not own the account, and there can be several, Ethereum and Solana, with one of each marked *primary*. `@selfcast`'s are not its custody address:
+
+```run
+selfcast addresses selfcast
+```
+
+```output
+2026-10-21T04:37:39Z  ethereum  0x8524c039ad6713a11d0189c55b3deacb8eba8470  primary
+2026-10-21T04:37:56Z  solana  EXTvppKe5A6by87T8YTCmDYfNFCVtEZUot2kEJd5GYDd  primary
+```
+
+The addresses are *verification* messages (`/v1/verificationsByFid`); which is primary is user data, as the name is.
+
 ## Casts, and what a message is
 
 ```run

@@ -5,6 +5,7 @@
 
 use serde::Serialize;
 
+use crate::address::Address;
 use crate::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use crate::event::{Change, Event, EventBody};
 use crate::feed::FeedItem;
@@ -281,6 +282,39 @@ fn follow_v1(f: &Follow) -> AccountAtV1 {
     }
 }
 
+/// `selfcast addresses <account> --json`, version 1:
+///
+/// ```json
+/// {
+///   "version": 1,
+///   "fid": 3,
+///   "addresses": [
+///     { "address": "0x6ce0…fea5", "protocol": "ethereum", "chain_id": 0,
+///       "timestamp": "2025-09-23T…Z", "primary": true }
+///   ]
+/// }
+/// ```
+///
+/// Oldest first. `protocol` is `ethereum` or `solana`; `chain_id` is as the
+/// verification gives it; `primary` marks the address the account names as
+/// its primary one for that protocol.
+pub fn addresses_json(fid: u64, addresses: &[Address]) -> String {
+    to_json(&AddressesV1 {
+        version: 1,
+        fid,
+        addresses: addresses
+            .iter()
+            .map(|a| AddressV1 {
+                address: &a.verification.address,
+                protocol: a.verification.protocol.name(),
+                chain_id: a.verification.chain_id,
+                timestamp: a.verification.timestamp.to_string(),
+                primary: a.primary,
+            })
+            .collect(),
+    })
+}
+
 /// `selfcast reactions <FID:HASH> --json`, version 1:
 ///
 /// ```json
@@ -391,6 +425,22 @@ struct FollowsV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     following: Option<Vec<AccountAtV1>>,
     accounts: Vec<AccountV1>,
+}
+
+#[derive(Serialize)]
+struct AddressesV1<'a> {
+    version: u32,
+    fid: u64,
+    addresses: Vec<AddressV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct AddressV1<'a> {
+    address: &'a str,
+    protocol: &'static str,
+    chain_id: u32,
+    timestamp: String,
+    primary: bool,
 }
 
 #[derive(Serialize)]

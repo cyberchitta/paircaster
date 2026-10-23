@@ -1,6 +1,7 @@
 //! The `--json` shapes, locked byte for byte: the skill, the viewer and
 //! pages built on it read them.
 
+use selfcast_core::address::{Address, Protocol, Verification};
 use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use selfcast_core::event::{Change, Event, EventBody};
 use selfcast_core::feed::FeedItem;
@@ -234,5 +235,22 @@ fn follows_json_is_version_1() {
     assert_eq!(
         output::follows_json(3, false, &follows, &users),
         format!(r#"{{"version":1,"fid":3,"following":{tail}"#)
+    );
+}
+
+#[test]
+fn addresses_json_is_version_1() {
+    let a = Address {
+        verification: Verification {
+            address: "0xab".to_owned(),
+            protocol: Protocol::Solana,
+            chain_id: 10,
+            timestamp: Timestamp::from_farcaster(0),
+        },
+        primary: true,
+    };
+    assert_eq!(
+        output::addresses_json(3, &[a]),
+        r#"{"version":1,"fid":3,"addresses":[{"address":"0xab","protocol":"solana","chain_id":10,"timestamp":"2021-01-01T00:00:00Z","primary":true}]}"#
     );
 }

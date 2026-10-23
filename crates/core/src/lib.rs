@@ -1,6 +1,7 @@
 //! Higher-level Farcaster API over your own Snapchain node.
 
 pub mod account;
+pub mod address;
 pub mod build;
 pub mod cast;
 pub mod custody;

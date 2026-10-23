@@ -1,5 +1,5 @@
 //! `selfcast profile`, `selfcast feed`, `selfcast casts`,
-//! `selfcast channel`, `selfcast followers`, `selfcast following`,
+//! `selfcast addresses`, `selfcast channel`, `selfcast followers`, `selfcast following`,
 //! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
@@ -50,6 +50,13 @@ pub struct ChannelArgs {
     limit: u32,
     #[command(flatten)]
     apps: AppArgs,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct AddressesArgs {
+    /// The account, as a FID or a username.
+    #[arg(value_name = "ACCOUNT")]
+    account: Account,
 }
 
 #[derive(Debug, clap::Args)]
@@ -192,6 +199,26 @@ pub async fn channel(node: &Node, args: &ChannelArgs, json: bool) -> Result<(), 
         crate::out::line(output::channel_json(&args.channel, &items, &names));
     } else {
         items.iter().for_each(|i| print_item(i, &names));
+    }
+    Ok(())
+}
+
+pub async fn addresses(node: &Node, args: &AddressesArgs, json: bool) -> Result<(), Error> {
+    let fid = node.resolve(&args.account).await?;
+    let addresses = node.addresses(fid).await?;
+    if json {
+        crate::out::line(output::addresses_json(fid, &addresses));
+    } else {
+        addresses.iter().for_each(|a| {
+            let v = &a.verification;
+            let primary = if a.primary { "  primary" } else { "" };
+            crate::out::line(format_args!(
+                "{}  {}  {}{primary}",
+                v.timestamp,
+                v.protocol.name(),
+                v.address
+            ));
+        });
     }
     Ok(())
 }

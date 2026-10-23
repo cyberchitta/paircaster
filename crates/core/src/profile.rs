@@ -169,7 +169,8 @@ pub fn pfp_url(user_data: &[UserDatum]) -> Option<String> {
     latest(user_data, UserDataType::Pfp)
 }
 
-fn latest(user_data: &[UserDatum], kind: UserDataType) -> Option<String> {
+/// The newest value of one kind of user data; `None` when unset or empty.
+pub fn latest(user_data: &[UserDatum], kind: UserDataType) -> Option<String> {
     user_data
         .iter()
         .filter(|d| d.kind == kind)

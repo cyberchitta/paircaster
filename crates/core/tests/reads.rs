@@ -5,6 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use common::{fixture, fixture_messages};
 use selfcast_core::Error;
 use selfcast_core::account::Username;
+use selfcast_core::address::{self, Protocol};
 use selfcast_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use selfcast_core::event::{self, Change, EventBody, EventWalk, PageEvent};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
@@ -809,4 +810,62 @@ fn follows_keep_when_they_were_made() {
             .map(Timestamp::from_farcaster)
             .collect::<Vec<_>>()
     );
+}
+
+fn addresses_of(fid: u64) -> Vec<address::Address> {
+    let v = parse::verifications(fixture(&format!("verificationsByFid-{fid}.json")))
+        .expect("verifications parse");
+    assert!(v.next_page_token.is_none());
+    let data = parse::user_data(fixture(&format!("userDataByFid-{fid}-now.json")))
+        .expect("user data parse")
+        .items;
+    address::assemble(v.items, &data)
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn primary_addresses_are_marked_ignoring_ethereum_case() {
+    let summary = |fid| -> Vec<(String, Protocol, bool)> {
+        addresses_of(fid)
+            .into_iter()
+            .map(|a| (a.verification.address, a.verification.protocol, a.primary))
+            .collect()
+    };
+    let s = |a: &str, p, primary| (a.to_owned(), p, primary);
+    assert_eq!(
+        summary(5650),
+        [
+            s(
+                "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+                Protocol::Ethereum,
+                false
+            ),
+            s(
+                "0x96b6bb2bd2eba3b4fbefd7dbac448ad7b6cbf279",
+                Protocol::Ethereum,
+                true
+            ),
+            s(
+                "47aHBDrF5Uw6Qm4npXZb2GLckssnUKhTmbTBRPKJUCH2",
+                Protocol::Solana,
+                true
+            ),
+            s(
+                "0x40e82a6269e6a98b852c8ebc5dcdc4f352dca6b7",
+                Protocol::Ethereum,
+                false
+            ),
+        ]
+    );
+    let dwr = addresses_of(3);
+    assert_eq!(dwr.iter().filter(|a| a.primary).count(), 2);
+    assert!(dwr.is_sorted_by_key(|a| a.verification.timestamp));
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_verification_of_an_unknown_protocol_is_refused() {
+    let mut page = fixture("verificationsByFid-3.json");
+    page["messages"][0]["data"]["verificationAddAddressBody"]["protocol"] = "PROTOCOL_X".into();
+    assert!(parse::verifications(page).is_err());
 }

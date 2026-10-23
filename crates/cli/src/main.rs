@@ -59,6 +59,8 @@ enum Command {
     Casts(reads::CastsArgs),
     /// Show the newest casts posted in a channel, newest first.
     Channel(reads::ChannelArgs),
+    /// Show the addresses an account has verified, oldest first.
+    Addresses(reads::AddressesArgs),
     /// Show the accounts that follow an account, newest follow first.
     Followers(reads::FollowsArgs),
     /// Show the accounts an account follows, newest follow first.
@@ -162,6 +164,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
         Command::Channel(args) => reads::channel(&Node::new(node)?, &args, cli.json).await?,
+        Command::Addresses(args) => reads::addresses(&Node::new(node)?, &args, cli.json).await?,
         Command::Followers(args) => {
             reads::follows(&Node::new(node)?, &args, true, cli.json).await?
         }

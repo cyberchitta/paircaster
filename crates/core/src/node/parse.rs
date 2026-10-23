@@ -12,6 +12,7 @@ use serde_json::Value;
 use super::{Page, ShardSync, Submitted, SyncState, node_error, unexpected};
 use crate::Error;
 use crate::account::Username;
+use crate::address::{Protocol, Verification};
 use crate::cast::{Cast, CastRef, ChannelUrl, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
 use crate::event::{Change, EventBody, PageEvent};
@@ -242,6 +243,66 @@ fn unprefixed(name: &str, prefix: &str) -> Result<String, Error> {
     name.strip_prefix(prefix)
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| bad(&format!("{name} does not start {prefix}")))
+}
+
+/// A `verificationsByFid` page. Only the fields shown are read: the
+/// node's JSON for verification bodies (`verificationAddAddressBody`) is
+/// not in the hand-written protos.
+pub fn verifications(page: Value) -> Result<Page<Verification>, Error> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Raw {
+        messages: Vec<RawVerificationMessage>,
+        next_page_token: Option<String>,
+    }
+    let raw: Raw = from_value(page)?;
+    let items = raw
+        .messages
+        .into_iter()
+        .map(verification)
+        .collect::<Result<_, _>>()?;
+    Ok(Page::new(items, raw.next_page_token))
+}
+
+#[derive(Deserialize)]
+struct RawVerificationMessage {
+    data: RawVerificationData,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawVerificationData {
+    #[serde(rename = "type")]
+    kind: String,
+    timestamp: u32,
+    verification_add_address_body: Option<RawVerificationBody>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawVerificationBody {
+    address: String,
+    protocol: String,
+    chain_id: u32,
+}
+
+fn verification(m: RawVerificationMessage) -> Result<Verification, Error> {
+    let d = m.data;
+    if d.kind != "MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS" {
+        return Err(bad(&format!("{} in a page of verifications", d.kind)));
+    }
+    let body = needed(d.verification_add_address_body, &d.kind)?;
+    let protocol = match body.protocol.as_str() {
+        "PROTOCOL_ETHEREUM" => Protocol::Ethereum,
+        "PROTOCOL_SOLANA" => Protocol::Solana,
+        other => return Err(bad(&format!("verification for protocol {other}"))),
+    };
+    Ok(Verification {
+        address: body.address,
+        protocol,
+        chain_id: body.chain_id,
+        timestamp: Timestamp::from_farcaster(d.timestamp),
+    })
 }
 
 /// A `castById` response.

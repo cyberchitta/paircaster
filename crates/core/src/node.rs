@@ -8,6 +8,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::account::Username;
+use crate::address::Verification;
 use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, ChannelUrl, MessageHash, Reaction};
 use crate::custody::EthAddress;
@@ -364,6 +365,15 @@ impl Node {
     /// a higher nonce than this.
     pub async fn user_nonce(&self, fid: u64) -> Result<u32, Error> {
         parse::user_nonce(self.get("v1/signersByFid", &[fid_param(fid)]).await?)
+    }
+
+    /// `GET /v1/verificationsByFid`: every address `fid` has verified.
+    pub async fn verifications_by_fid(&self, fid: u64) -> Result<Vec<Verification>, Error> {
+        self.all_pages(|page| async move {
+            let query = with_page(&[fid_param(fid)], &page);
+            parse::verifications(self.get("v1/verificationsByFid", &query).await?)
+        })
+        .await
     }
 
     /// `GET /v1/onChainEventsByFid` for `EVENT_TYPE_ID_REGISTER`: whether

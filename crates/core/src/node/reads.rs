@@ -9,6 +9,7 @@ use futures_util::{StreamExt, TryStreamExt, future, stream};
 
 use super::{Node, PageRequest};
 use crate::account::Account;
+use crate::address::{self, Address};
 use crate::cast::{Cast, CastRef, ChannelUrl};
 use crate::error::Error;
 use crate::feed::FeedItem;
@@ -115,6 +116,18 @@ impl Node {
             .user_data_of(follows.iter().map(|f| f.fid).collect())
             .await?;
         Ok((follows, users))
+    }
+
+    /// The addresses `fid` has verified, oldest first, with its primary
+    /// ones marked. An account the node has no registration for is an
+    /// error.
+    pub async fn addresses(&self, fid: u64) -> Result<Vec<Address>, Error> {
+        if !self.is_registered(fid).await? {
+            return Err(Error::NotRegistered(fid));
+        }
+        let (verifications, user_data) =
+            future::try_join(self.verifications_by_fid(fid), self.user_data_by_fid(fid)).await?;
+        Ok(address::assemble(verifications, &user_data))
     }
 
     /// The app keys of each of `fids`.
