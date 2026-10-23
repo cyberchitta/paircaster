@@ -164,7 +164,7 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
         })
         .expect("a status always serialises"),
         false => {
-            let head = describe(&phase, node_url, &dir);
+            let head = describe(&phase, node_url, &dir, disk.is_some());
             match local {
                 true => format!("{head}\n{}", disk_line(disk.as_ref(), &dir)),
                 false => head,
@@ -299,23 +299,33 @@ fn eta_seconds(done: &[Chunk], remaining: usize, rate: f64) -> Option<u64> {
     })
 }
 
+fn not_started(node_url: &str, dir: &Path, installed: bool) -> String {
+    let fetch = invocation::node("fetch-snapshot", dir);
+    let next = match installed {
+        true => format!("Start with: {fetch}"),
+        false => format!(
+            "Snapchain is not installed at {} (pass --dir if it is elsewhere).\n\
+             Install it, stop the node it starts, then run: {fetch}",
+            dir.display()
+        ),
+    };
+    format!("No snapshot download started, and no node answers at {node_url}.\n{next}")
+}
+
 /// How long ago `then` was; zero for a time in the future (clock skew).
 fn age(now: SystemTime, then: SystemTime) -> Duration {
     now.duration_since(then).unwrap_or(Duration::ZERO)
 }
 
-fn describe(phase: &Phase, node_url: &str, dir: &Path) -> String {
+/// `installed`: the install directory exists on this machine.
+fn describe(phase: &Phase, node_url: &str, dir: &Path, installed: bool) -> String {
     match phase {
         Phase::NotStarted { running: true } => format!(
             "The snapshot download is starting; nothing saved yet.\n\
              Check again shortly: {}",
             invocation::node("status", dir)
         ),
-        Phase::NotStarted { running: false } => format!(
-            "No snapshot download started, and no node answers at {node_url}.\n\
-             Start with: {}",
-            invocation::node("fetch-snapshot", dir)
-        ),
+        Phase::NotStarted { running: false } => not_started(node_url, dir, installed),
         Phase::Downloading {
             running,
             chunks_done,
@@ -418,16 +428,40 @@ pub(crate) fn duration(secs: u64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::time::{Duration, SystemTime};
 
     use paircaster_core::node::{ShardSync, SyncState};
 
     use super::{
         Chunk, Observed, Phase, Target, bytes_per_second, denied, duration, eta_seconds, is_low,
-        on_disk, synced, target,
+        not_started, on_disk, synced, target,
     };
 
     const MB: u64 = 1_000_000;
+
+    #[test]
+    fn not_started_without_an_install_says_to_install_snapchain_first() {
+        let text = not_started(
+            "http://localhost:3381",
+            Path::new("/home/u/snapchain"),
+            false,
+        );
+        assert!(text.contains("Snapchain is not installed at /home/u/snapchain"));
+        assert!(text.contains("Install it, stop the node it starts, then run:"));
+    }
+
+    #[test]
+    fn not_started_with_an_install_says_to_fetch_the_snapshot() {
+        let text = not_started(
+            "http://localhost:3381",
+            Path::new("/home/u/snapchain"),
+            true,
+        );
+        assert!(!text.contains("not installed"));
+        assert!(text.contains("Start with:"));
+        assert!(text.contains("fetch-snapshot"));
+    }
 
     fn finished(now: SystemTime, secs_ago: u64, bytes: u64) -> Chunk {
         Chunk {
