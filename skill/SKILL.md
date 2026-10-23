@@ -132,7 +132,10 @@ shows `running: false`.
 Every read comes from the user's node and nowhere else. Wherever a command
 takes an account (`<account>` below), give it the FID or the username:
 `3`, `dwr`, `vitalik.eth`, `jesse.base.eth`. Digits alone are a FID; an
-fname can be all digits, so write one as `@123`. A name the node holds no
+fname can be all digits, so write one as `@123`. When the user names an
+account, pass the name as they gave it; don't look the FID up first. When
+an account comes from a previous result, pass its `fid`: a FID never
+changes, a name can, and each name is one more lookup. A name the node holds no
 proof for is an error (`no account holds the username … on this node`),
 exit 1. While the node is syncing it may simply not have the name yet.
 
@@ -167,9 +170,10 @@ syncing node has caught up to. Check `node status` before saying which.
 keeps no follower total, so followers are read 1000 at a time, and counting
 stops at 10,000: then `followers_exact` is `false` and `followers` is a
 lower bound ("at least"). Say so when you report it. `--all-followers`
-counts every one, which is slow for a large account: for fid 3, 630,232
-followers took 7.6 seconds on 2026-10-21 (36 seconds on a first, cold
-read, 2026-10-20), and fid 37 on `crackle` did not finish in 120 seconds.
+counts every one, which is slow for a large account: for dwr, 630,231
+followers took 5 to 8 seconds once the node had them cached and 26 on a
+first, cold read, and balajis.eth on `crackle` did not finish in 120
+seconds.
 Use it only when the user wants the exact number, once per account.
 
 ### `selfcast followers <account> --json`, `selfcast following <account> --json`
@@ -351,7 +355,7 @@ it once per cast. A cast the node does not hold exits 1.
 ### Examples
 
 - [Account stats](examples/account-stats.md): one account's week, from its
-  own casts.
+  own casts and their likes and recasts.
 - [A feed of a list of accounts](examples/community-feed.md).
 
 ## Viewer

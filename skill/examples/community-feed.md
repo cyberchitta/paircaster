@@ -2,32 +2,20 @@
 
 The user asks: "Make me a feed of just v and dwr."
 
-Run on 2026-10-20 against a node about 46 hours behind. The outputs below
-are what it printed, except step 1: the CLI took usernames later, and that
-step was run again with them.
+Run against a node that was caught up. The outputs below are what it
+printed.
 
-## 1. Get the FIDs
+## 1. Check the node
 
-The CLI takes usernames as well as FIDs. Confirm who each name is with
-`profile`:
+`selfcast node status --json`, as in the skill. Here it was `ready`, with
+the largest `seconds_behind` 1.
 
-```
-selfcast profile v --json
-```
+## 2. Read the list
 
-`fid` 2, `display_name` `Varun Srinivasan`. Do the same for dwr (fid 3). A list
-the user keeps (a team, a club, a conference's speakers) is just these FIDs;
-remember it for the conversation and pass it each time.
-
-## 2. Check the node
-
-`selfcast node status --json`, as in the skill. Here it was `syncing`, with
-the largest `seconds_behind` 164323.
-
-## 3. Read the list
+Pass the names as the user gave them:
 
 ```
-selfcast casts 2,3 --limit 5 --json | jq -c '.casts[] | {fid, timestamp, reply: (.parent != null), text}'
+selfcast casts v,dwr --limit 5 --json | jq -c '.casts[] | {fid, timestamp, reply: (.parent != null), text}'
 ```
 
 ```json
@@ -38,8 +26,15 @@ selfcast casts 2,3 --limit 5 --json | jq -c '.casts[] | {fid, timestamp, reply: 
 {"fid":3,"timestamp":"2026-10-16T00:24:18Z","reply":true,"text":"5. Remove mini apps\n\n6. Remove DMs\n\n7. Have Claude make it super super fast"}
 ```
 
-Every cast is fid 3's. That is not a bug: fid 2's newest cast on this node
-is from 2026-05-25,
+The output's `fids` is `[2,3]`: v is FID 2, dwr FID 3, in the order given.
+A list the user keeps (a team, a club, a conference's speakers) is these
+FIDs; remember them for the conversation and pass them from here on, so
+each read skips the name lookups.
+
+## 3. Account for a missing account
+
+Every cast is FID 3's. That is not a bug: FID 2's newest cast on this
+node is from 2026-05-25,
 
 ```
 selfcast casts 2 --limit 3 --json | jq -c '[.casts[].timestamp]'
@@ -54,10 +49,11 @@ leaving them to wonder why it is missing.
 
 ## 4. Answer
 
-Show each cast with who posted it, when, and whether it is a reply. An
-empty `text` with an `embeds` entry is an image or link post; say so rather
-than showing a blank. Add where the data came from and how far behind it
-is: "From your node, about 46 hours behind."
+Show each cast with who posted it (by username), when, and whether it is a
+reply. An empty `text` with an `embeds` entry is an image or link post; say
+so rather than showing a blank. Add where the data came from and how far
+behind it is: "From your node, which is caught up."
 
 To keep only casts from one app, add `--include-app <app fid>`; to drop an
-app's casts, `--exclude-app`.
+app's casts, `--exclude-app`. These take FIDs only: an app is known by its
+own account's FID.
