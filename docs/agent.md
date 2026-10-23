@@ -73,7 +73,7 @@ cargo install --path crates/cli --locked --features viewer
 ```
 
 ```output
-dist/: index.html 3329 bytes, viewer.js 909127 (wasm 656341)
+dist/: index.html 3329 bytes, viewer.js 1228363 (wasm 892799)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output. Then start the page and open the address it prints:
