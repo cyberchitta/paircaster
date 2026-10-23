@@ -2,6 +2,7 @@
 //! pages built on it read them.
 
 use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
+use selfcast_core::event::{Change, Event, EventBody};
 use selfcast_core::feed::FeedItem;
 use selfcast_core::output;
 use selfcast_core::profile::{Followers, Names, Profile, UserDatum};
@@ -147,4 +148,72 @@ fn profile_json_is_version_1() {
         output::profile_json(&profile),
         r#"{"version":1,"fid":3,"username":"alice","display_name":null,"bio":null,"pfp_url":null,"url":null,"location":null,"twitter":null,"github":null,"banner_url":null,"following":10,"followers":10002,"followers_exact":false}"#
     );
+}
+
+fn event(body: EventBody) -> Event {
+    Event {
+        shard: 1,
+        id: 5 << 14 | 2,
+        block: 5,
+        block_time: Timestamp::from_farcaster(10),
+        body,
+    }
+}
+
+#[test]
+fn event_lines_keep_their_shape() {
+    let h = format!("0x{}", "ab".repeat(20));
+    let signer = format!("0x{}", "01".repeat(32));
+    let head = r#"{"version":1,"shard":1,"id":81922,"block":5,"block_time":"2021-01-01T00:00:10Z""#;
+    let message = |change| {
+        event(EventBody::Message {
+            change,
+            kind: "cast_add".to_owned(),
+            fid: 2,
+            hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
+            timestamp: Timestamp::from_farcaster(9),
+            signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
+        })
+    };
+    let tail = format!(
+        r#""type":"cast_add","fid":2,"hash":"{h}","timestamp":"2021-01-01T00:00:09Z","signer":"{signer}"}}"#
+    );
+    [
+        (Change::Merge, "merge"),
+        (Change::Prune, "prune"),
+        (Change::Revoke, "revoke"),
+    ]
+    .iter()
+    .for_each(|(c, name)| {
+        assert_eq!(
+            output::event_json(&message(*c)),
+            format!(r#"{head},"event":"{name}",{tail}"#)
+        );
+    });
+    let others = [
+        (
+            EventBody::UsernameProof {
+                fid: 3,
+                name: "dwr".to_owned(),
+                kind: "fname".to_owned(),
+            },
+            r#""event":"username_proof","type":"fname","fid":3,"name":"dwr"}"#,
+        ),
+        (
+            EventBody::OnChain {
+                fid: 4,
+                kind: "id_register".to_owned(),
+            },
+            r#""event":"onchain","type":"id_register","fid":4}"#,
+        ),
+        (
+            EventBody::Other {
+                node_type: "HUB_EVENT_TYPE_MERGE_FAILURE".to_owned(),
+            },
+            r#""event":"other","type":"HUB_EVENT_TYPE_MERGE_FAILURE"}"#,
+        ),
+    ];
+    others.into_iter().for_each(|(body, rest)| {
+        assert_eq!(output::event_json(&event(body)), format!("{head},{rest}"));
+    });
 }

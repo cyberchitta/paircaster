@@ -1,5 +1,6 @@
 mod clock;
 mod control;
+mod events;
 mod invocation;
 mod key_add;
 mod keystore;
@@ -64,6 +65,9 @@ enum Command {
     Thread(reads::ThreadArgs),
     /// Show who liked and who recast a cast, oldest first.
     Reactions(reads::ReactionsArgs),
+    /// List what the node's shards merged, pruned and revoked, block by
+    /// block: messages, username proofs and on-chain events.
+    Events(events::EventsArgs),
     /// Post a cast, or a reply with --reply-to.
     Cast(write::CastArgs),
     /// Delete one of the account's casts.
@@ -157,6 +161,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
         Command::Thread(args) => reads::thread(&Node::new(node)?, &args, cli.json).await?,
         Command::Reactions(args) => reads::reactions(&Node::new(node)?, &args, cli.json).await?,
+        Command::Events(args) => events::run(&Node::new(node)?, &args, cli.json).await?,
         Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
         Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
         Command::React(args) => send(node, args.into_parts(false), cli.json).await?,

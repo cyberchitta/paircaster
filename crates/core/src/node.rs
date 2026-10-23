@@ -12,11 +12,13 @@ use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, ChannelUrl, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
+use crate::event::{PageEvent, first_event_of};
 use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
 use crate::tally::PageTally;
 use crate::thread::{Ancestors, ChainTop};
+use crate::time::Timestamp;
 
 /// Per shard, so a page holds up to this many times the shard count.
 const FOLLOWER_PAGE_SIZE: u32 = 1000;
@@ -364,6 +366,55 @@ impl Node {
             Ok(proof) => parse::name_proof(proof, name),
             Err(e) if parse::is_not_found(&e) => Err(Error::UnknownName(name.clone())),
             Err(e) => Err(e),
+        }
+    }
+
+    /// `GET /v1/events`: up to `page_size` of `shard`'s events, from event
+    /// id `from` on, in id order. Shard 0 orders blocks and keeps no events:
+    /// it answers "Shard not found" (observed on our node).
+    pub async fn events(
+        &self,
+        shard: u32,
+        from: u64,
+        page_size: u32,
+    ) -> Result<Vec<PageEvent>, Error> {
+        let query = [
+            ("shard_index", shard.to_string()),
+            ("from_event_id", from.to_string()),
+            ("page_size", page_size.to_string()),
+        ];
+        parse::events(self.get("v1/events", &query).await?)
+    }
+
+    /// The id of the first event in the earliest block on `shard` dated at
+    /// or after `since`, found by halving the heights up to `newest`. Past
+    /// every event the node holds when no block is that late.
+    pub async fn first_event_since(
+        &self,
+        shard: u32,
+        since: Timestamp,
+        newest: u64,
+    ) -> Result<u64, Error> {
+        let (mut low, mut high) = (0, newest + 1);
+        while low < high {
+            let mid = low + (high - low) / 2;
+            match self.block_from(shard, mid).await? {
+                Some((block, time)) if time < since => low = block + 1,
+                _ => high = mid,
+            }
+        }
+        Ok(first_event_of(low))
+    }
+
+    /// The first block at or after `height` that the node holds events
+    /// for, with its time; `None` past the newest.
+    async fn block_from(&self, shard: u32, height: u64) -> Result<Option<(u64, Timestamp)>, Error> {
+        match self.events(shard, first_event_of(height), 1).await?.first() {
+            None => Ok(None),
+            Some(PageEvent::Block { block, time }) => Ok(Some((*block, *time))),
+            Some(PageEvent::Event { id, .. }) => Err(Error::Malformed(format!(
+                "event {id} came before its block's confirmation"
+            ))),
         }
     }
 

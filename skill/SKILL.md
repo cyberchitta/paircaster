@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), feeds, accounts' casts, a channel's casts, threads and a cast's likes and recasts from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -231,6 +231,39 @@ Replies in the channel are not included (their parent is a cast): use
 `replies` or `thread` on a cast. `--limit` (default 20, at most 1000) and
 the app filters work as for `casts`.
 
+### `selfcast events --json`
+
+What the node's shards merged, pruned and revoked, block by block: the
+network's recent activity, for counting. One JSON object per line, not
+one document; use `jq -s` to count. A message event:
+
+```json
+{"version":1,"shard":2,"id":806368559105,"block":49216831,"block_time":"2026-10-23T03:00:03Z","event":"merge","type":"cast_add","fid":3356482,"hash":"0xe89cce326e9ceaed7cd01bd321e13cd3c87388fd","timestamp":"2026-10-23T03:00:03Z","signer":"0x33a5…a43e"}
+```
+
+`event` is `merge` (stored), `prune` (dropped: the account was over its
+storage), `revoke` (dropped: its app key was removed), `username_proof`
+(`type` `fname`, `ens_l1`, …, with `fid` and `name`), `onchain` (`type`
+`id_register`, `signer`, `storage_rent`, …, with `fid`) or `other` (`type`
+is the node's name for it). Message `type`s include `cast_add`,
+`cast_remove`, `reaction_add`, `link_add` (a follow), `link_remove`,
+`user_data_add`, `verification_add_eth_address`. `block_time` is when the
+shard merged it; `timestamp` is what the message claims. `--since` and
+`--until` take UTC, `2026-10-22` or `2026-10-22T06:00:00Z`, and select by
+`block_time`.
+
+The node keeps about three days of events, so this answers "this week"
+only for those days: say which days the count covers (the first line's
+`block_time`). One day is about 55,000 lines, read in a few seconds; three
+days, about 176,000 lines and 54 MB. Count a day, for example:
+
+```
+selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
+```
+
+gave `{"casts":9421,"accounts":2427}`. Events carry no `app_fid`: the
+CLI does not say which app sent an event's message.
+
 ### `selfcast replies <FID:HASH> --json`
 
 The direct replies to one cast, oldest first. The shape is
@@ -282,7 +315,8 @@ it once per cast. A cast the node does not hold exits 1.
   per cast. No reactions to a channel URL.
 - No search, and no channel by name, members or followers: `channel`
   takes the URL.
-- Nothing older than an account's newest 1000 messages.
+- Nothing older than an account's newest 1000 messages, and `events` only
+  for the last three days or so.
 
 ### Examples
 

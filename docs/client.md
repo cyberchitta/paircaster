@@ -258,6 +258,51 @@ selfcast reactions 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c 
 
 These pages repeat as the replies' do, and are read the same way.
 
+## Events
+
+Each shard records what it did, block by block: every message it stored (a *merge*), every message it dropped because the account was over its storage (a *prune*) or because its app key was removed (a *revoke*), and each username proof and on-chain event (registrations, app keys, storage rent). `selfcast events` lists them (`/v1/events`):
+
+```run
+selfcast events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
+```
+
+```output
+2026-10-23T03:00:03Z  shard 2  merge cast_add  fid 3356482  0xe89cce326e9ceaed7cd01bd321e13cd3c87388fd
+2026-10-23T03:00:04Z  shard 2  merge reaction_add  fid 3356524  0x9c00192cc0c2514ff08a3a7c8e12a62ada74f4d8
+```
+
+The time is the block's, when the shard merged the event, not the time a message gives itself (`timestamp` in `--json`). A node keeps about three days of events, so this is the network's recent activity, not its history. With `--json`, each event is one line, and counting is a matter of `jq`. One day, by kind of event:
+
+```run
+selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'group_by(.event) | map({(.[0].event): length}) | add'
+```
+
+```output
+{"merge":35138,"onchain":622,"other":13,"prune":19089,"revoke":67,"username_proof":151}
+```
+
+The messages merged that day, by type:
+
+```run
+selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge")) | group_by(.type) | map({(.[0].type): length}) | add'
+```
+
+```output
+{"cast_add":9421,"cast_remove":531,"lend_storage":110,"link_add":4235,"link_remove":1229,"reaction_add":17992,"reaction_remove":161,"user_data_add":865,"verification_add_eth_address":582,"verification_remove":12}
+```
+
+And how many accounts cast:
+
+```run
+selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
+```
+
+```output
+{"casts":9421,"accounts":2427}
+```
+
+`--since` finds its first block by halving block heights, a few dozen requests per shard. Then each shard is read 10,000 events at a time, one shard after the other, so lines are in order within a shard, not across shards. Reading all three days took 13 seconds here. `other` is an event `selfcast` does not read, with the node's name for it as `type` (here, merge failures). Where a merge replaces messages, as a cast remove replaces its cast, the replaced ones are not listed.
+
 ## Writing: casts, reactions, follows
 
 The examples are from a test account, `@selfcast` (FID 3356360). They went through Farcaster's public node `crackle` because the test node had not yet synced the new account: a node has to have seen an account to accept its writes.

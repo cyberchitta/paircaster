@@ -6,6 +6,7 @@
 use serde::Serialize;
 
 use crate::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
+use crate::event::{Change, Event, EventBody};
 use crate::feed::FeedItem;
 use crate::profile::{self, Names, Profile, Users};
 use crate::reaction::CastReactions;
@@ -130,6 +131,70 @@ pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], names: &Names) -> 
     })
 }
 
+/// One line of `selfcast events --json`, version 1. A message event:
+///
+/// ```json
+/// { "version": 1, "shard": 1, "id": 804707024897, "block": 49115419,
+///   "block_time": "2026-10-19T00:00:03Z", "event": "merge", "type": "cast_add",
+///   "fid": 978766, "hash": "0x…", "timestamp": "2026-10-19T00:00:02Z",
+///   "signer": "0x…" }
+/// ```
+///
+/// `event` is `merge`, `prune` (dropped for storage) or `revoke` (its app
+/// key was removed), and `type` the message type: `cast_add`,
+/// `reaction_add`, `link_add`, `user_data_add`, …. `timestamp` is the time
+/// the message gives itself; `block_time` is when the shard merged it.
+/// The other events, after the same first five fields:
+///
+/// ```json
+/// { "event": "username_proof", "type": "fname", "fid": 3356219, "name": "creatorfuel" }
+/// { "event": "onchain", "type": "id_register", "fid": 3356213 }
+/// { "event": "other", "type": "HUB_EVENT_TYPE_…" }
+/// ```
+pub fn event_json(e: &Event) -> String {
+    to_json(&EventV1 {
+        version: 1,
+        shard: e.shard,
+        id: e.id,
+        block: e.block,
+        block_time: e.block_time.to_string(),
+        body: event_body_v1(&e.body),
+    })
+}
+
+fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
+    match body {
+        EventBody::Message {
+            change,
+            kind,
+            fid,
+            hash,
+            timestamp,
+            signer,
+        } => {
+            let m = EventMessageV1 {
+                kind,
+                fid: *fid,
+                hash: hash.to_string(),
+                timestamp: timestamp.to_string(),
+                signer: signer.to_string(),
+            };
+            match change {
+                Change::Merge => EventBodyV1::Merge(m),
+                Change::Prune => EventBodyV1::Prune(m),
+                Change::Revoke => EventBodyV1::Revoke(m),
+            }
+        }
+        EventBody::UsernameProof { fid, name, kind } => EventBodyV1::UsernameProof {
+            kind,
+            fid: *fid,
+            name,
+        },
+        EventBody::OnChain { fid, kind } => EventBodyV1::Onchain { kind, fid: *fid },
+        EventBody::Other { node_type } => EventBodyV1::Other { kind: node_type },
+    }
+}
+
 /// `selfcast replies <FID:HASH> --json`, version 1:
 ///
 /// ```json
@@ -234,6 +299,50 @@ struct CastsV1<'a> {
     version: u32,
     fids: &'a [u64],
     casts: Vec<CastV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct EventV1<'a> {
+    version: u32,
+    shard: u32,
+    id: u64,
+    block: u64,
+    block_time: String,
+    #[serde(flatten)]
+    body: EventBodyV1<'a>,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "event", rename_all = "snake_case")]
+enum EventBodyV1<'a> {
+    Merge(EventMessageV1<'a>),
+    Prune(EventMessageV1<'a>),
+    Revoke(EventMessageV1<'a>),
+    UsernameProof {
+        #[serde(rename = "type")]
+        kind: &'a str,
+        fid: u64,
+        name: &'a str,
+    },
+    Onchain {
+        #[serde(rename = "type")]
+        kind: &'a str,
+        fid: u64,
+    },
+    Other {
+        #[serde(rename = "type")]
+        kind: &'a str,
+    },
+}
+
+#[derive(Serialize)]
+struct EventMessageV1<'a> {
+    #[serde(rename = "type")]
+    kind: &'a str,
+    fid: u64,
+    hash: String,
+    timestamp: String,
+    signer: String,
 }
 
 #[derive(Serialize)]

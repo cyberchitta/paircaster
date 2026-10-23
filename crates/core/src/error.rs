@@ -25,6 +25,8 @@ pub enum Error {
         "no account holds the username {0} on this node; a node still syncing may not have it yet"
     )]
     UnknownName(Username),
+    #[error("the node has no shard {0} with events; `selfcast node status` lists its shards")]
+    NoShard(u32),
 }
 
 /// The JSON error body Snapchain returns for failed lookups. Query-parsing
