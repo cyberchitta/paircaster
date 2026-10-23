@@ -12,22 +12,22 @@ An agent's model runs on its provider's servers, so whatever the agent reads goe
 
 ## Count what you like
 
-Your node has no API key to meter and no rate limit, so a question that pages through hundreds of thousands of messages is just a slow command. Every follower of FID 3, counted one by one, in 18 seconds while the node was still catching up:
+Your node has no API key to meter and no rate limit, so a question that pages through hundreds of thousands of messages is just a slow command. Every follower of `dwr`, counted one by one, in 26 seconds:
 
 ```run
-selfcast profile 3 --all-followers --json | jq .followers
+selfcast profile dwr --all-followers --json | jq .followers
 ```
 
 ```output
-630232
+630231
 ```
 
 ## A feed of the accounts you choose
 
-A list you keep, a team, a club, a conference's speakers, is a list of FIDs. `casts` takes several:
+A list you keep, a team, a club, a conference's speakers, is a list of accounts. `casts` takes several:
 
 ```run
-selfcast casts 2,3 --limit 4
+selfcast casts v,dwr --limit 4
 ```
 
 ```output
@@ -47,37 +47,35 @@ selfcast casts 2,3 --limit 4
   2. I don’t want to keep more than 7 days worth of content.
 ```
 
-All four are FID 3's: FID 2 has not cast since May. The skill's [worked example](https://github.com/cyberchitta/selfcast/blob/main/skill/examples/community-feed.md) has an agent build the same feed and say when an account in the list has gone quiet.
+All four are `dwr`'s: `v` has not cast since May. The skill's [worked example](https://github.com/cyberchitta/selfcast/blob/main/skill/examples/community-feed.md) has an agent build the same feed and say when an account in the list has gone quiet.
 
 ## Ask your agent about an account
 
 ```run
-claude -p "How was fid 3's week on Farcaster?" --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
+claude -p "How was dwr's week on Farcaster?" --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
 ```
 
 ```output
-dwr (fid 3, Dan Romero) had a quiet week with one burst. All 8 of his casts came in about 26 hours on 16–17 October (UTC), and he hasn't cast since. Your node is fully caught up, so that gap is real.
+dwr (Dan Romero, FID 3) had a short, busy burst and then nothing. Everything below comes from your own node, which is fully caught up (every shard about 1 second behind), so the quiet stretch is real and not sync lag.
 
-**What he posted (16–23 Oct):** 6 new posts and 2 replies, none in a channel, all from the Farcaster app.
+**This week (2026-10-16 to 2026-10-23): 8 casts, all within about 26 hours, and none since 2026-10-17 02:30 UTC.** Six were new posts and two were replies. All came from the Farcaster app, and none were posted in a channel.
 
-| When (UTC) | Cast | Likes | Recasts | Replies |
-|---|---|---|---|---|
-| 17 Oct 02:30 | An image with no text | 222 | 27 | 24 |
-| 16 Oct 00:15 | "Looking forward to @balajis.eth finally having a social network… Also cool that you can build your own client." (quotes a balajis.eth cast) | 109 | 12 | 8 |
-| 16 Oct 00:30 | "Snapchain node wishlist: 1. sync only a subset of the network 2. keep no more than 7 days of content" | 102 | 5 | 10 |
-| 17 Oct 02:23 | "Neat" (quotes a balajis.eth cast) | 77 | 7 | 3 |
-| 16 Oct 00:23 | "Client wishlist": mutuals-only notifications, no channels, no wallet, a newest-first feed of people you follow | 60 | 5 | 16 |
-| 16 Oct 00:17 | "Reminder this guide can help your AI agent get a working version of the Farcaster client running on your machine." (quotes his own cast) | 58 | 6 | 4 |
-| 16 Oct 00:24 | Reply continuing the client wishlist: "5. Remove mini apps 6. Remove DMs 7. Have Claude make it super super fast" | 19 | 0 | 2 |
-| 16 Oct 00:31 | Reply to @jdl: "I just want it for me." | 4 | 0 | 3 |
+The main theme was building your own Farcaster setup:
+- **"Snapchain node wishlist":** sync only part of the network, and keep at most 7 days of content. 102 likes, 5 recasts, 10 replies.
+- **"Client wishlist":** notifications from mutuals only, no channels, no wallet, a reverse-chronological feed of only the people you follow. He replied to himself to add: no mini apps, no DMs, "Have Claude make it super super fast." 60 likes and 16 replies on the first post.
+- He replied to @jdl: "I just want it for me."
+- He quoted his own earlier post about a guide that helps "your AI agent get a working version of the Farcaster client running on your machine." 58 likes.
+- He quoted @balajis.eth: "Looking forward to @balajis.eth finally having a social network… Also cool that you can build your own client." 109 likes, 12 recasts.
 
-**The theme:** most of the burst was about running your own Farcaster node and client. That's close to what Selfcast does.
+**His best-received cast** was the last one, an image with no text, on 2026-10-17: 222 likes, 27 recasts, 24 replies. "Neat", quoting a Balaji cast, got 77 likes.
 
-**Account:** follows 79 accounts and has at least 10,000 followers. The quick count stops at 10,000; on 21 October the full count was 630,232.
+**Account:** follows 79 accounts and has at least 10,000 followers. I stopped at the default count limit; a run earlier this week counted about 630,000.
 
-Two things to keep in mind:
-- The likes, recasts and replies are the totals now, not what each cast got during the week.
-- Before this burst he posted twice on 15 October, and before that on 1 October. A short burst followed by silence looks like his usual pattern.
+Before the 16th he had been quiet: two casts on 2026-10-15, and before that nothing since 2026-10-01.
+
+These are the like and recast counts the node holds right now, not how they built up over time. The node can't tell what was in the image post.
+
+His node and client wishlists are close to what Selfcast does: your own read node and client, no hosted API.
 ```
 
 It checked the node before answering, said the follower count it gave was a floor, and said the likes and recasts are today's totals, not the week's.
@@ -85,15 +83,15 @@ It checked the node before answering, said the follower count it gave was a floo
 ## A digest of a feed
 
 ```run
-claude -p "Give me a short digest of what the accounts fid 3 follows posted in the last 24 hours." --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
+claude -p "Give me a short digest of what the accounts dwr follows posted in the last 24 hours." --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
 ```
 
 Its first and last lines; between them it summed up 140 casts by account and topic, naming who said what:
 
 ```output
-Here's what the accounts fid 3 (@dwr) follows posted in the last 24 hours. It's from your own node, which is fully synced (`ready`, 0 seconds behind). The window is 2026-10-22 05:34 to 2026-10-23 05:34 UTC. In that time, 11 of the accounts @dwr follows posted 140 casts. The feed read went back to Oct 16, so nothing in the window is missing.
+Dan Romero (dwr) follows 79 accounts. Your node is fully caught up (about 1 second behind), so this covers everything they posted from 05:41 UTC on 22 Oct to 05:41 UTC on 23 Oct. Only 11 of the 79 posted in that time, 140 casts in all.
 …
-Overall the day was mostly @borodutch shipping quilcast.com features, with some background noise about moderation and bans.
+The other 68 accounts posted nothing in that window. This digest only covers casts and replies. The CLI doesn't attach likes or recasts to a feed, so it can't show which posts got the most attention.
 ```
 
 ## Keep or drop one app's casts

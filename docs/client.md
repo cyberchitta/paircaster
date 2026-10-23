@@ -26,10 +26,10 @@ Reads work the same way through the tunnel. If the node behind it does not answe
 
 ## Accounts and FIDs
 
-A Farcaster account is a number, its *FID*. Wherever `selfcast` takes an account, it takes either the FID or a username.
+A Farcaster account is a number, its *FID*: the protocol knows accounts only by FID, and every message names its author by one. A username is a name an account claims, which your node can look up. Wherever `selfcast` takes an account, it takes either, and the examples here use usernames:
 
 ```run
-selfcast profile 3
+selfcast profile dwr
 ```
 
 ```output
@@ -42,7 +42,7 @@ dwr  fid 3
   followers: at least 10000 (counting stopped; --all-followers counts them all)
 ```
 
-The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile 3 --all-followers` reads every one: 630,232 for this account, in 7.6 seconds, or 36 the first time, before the node had them cached.
+The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile dwr --all-followers` reads every one: 630,231 for this account, in 5 to 8 seconds, or 26 the first time, before the node had them cached.
 
 `selfcast following` and `selfcast followers` list them, the newest follow first, with when each was made:
 
@@ -117,7 +117,7 @@ The addresses are *verification* messages (`/v1/verificationsByFid`); which is p
 ## Casts, and what a message is
 
 ```run
-selfcast casts 2,3 --limit 3
+selfcast casts v,dwr --limit 3
 ```
 
 ```output
@@ -130,7 +130,7 @@ selfcast casts 2,3 --limit 3
   I just want it for me.
 ```
 
-The newest casts of FIDs 2 and 3, merged; FID 2 had nothing newer. The first has no text, only an image. Each line gives the time, the author, the cast's hash and the app it was posted from ([below](#filtering-by-client)). Here is the first one as the node stores it:
+The newest casts of `v` (FID 2) and `dwr` (FID 3), merged; `v` had nothing newer. The first has no text, only an image. Each line gives the time, the author, the cast's hash and the app it was posted from ([below](#filtering-by-client)). Here is the first one as the node stores it:
 
 ```run
 curl -s 'http://localhost:3381/v1/castsByFid?fid=3&pageSize=1&reverse=true' | jq '.messages[0] | {type: .data.type, fid: .data.fid, timestamp: .data.timestamp, hash, hashScheme, signatureScheme, signer}'
@@ -153,7 +153,7 @@ Everything an account does on Farcaster is a *message* like this one: a cast, a 
 `--limit` (default 20, at most 1000) is also how many of each account's newest messages are read, so a removed cast counts against it, and there is no paging further back. Add `--json` to any read for output a program can use:
 
 ```run
-selfcast casts 3 --limit 1 --json
+selfcast casts dwr --limit 1 --json
 ```
 
 ```output
@@ -173,10 +173,10 @@ selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '.
 ## The feed
 
 ```run
-selfcast feed 2 --limit 5
+selfcast feed v --limit 5
 ```
 
-The same as `casts`, over every account FID 2 follows: what that account would see. It reads the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future are left out.
+The same as `casts`, over every account `v` follows: what that account would see. It reads the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future are left out.
 
 ## Channels
 
@@ -195,7 +195,7 @@ selfcast channel https://warpcast.com/~/channel/fc-updates --limit 3 --json | jq
 The node keeps no list of channel names, so `selfcast` takes the URL, not a name like `/fc-updates`. (Snapchain v0.14.3 has channel messages and a channel registry, but on mainnet they are not switched on.) Many channels are `https://warpcast.com/~/channel/<name>`, but casts on our node also name parents like `https://farcaster.group/berlin`, `chain://eip155:1/erc721:0x…` and `eip155:8453/erc20:0x…`. A URL nobody posted to gives no casts, not an error. To find a channel's URL, read it off a cast posted there:
 
 ```run
-selfcast casts 3 --limit 200 --json | jq -c '[.casts[].parent.url // empty] | unique'
+selfcast casts dwr --limit 200 --json | jq -c '[.casts[].parent.url // empty] | unique'
 ```
 
 ```output
@@ -367,18 +367,18 @@ Options:
 A dry run signs the message and asks the node whether it would accept it. Nothing is sent:
 
 ```run
-selfcast follow 1 --node https://crackle.farcaster.xyz:3381 --dry-run
+selfcast follow farcaster --node https://crackle.farcaster.xyz:3381 --dry-run
 ```
 
 ```output
-Send as @selfcast (FID 3356360), signed by app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e, dated 2026-10-21T06:25:37Z:
+Send as @selfcast (FID 3356360), signed by app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e, dated 2026-10-23T05:40:35Z:
 
   Follow FID 1
   FID 1 is @farcaster on this node.
-Dry run: the node would accept 0x3a91056f44dbc7de30108f12e4908ee40b729e13. Nothing was sent.
+Dry run: the node would accept 0xd595a9e74ab802363c8f136940a1dbcceec88e95. Nothing was sent.
 ```
 
-Everything above the last two lines is written from the signed message. The line naming `@farcaster` is the node's answer for FID 1, so you can see whom you are about to follow. A write sent by an agent, with `--yes` after the person approved the dry run's text:
+Everything above the last two lines is written from the signed message, which names the account by its FID, not by the name you typed. The line naming `@farcaster` is the node's answer for FID 1, so you can see whom you are about to follow. A write sent by an agent, with `--yes` after the person approved the dry run's text:
 
 ```run
 selfcast cast "This cast will be deleted with selfcast delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json
@@ -518,10 +518,10 @@ What it does:
 
 Every app key is registered with the FID of the app that asked for it. The node lists an account's keys with that FID (`/v1/signersByFid`), and every cast carries the key that signed it, so `selfcast` can say which app each cast came from. FID 9152 is the Farcaster app (its own profile reads `warpcast`).
 
-FID 194 posts from two apps. Grouping the casts among its newest 100 messages by app:
+`rish` (FID 194) posts from two apps. Grouping the casts among its newest 100 messages by app:
 
 ```run
-selfcast casts 194 --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map({app_fid: .[0].app_fid, casts: length})'
+selfcast casts rish --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map({app_fid: .[0].app_fid, casts: length})'
 ```
 
 ```output
@@ -531,8 +531,8 @@ selfcast casts 194 --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map
 97 casts from 100 messages; the other three were removes. `--include-app` keeps only the apps named, `--exclude-app` drops them:
 
 ```run
-selfcast casts 194 --limit 100 --include-app 194 --json | jq '.casts | length'
-selfcast casts 194 --limit 100 --exclude-app 194 --json | jq '.casts | length'
+selfcast casts rish --limit 100 --include-app 194 --json | jq '.casts | length'
+selfcast casts rish --limit 100 --exclude-app 194 --json | jq '.casts | length'
 ```
 
 ```output
