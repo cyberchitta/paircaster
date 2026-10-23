@@ -96,7 +96,9 @@ selfcast viewer serve --images
 ```output
 open the viewer at http://127.0.0.1:59216/?pair=89ca3260eb3c0f58241ca683e4eb1574dc8dd575d657acbc7fddc0cf04564125
 stop it with Ctrl-C
-``` The agent then shows a thread with `viewer open`, and asks the page what it shows with `viewer state`:
+```
+
+The agent then shows a thread with `viewer open`, and asks the page what it shows with `viewer state`:
 
 ```run
 selfcast viewer open 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
