@@ -12,6 +12,8 @@ use crate::cast::{Cast, CastRef};
 use crate::error::Error;
 use crate::feed::FeedItem;
 use crate::profile::{Names, Users, names_of};
+use crate::proto::ReactionType;
+use crate::reaction::CastReactions;
 use crate::signer::Signer;
 use crate::thread::Thread;
 use crate::time::Timestamp;
@@ -45,6 +47,20 @@ impl Node {
         let thread = Thread::assemble(above, cast, replies, &signers, now, limit);
         let users = self.user_data_of(thread.account_fids()).await?;
         Ok((thread, users))
+    }
+
+    /// The likes and recasts of `id`, and the user data of everyone who
+    /// reacted. A cast the node does not hold is an error.
+    pub async fn reactions(&self, id: &CastRef) -> Result<(CastReactions, Users), Error> {
+        self.cast_by_id(id.fid, &id.hash).await?;
+        let (likes, recasts) = future::try_join(
+            self.reactions_to_cast(id, ReactionType::Like),
+            self.reactions_to_cast(id, ReactionType::Recast),
+        )
+        .await?;
+        let reactions = CastReactions::assemble(likes, recasts);
+        let users = self.user_data_of(reactions.account_fids()).await?;
+        Ok((reactions, users))
     }
 
     /// Each account's newest casts and its app keys.

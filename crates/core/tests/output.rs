@@ -1,11 +1,12 @@
 //! The `--json` shapes, locked byte for byte: the skill, the viewer and
 //! pages built on it read them.
 
-use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, SignerKey, Target};
+use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use selfcast_core::feed::FeedItem;
 use selfcast_core::output;
 use selfcast_core::profile::{Followers, Names, Profile, UserDatum};
-use selfcast_core::proto::{CastType, UserDataType};
+use selfcast_core::proto::{CastType, ReactionType, UserDataType};
+use selfcast_core::reaction::CastReactions;
 use selfcast_core::thread::{ChainTop, Thread};
 use selfcast_core::time::Timestamp;
 
@@ -100,6 +101,30 @@ fn thread_json_is_version_1() {
         c = cast_json()
     );
     assert_eq!(output::thread_json(&thread, &users), expected);
+}
+
+#[test]
+fn reactions_json_is_version_1() {
+    let cast = CastRef {
+        fid: 37,
+        hash: MessageHash::from_bytes(&[0xcd; 20]).expect("20 bytes"),
+    };
+    let reaction = |fid, kind| Reaction {
+        fid,
+        kind,
+        target: Target::Cast(cast),
+        timestamp: Timestamp::from_farcaster(0),
+    };
+    let r = CastReactions::assemble(
+        vec![reaction(2, ReactionType::Like)],
+        vec![reaction(9, ReactionType::Recast)],
+    );
+    let users = [username(2, "v"), username(9, "alice")].into();
+    let expected = format!(
+        r#"{{"version":1,"cast":{{"fid":37,"hash":"0x{}"}},"likes":[{{"fid":2,"timestamp":"2021-01-01T00:00:00Z"}}],"recasts":[{{"fid":9,"timestamp":"2021-01-01T00:00:00Z"}}],"accounts":[{{"fid":2,"username":"v","display_name":null,"pfp_url":null}},{{"fid":9,"username":"alice","display_name":null,"pfp_url":null}}]}}"#,
+        "cd".repeat(20)
+    );
+    assert_eq!(output::reactions_json(&cast, &r, &users), expected);
 }
 
 #[test]

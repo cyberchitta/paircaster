@@ -1,13 +1,15 @@
 //! `selfcast profile`, `selfcast feed`, `selfcast casts`,
-//! `selfcast replies` and `selfcast thread`. The reads and their `--json`
+//! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
 use selfcast_core::cast::CastRef;
+use selfcast_core::cast::Reaction;
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
 use selfcast_core::node::reads::MAX_ANCESTORS;
 use selfcast_core::output;
 use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, names_of};
+use selfcast_core::reaction::CastReactions;
 use selfcast_core::thread::{ChainTop, Thread};
 use selfcast_core::{Error, Node};
 
@@ -52,6 +54,13 @@ pub struct ThreadArgs {
     /// How many replies to show: the newest LIMIT, oldest first.
     #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(1..=1000))]
     limit: u32,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ReactionsArgs {
+    /// The cast whose likes and recasts to show, as FID:HASH.
+    #[arg(value_name = "FID:HASH")]
+    cast: CastRef,
 }
 
 #[derive(Debug, clap::Args)]
@@ -159,6 +168,16 @@ pub async fn thread(node: &Node, args: &ThreadArgs, json: bool) -> Result<(), Er
     Ok(())
 }
 
+pub async fn reactions(node: &Node, args: &ReactionsArgs, json: bool) -> Result<(), Error> {
+    let (reactions, users) = node.reactions(&args.cast).await?;
+    if json {
+        crate::out::line(output::reactions_json(&args.cast, &reactions, &users));
+    } else {
+        print_reactions(&reactions, &names_of(&users));
+    }
+    Ok(())
+}
+
 /// The newest casts across `fids`, after the filter.
 async fn newest_casts(
     node: &Node,
@@ -239,4 +258,26 @@ fn print_thread(t: &Thread, names: &Names) {
     print_item(&t.cast, names);
     crate::out::line(format_args!("--- {} replies ---", t.replies.len()));
     t.replies.iter().for_each(|i| print_item(i, names));
+}
+
+fn print_reactions(r: &CastReactions, names: &Names) {
+    crate::out::line(format_args!(
+        "{} likes, {} recasts",
+        r.likes.len(),
+        r.recasts.len()
+    ));
+    [("likes", &r.likes), ("recasts", &r.recasts)]
+        .iter()
+        .filter(|(_, list)| !list.is_empty())
+        .for_each(|(label, list)| {
+            crate::out::line(format_args!("\n--- {label} ---"));
+            list.iter().for_each(|x| print_reaction(x, names));
+        });
+}
+
+fn print_reaction(r: &Reaction, names: &Names) {
+    let name = names
+        .get(&r.fid)
+        .map_or_else(|| "(no username)".to_owned(), |n| format!("@{n}"));
+    crate::out::line(format_args!("{}  {name}  fid {}", r.timestamp, r.fid));
 }

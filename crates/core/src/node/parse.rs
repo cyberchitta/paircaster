@@ -128,6 +128,24 @@ pub fn followers(page: Value, target: u64) -> Result<Page<u64>, Error> {
     })
 }
 
+/// A `reactionsByCast` page of `kind` reactions to `cast`.
+pub fn reactions_to_cast(
+    page: Value,
+    cast: &CastRef,
+    kind: ReactionType,
+) -> Result<Page<Reaction>, Error> {
+    let page = reactions(page)?;
+    let target = Target::Cast(*cast);
+    match page
+        .items
+        .iter()
+        .any(|r| r.kind != kind || r.target != target)
+    {
+        true => Err(bad("reaction of another kind or to another cast")),
+        false => Ok(page),
+    }
+}
+
 /// A `reactionsByFid` page.
 pub fn reactions(page: Value) -> Result<Page<Reaction>, Error> {
     messages(page)?.try_filter_map(|m| {

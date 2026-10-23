@@ -1,6 +1,8 @@
 pub mod parse;
 pub mod reads;
 
+use std::hash::Hash;
+
 use reqwest::{Client, Url};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -12,13 +14,14 @@ use crate::error::{Error, NodeErrorBody};
 use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
-use crate::thread::{Ancestors, ChainTop, ReplyTally};
+use crate::tally::PageTally;
+use crate::thread::{Ancestors, ChainTop};
 
 /// Per shard, so a page holds up to this many times the shard count.
 const FOLLOWER_PAGE_SIZE: u32 = 1000;
 
-/// Per shard, as for followers.
-const REPLY_PAGE_SIZE: u32 = 1000;
+/// Per shard, as for followers: for replies and reactions to a cast.
+const REPEATING_PAGE_SIZE: u32 = 1000;
 
 /// One page of a paged read. `next_page_token` is `None` on the last page.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,7 +150,7 @@ impl Node {
     }
 
     /// `GET /v1/castsByParent`: replies to a cast. Pages repeat; see
-    /// [`ReplyTally`].
+    /// [`PageTally`].
     pub async fn casts_by_parent(
         &self,
         parent: &CastRef,
@@ -163,19 +166,43 @@ impl Node {
     /// Every reply to `parent`, each once: pages are read until one brings
     /// no new reply or there is no next page.
     pub async fn replies(&self, parent: &CastRef) -> Result<Vec<Cast>, Error> {
-        let mut tally = ReplyTally::default();
-        let mut request = PageRequest {
-            page_size: Some(REPLY_PAGE_SIZE),
-            page_token: None,
-        };
-        loop {
-            let page = self.casts_by_parent(parent, &request).await?;
-            let fresh = tally.add_page(page.items);
-            match page.next_page_token {
-                Some(token) if fresh => request.page_token = Some(token),
-                _ => return Ok(tally.into_casts()),
-            }
-        }
+        self.until_repeat(
+            |page| async move { self.casts_by_parent(parent, &page).await },
+            |c: &Cast| c.id.hash,
+        )
+        .await
+    }
+
+    /// `GET /v1/reactionsByCast` for one kind of reaction. Pages repeat; see
+    /// [`PageTally`].
+    pub async fn reactions_by_cast(
+        &self,
+        cast: &CastRef,
+        kind: ReactionType,
+        page: &PageRequest,
+    ) -> Result<Page<Reaction>, Error> {
+        let query = with_page(
+            &[
+                ("target_fid", cast.fid.to_string()),
+                ("target_hash", cast.hash.to_string()),
+                ("reaction_type", reaction_type_name(kind)?.to_owned()),
+            ],
+            page,
+        );
+        parse::reactions_to_cast(self.get("v1/reactionsByCast", &query).await?, cast, kind)
+    }
+
+    /// Every `kind` reaction to `cast`, one per account.
+    pub async fn reactions_to_cast(
+        &self,
+        cast: &CastRef,
+        kind: ReactionType,
+    ) -> Result<Vec<Reaction>, Error> {
+        self.until_repeat(
+            |page| async move { self.reactions_by_cast(cast, kind, &page).await },
+            |r: &Reaction| r.fid,
+        )
+        .await
     }
 
     /// The casts `cast` replies to, root first: its parent, that cast's
@@ -407,6 +434,33 @@ impl Node {
                     }
                 }
                 None => return Ok(items),
+            }
+        }
+    }
+
+    /// Every item of a read whose pages repeat, each once: pages are read
+    /// until one brings nothing new or there is no next page.
+    async fn until_repeat<K, T, F, Fut>(
+        &self,
+        read: F,
+        key: impl Fn(&T) -> K,
+    ) -> Result<Vec<T>, Error>
+    where
+        K: Eq + Hash,
+        F: Fn(PageRequest) -> Fut,
+        Fut: Future<Output = Result<Page<T>, Error>>,
+    {
+        let mut tally = PageTally::default();
+        let mut request = PageRequest {
+            page_size: Some(REPEATING_PAGE_SIZE),
+            page_token: None,
+        };
+        loop {
+            let page = read(request.clone()).await?;
+            let fresh = tally.add_page(page.items, &key);
+            match page.next_page_token {
+                Some(token) if fresh => request.page_token = Some(token),
+                _ => return Ok(tally.into_items()),
             }
         }
     }

@@ -3,13 +3,14 @@ mod common;
 use std::collections::{BTreeSet, HashMap};
 
 use common::{fixture, fixture_messages};
-use selfcast_core::cast::{Cast, Target};
+use selfcast_core::cast::{Cast, CastRef, Reaction, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
 use selfcast_core::proto::ReactionType;
+use selfcast_core::reaction::CastReactions;
 use selfcast_core::signer::{Signer, app_of};
-use selfcast_core::thread::ReplyTally;
+use selfcast_core::tally::PageTally;
 use selfcast_core::time::Timestamp;
 
 const FOLLOWED: [u64; 3] = [2, 194, 17];
@@ -116,8 +117,10 @@ fn repeating_reply_pages_give_each_reply_once() {
         parse::casts(fixture(&format!("castsByParent-37-0x50184b62-p{n}.json")))
             .expect("replies parse")
     };
-    let mut tally = ReplyTally::default();
-    let fresh: Vec<bool> = (1..=3).map(|n| tally.add_page(page(n).items)).collect();
+    let mut tally = PageTally::default();
+    let fresh: Vec<bool> = (1..=3)
+        .map(|n| tally.add_page(page(n).items, |c: &Cast| c.id.hash))
+        .collect();
     assert_eq!(fresh, [true, true, false], "page 3 is page 1 again");
     assert!(
         page(3).next_page_token.is_some(),
@@ -125,9 +128,69 @@ fn repeating_reply_pages_give_each_reply_once() {
     );
     let all = parse::casts(fixture("castsByParent-37-0x50184b62-all.json")).expect("parse");
     let hashes = |casts: &[Cast]| casts.iter().map(|c| c.id.hash).collect::<BTreeSet<_>>();
-    let replies = tally.into_casts();
+    let replies = tally.into_items();
     assert_eq!(replies.len(), 48);
     assert_eq!(hashes(&replies), hashes(&all.items));
+}
+
+fn bounty() -> CastRef {
+    "37:0x50184b62b4c52fd76628713562e1eda3dccaf63d"
+        .parse()
+        .expect("FID:HASH")
+}
+
+fn likes_page(name: &str) -> node::Page<Reaction> {
+    let file = format!("reactionsByCast-like-37-0x50184b62-{name}.json");
+    parse::reactions_to_cast(fixture(&file), &bounty(), ReactionType::Like).expect("likes parse")
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn repeating_reaction_pages_give_each_account_once() {
+    let mut tally = PageTally::default();
+    let fresh: Vec<bool> = (1..=5)
+        .map(|n| tally.add_page(likes_page(&format!("p{n}")).items, |r: &Reaction| r.fid))
+        .collect();
+    assert_eq!(fresh, [true, true, true, true, false], "page 5 repeats");
+    let fids = |rs: &[Reaction]| rs.iter().map(|r| r.fid).collect::<BTreeSet<_>>();
+    let likes = tally.into_items();
+    assert_eq!(likes.len(), 290);
+    assert_eq!(fids(&likes), fids(&likes_page("all").items));
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_page_of_another_kind_of_reaction_is_refused() {
+    let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
+    assert!(parse::reactions_to_cast(file, &bounty(), ReactionType::Recast).is_err());
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_page_of_reactions_to_another_cast_is_refused() {
+    let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
+    let other = CastRef { fid: 3, ..bounty() };
+    assert!(parse::reactions_to_cast(file, &other, ReactionType::Like).is_err());
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn reactions_are_oldest_first_and_each_account_listed_once() {
+    let recasts = parse::reactions_to_cast(
+        fixture("reactionsByCast-recast-37-0x50184b62-all.json"),
+        &bounty(),
+        ReactionType::Recast,
+    )
+    .expect("recasts parse");
+    let mut likes = likes_page("all").items;
+    likes.reverse();
+    let r = CastReactions::assemble(likes, recasts.items);
+    assert!(r.likes.is_sorted_by_key(|x| x.timestamp));
+    assert!(r.recasts.is_sorted_by_key(|x| x.timestamp));
+    let likers = r.likes.iter().map(|x| x.fid);
+    let recasters = r.recasts.iter().map(|x| x.fid);
+    assert_eq!(r.account_fids(), likers.chain(recasters).collect());
+    assert!(r.account_fids().len() < r.likes.len() + r.recasts.len());
 }
 
 #[test]

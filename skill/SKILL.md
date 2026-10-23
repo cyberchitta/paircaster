@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts and threads from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts, threads and a cast's likes and recasts from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -235,18 +235,34 @@ cast the node does not hold, both give `"casts":[]`.
 A cast in its conversation: the casts it replies to, root first, then the
 cast, then its direct replies, oldest first. The shape is
 `{"version":1,"top":…,"ancestors":[…],"cast":{…},"replies":[…],"accounts":[…]}`,
-with casts as above and `accounts` as `{"fid","username","display_name"}` for
-every author and mention. `top` says where `ancestors` stops: `"root"` at a
+with casts as above and `accounts` as
+`{"fid","username","display_name","pfp_url"}` for every author and mention
+(`null` where not set). `top` says where `ancestors` stops: `"root"` at a
 cast that replies to no cast, `{"missing":{"fid","hash"}}` at a parent this
 node does not hold, `{"cut":{"fid","hash"}}` after 50 casts, naming the next
 one up (run `thread` on it for more). `--limit` caps the replies as in
 `replies`. A cast the node does not hold exits 1.
 
+### `selfcast reactions <FID:HASH> --json`
+
+Who liked and who recast one cast, each oldest first:
+
+```json
+{"version":1,"cast":{"fid":3356360,"hash":"0x3820fb679133cd50df09d95beb8a5fbe2553069d"},"likes":[{"fid":1926565,"timestamp":"2026-10-21T14:13:32Z"}],"recasts":[],"accounts":[{"fid":1926565,"username":"lyraseven","display_name":"Lyra-Seven","pfp_url":"https://…/face.jpg?v=4"}]}
+```
+
+One entry per account in each list, as the node holds them now: an undone
+like is not there, so these are current counts, not a history. Counts are
+the lengths of `likes` and `recasts`. `accounts` is as in `thread`, for
+everyone who reacted. Every reaction is read, so a busy cast is a long
+answer: FID 37's `0x50184b62…` has 290 likes and 65 recasts, read in well
+under a second from a ready node. For "most liked" among several casts, run
+it once per cast. A cast the node does not hold exits 1.
+
 ### What reads cannot do yet
 
-- No reactions to a cast, so no "most liked", "who reacts most" or "top
-  casts". Say this, rather than estimating from other fields. Reply counts
-  come from `replies`.
+- No reactions in `casts`, `feed`, `replies` or `thread`: run `reactions`
+  per cast. No reactions to a channel URL.
 - No search, no channels, and no finding an account by its username
   (accounts are named by FID; mentions come with their usernames).
 - Nothing older than an account's newest 1000 messages.

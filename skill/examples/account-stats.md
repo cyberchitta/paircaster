@@ -46,8 +46,9 @@ replies by `parent.cast.fid` and look each FID up with `profile`.
 > UTC is in yet): dwr (fid 3) posted 10 casts since 2026-10-13, 7 of them
 > new posts and 3 replies, all from the Farcaster app. The account has
 > 630,231 followers and follows 79 accounts.
->
-> I can't tell you which casts did best or who reacted most: selfcast does
-> not read reactions to a cast yet.
 
 Say what the node cannot show rather than inferring it.
+
+This run predates `selfcast reactions`. To say which casts did best now,
+run `reactions` on each of the week's casts and compare the lengths of
+`likes` and `recasts`.

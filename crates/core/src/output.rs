@@ -5,9 +5,10 @@
 
 use serde::Serialize;
 
-use crate::cast::{Cast, CastRef, Target};
+use crate::cast::{Cast, CastRef, Reaction, Target};
 use crate::feed::FeedItem;
 use crate::profile::{self, Names, Profile, Users};
+use crate::reaction::CastReactions;
 use crate::thread::{ChainTop, Thread};
 
 /// `selfcast profile <fid> --json`, version 1:
@@ -157,15 +158,32 @@ pub fn thread_json(t: &Thread, users: &Users) -> String {
         ancestors: casts_v1(&t.ancestors, &names),
         cast: cast_v1(&t.cast.cast, t.cast.app_fid, &names),
         replies: casts_v1(&t.replies, &names),
-        accounts: users
-            .iter()
-            .map(|(fid, data)| AccountV1 {
-                fid: *fid,
-                username: profile::username(data),
-                display_name: profile::display_name(data),
-                pfp_url: profile::pfp_url(data),
-            })
-            .collect(),
+        accounts: accounts_v1(users),
+    })
+}
+
+/// `selfcast reactions <FID:HASH> --json`, version 1:
+///
+/// ```json
+/// {
+///   "version": 1,
+///   "cast": { "fid": 37, "hash": "0x…" },
+///   "likes": [ { "fid": 2, "timestamp": "2026-10-22T06:51:30Z" } ],
+///   "recasts": [ … ],
+///   "accounts": [ { "fid": 2, "username": "v", "display_name": "Varun", "pfp_url": "https://…" } ]
+/// }
+/// ```
+///
+/// `cast` is the cast asked about. `likes` and `recasts` hold one entry per
+/// account, oldest first, as the node holds them now: an undone like is not
+/// there. `accounts` is as in `thread`, for everyone who reacted.
+pub fn reactions_json(cast: &CastRef, r: &CastReactions, users: &Users) -> String {
+    to_json(&ReactionsV1 {
+        version: 1,
+        cast: parent_v1(cast),
+        likes: r.likes.iter().map(reaction_v1).collect(),
+        recasts: r.recasts.iter().map(reaction_v1).collect(),
+        accounts: accounts_v1(users),
     })
 }
 
@@ -225,6 +243,21 @@ struct ThreadV1<'a> {
 }
 
 #[derive(Serialize)]
+struct ReactionsV1 {
+    version: u32,
+    cast: ParentV1,
+    likes: Vec<ReactionV1>,
+    recasts: Vec<ReactionV1>,
+    accounts: Vec<AccountV1>,
+}
+
+#[derive(Serialize)]
+struct ReactionV1 {
+    fid: u64,
+    timestamp: String,
+}
+
+#[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum TopV1 {
     Root,
@@ -280,6 +313,25 @@ fn parent_v1(r: &CastRef) -> ParentV1 {
     ParentV1 {
         fid: r.fid,
         hash: r.hash.to_string(),
+    }
+}
+
+fn accounts_v1(users: &Users) -> Vec<AccountV1> {
+    users
+        .iter()
+        .map(|(fid, data)| AccountV1 {
+            fid: *fid,
+            username: profile::username(data),
+            display_name: profile::display_name(data),
+            pfp_url: profile::pfp_url(data),
+        })
+        .collect()
+}
+
+fn reaction_v1(r: &Reaction) -> ReactionV1 {
+    ReactionV1 {
+        fid: r.fid,
+        timestamp: r.timestamp.to_string(),
     }
 }
 

@@ -182,6 +182,28 @@ selfcast thread 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 
 A cast with the casts it replies to, root first, and its direct replies: the newest 100, oldest first (`--limit` changes the number). To see a thread in a page instead, with your agent, see [Looking at a thread together](agent.md#looking-at-a-thread-together).
 
+## Reactions
+
+```run
+selfcast reactions 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d --json | jq -c '{likes: (.likes | length), recasts: (.recasts | length)}'
+```
+
+```output
+{"likes":1,"recasts":0}
+```
+
+Who liked and who recast one cast, each oldest first (`/v1/reactionsByCast`). Each list has one entry per account, `{fid, timestamp}`, as the node holds them now: an undone like is not listed. An `accounts` list gives each account's username, display name and picture, as in `thread`. Without `--json`, `selfcast` prints the two counts, then each like and recast with its time, username and FID. FID 37's cast `0x50184b62…` has 290 likes and 65 recasts, and 60 accounts did both:
+
+```run
+selfcast reactions 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '[.likes[].fid] as $l | {likes: ($l | length), recasts: (.recasts | length), both: ([.recasts[].fid | select(IN($l[]))] | length)}'
+```
+
+```output
+{"likes":290,"recasts":65,"both":60}
+```
+
+These pages repeat as the replies' do, and are read the same way.
+
 ## Writing: casts, reactions, follows
 
 The examples are from a test account, `@selfcast` (FID 3356360). They went through Farcaster's public node `crackle` because the test node had not yet synced the new account: a node has to have seen an account to accept its writes.

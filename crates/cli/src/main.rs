@@ -57,6 +57,8 @@ enum Command {
     Replies(reads::RepliesArgs),
     /// Show a cast with the casts it replies to, root first, and its replies.
     Thread(reads::ThreadArgs),
+    /// Show who liked and who recast a cast, oldest first.
+    Reactions(reads::ReactionsArgs),
     /// Post a cast, or a reply with --reply-to.
     Cast(write::CastArgs),
     /// Delete one of the account's casts.
@@ -147,6 +149,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
         Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
         Command::Thread(args) => reads::thread(&Node::new(node)?, &args, cli.json).await?,
+        Command::Reactions(args) => reads::reactions(&Node::new(node)?, &args, cli.json).await?,
         Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
         Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
         Command::React(args) => send(node, args.into_parts(false), cli.json).await?,
