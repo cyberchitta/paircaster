@@ -1,15 +1,15 @@
 //! Retrying a write resends the saved bytes instead of signing again, and a
 //! node that already holds them counts as sent.
 
+use paircaster_core::Error;
+use paircaster_core::build::{Action, AppKey, DecodeError, Envelope, SignedMessage, sign};
+use paircaster_core::cast::MessageHash;
+use paircaster_core::message::VerifyError;
+use paircaster_core::node::Submitted;
+use paircaster_core::node::parse::submitted;
+use paircaster_core::proto::{FarcasterNetwork, Message, MessageData};
+use paircaster_core::time::Timestamp;
 use prost::Message as _;
-use selfcast_core::Error;
-use selfcast_core::build::{Action, AppKey, DecodeError, Envelope, SignedMessage, sign};
-use selfcast_core::cast::MessageHash;
-use selfcast_core::message::VerifyError;
-use selfcast_core::node::Submitted;
-use selfcast_core::node::parse::submitted;
-use selfcast_core::proto::{FarcasterNetwork, Message, MessageData};
-use selfcast_core::time::Timestamp;
 
 /// Not any account's key: 32 bytes of 0x22.
 const SECRET: [u8; 32] = [0x22; 32];

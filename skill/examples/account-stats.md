@@ -9,7 +9,7 @@ reads after it use the FID that read returned.
 ## 1. Check the node
 
 ```
-selfcast node status --json
+paircaster node status --json
 ```
 
 `phase` was `ready`, largest `seconds_behind` 1. On a node still
@@ -18,7 +18,7 @@ selfcast node status --json
 ## 2. Profile
 
 ```
-selfcast profile dwr --json
+paircaster profile dwr --json
 ```
 
 Gives `fid` 3, `display_name` `Dan Romero`, `following` 79, `followers`
@@ -30,7 +30,7 @@ here on.
 Ask for more than a week is likely to hold, then filter on `timestamp`:
 
 ```
-selfcast casts 3 --limit 200 --json | jq -c --arg since 2026-10-16T00:00:00Z '[.casts[] | select(.timestamp >= $since)] | {casts: length, replies: map(select(.parent.cast)) | length, top_level: map(select(.parent == null)) | length, newest: (.[0].timestamp), apps: (map(.app_fid) | group_by(.) | map({app_fid: .[0], casts: length}))}'
+paircaster casts 3 --limit 200 --json | jq -c --arg since 2026-10-16T00:00:00Z '[.casts[] | select(.timestamp >= $since)] | {casts: length, replies: map(select(.parent.cast)) | length, top_level: map(select(.parent == null)) | length, newest: (.[0].timestamp), apps: (map(.app_fid) | group_by(.) | map({app_fid: .[0], casts: length}))}'
 ```
 
 ```json
@@ -47,7 +47,7 @@ replies by `parent.cast.fid` and look each FID up with `profile`.
 casts, by the `fid` and `hash` that `casts` gave:
 
 ```
-selfcast reactions 3:0x0256ae66308d546514fa666cda44052abbfea066 --json | jq -c '{likes: (.likes | length), recasts: (.recasts | length)}'
+paircaster reactions 3:0x0256ae66308d546514fa666cda44052abbfea066 --json | jq -c '{likes: (.likes | length), recasts: (.recasts | length)}'
 ```
 
 ```json

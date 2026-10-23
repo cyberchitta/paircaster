@@ -63,7 +63,7 @@ mod tests {
     use super::{unpack_shard, verify_chunk};
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("selfcast-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("paircaster-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir is writable");
         dir

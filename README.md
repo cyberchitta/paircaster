@@ -1,13 +1,13 @@
-# Selfcast
+# Paircaster
 
 Your own Farcaster read node, a client and AI agent skill that read from it,
 and a page where you and your agent look at the same thread. No API keys from
 anyone: you furnish the compute, Snapchain syncs the
-network, and `selfcast` reads and writes through your node.
+network, and `paircaster` reads and writes through your node.
 
 > **Read the code before you give it your recovery phrase.** As with any code
 > from the internet, review it yourself, or have someone you trust or an AI
-> agent review it, before `selfcast key add` asks for your phrase, and use a
+> agent review it, before `paircaster key add` asks for your phrase, and use a
 > test account either way. [Safety](https://selfcast.cyberchitta.cc/safety.html)
 > lists the files that handle the phrase.
 
@@ -23,8 +23,8 @@ network, and `selfcast` reads and writes through your node.
 | Path | What |
 |---|---|
 | `crates/core` | Message construction, feed and profile assembly; network access only in its `node` module |
-| `crates/cli` | The `selfcast` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
-| `skill/` | An agent skill that drives `selfcast`; Claude Code started in the repo loads it through `.claude/skills/selfcast`, Codex through `.agents/skills/selfcast` |
+| `crates/cli` | The `paircaster` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
+| `skill/` | An agent skill that drives `paircaster`; Claude Code started in the repo loads it through `.claude/skills/paircaster`, Codex through `.agents/skills/paircaster` |
 | `docs/` | The microsite's pages and the documents above; the `site-build` branch holds the toolchain that builds them |
 
 ## Status

@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// ends in `.eth`. Whether anyone holds the name is the node's to say.
 ///
 /// ```
-/// use selfcast_core::account::Username;
+/// use paircaster_core::account::Username;
 /// assert!("vitalik.eth".parse::<Username>().is_ok());
 /// assert!("Vitalik.eth".parse::<Username>().is_err());
 /// ```
@@ -52,7 +52,7 @@ fn is_name_part(part: &str) -> bool {
 /// name made only of digits is written.
 ///
 /// ```
-/// use selfcast_core::account::Account;
+/// use paircaster_core::account::Account;
 /// assert_eq!("3".parse::<Account>().unwrap(), Account::Fid(3));
 /// assert!(matches!("@3".parse::<Account>().unwrap(), Account::Name(_)));
 /// assert!(matches!("dwr".parse::<Account>().unwrap(), Account::Name(_)));

@@ -7,7 +7,7 @@ printed.
 
 ## 1. Check the node
 
-`selfcast node status --json`, as in the skill. Here it was `ready`, with
+`paircaster node status --json`, as in the skill. Here it was `ready`, with
 the largest `seconds_behind` 1.
 
 ## 2. Read the list
@@ -15,7 +15,7 @@ the largest `seconds_behind` 1.
 Pass the names as the user gave them:
 
 ```
-selfcast casts v,dwr --limit 5 --json | jq -c '.casts[] | {fid, timestamp, reply: (.parent != null), text}'
+paircaster casts v,dwr --limit 5 --json | jq -c '.casts[] | {fid, timestamp, reply: (.parent != null), text}'
 ```
 
 ```json
@@ -37,7 +37,7 @@ Every cast is FID 3's. That is not a bug: FID 2's newest cast on this
 node is from 2026-05-25,
 
 ```
-selfcast casts 2 --limit 3 --json | jq -c '[.casts[].timestamp]'
+paircaster casts 2 --limit 3 --json | jq -c '[.casts[].timestamp]'
 ```
 
 ```json

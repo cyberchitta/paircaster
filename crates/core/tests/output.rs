@@ -1,17 +1,17 @@
 //! The `--json` shapes, locked byte for byte: the skill, the viewer and
 //! pages built on it read them.
 
-use selfcast_core::address::{Address, Protocol, Verification};
-use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
-use selfcast_core::event::{Change, Event, EventBody};
-use selfcast_core::feed::FeedItem;
-use selfcast_core::follow::Follow;
-use selfcast_core::output;
-use selfcast_core::profile::{Followers, Profile, UserDatum, Users};
-use selfcast_core::proto::{CastType, ReactionType, UserDataType};
-use selfcast_core::reaction::CastReactions;
-use selfcast_core::thread::{ChainTop, Thread};
-use selfcast_core::time::Timestamp;
+use paircaster_core::address::{Address, Protocol, Verification};
+use paircaster_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
+use paircaster_core::event::{Change, Event, EventBody};
+use paircaster_core::feed::FeedItem;
+use paircaster_core::follow::Follow;
+use paircaster_core::output;
+use paircaster_core::profile::{Followers, Profile, UserDatum, Users};
+use paircaster_core::proto::{CastType, ReactionType, UserDataType};
+use paircaster_core::reaction::CastReactions;
+use paircaster_core::thread::{ChainTop, Thread};
+use paircaster_core::time::Timestamp;
 
 fn item() -> FeedItem {
     let hash = MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes");

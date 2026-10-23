@@ -2,13 +2,15 @@
 title: Checking a voucher
 ---
 
-A voucher says they ran the guide. Part of that can be checked by anyone, on any node. We ask vouchers to post the vouching cast with `selfcast cast`, so it is signed by the app key Selfcast added for them. Look the account's keys up:
+Paircaster was called Selfcast; output captured before the rename shows the old name.
+
+A voucher says they ran the guide. Part of that can be checked by anyone, on any node. We ask vouchers to post the vouching cast with `paircaster cast`, so it is signed by the app key Paircaster added for them. Look the account's keys up:
 
 ```run
 curl -s "http://localhost:3381/v1/signersByFid?fid=FID" | jq '.signers[] | select(.source == "SIGNER_SOURCE_OFFCHAIN")'
 ```
 
-A key added by `selfcast key add` is added without gas, names the account itself as the app (`requestFid` is the account's own FID), has a `ttl` of 7776000 seconds (90 days), and has six scopes: casts and their removal, reactions and their removal, follows and unfollows. The vouching cast's `signer` field should be that key. The test account's key:
+A key added by `paircaster key add` is added without gas, names the account itself as the app (`requestFid` is the account's own FID), has a `ttl` of 7776000 seconds (90 days), and has six scopes: casts and their removal, reactions and their removal, follows and unfollows. The vouching cast's `signer` field should be that key. The test account's key:
 
 ```run
 curl -s "https://crackle.farcaster.xyz:3381/v1/signersByFid?fid=3356360" | jq '.signers[] | select(.source == "SIGNER_SOURCE_OFFCHAIN")'
@@ -39,7 +41,7 @@ curl -s "https://crackle.farcaster.xyz:3381/v1/signersByFid?fid=3356360" | jq '.
 
 ## Our own account
 
-The same check works on what the test account has sent with Selfcast. On a node we do not run, every cast and delete held for it is signed by that key:
+The same check works on what the test account has sent with Paircaster. On a node we do not run, every cast and delete held for it is signed by that key:
 
 ```run
 curl -s "https://crackle.farcaster.xyz:3381/v1/castsByFid?fid=3356360" | jq -c '.messages[] | {type: .data.type, hash, signer}'

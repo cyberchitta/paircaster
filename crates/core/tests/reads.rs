@@ -3,20 +3,20 @@ mod common;
 use std::collections::{BTreeSet, HashMap};
 
 use common::{fixture, fixture_messages};
-use selfcast_core::Error;
-use selfcast_core::account::Username;
-use selfcast_core::address::{self, Protocol};
-use selfcast_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
-use selfcast_core::event::{self, Change, EventBody, EventWalk, PageEvent};
-use selfcast_core::feed::{self, AppFilter, FeedItem};
-use selfcast_core::follow::{self, Follow};
-use selfcast_core::node::{self, ShardSync, SyncState, parse};
-use selfcast_core::profile::{FollowerTally, Followers, Profile};
-use selfcast_core::proto::ReactionType;
-use selfcast_core::reaction::CastReactions;
-use selfcast_core::signer::{Signer, app_of};
-use selfcast_core::tally::PageTally;
-use selfcast_core::time::Timestamp;
+use paircaster_core::Error;
+use paircaster_core::account::Username;
+use paircaster_core::address::{self, Protocol};
+use paircaster_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
+use paircaster_core::event::{self, Change, EventBody, EventWalk, PageEvent};
+use paircaster_core::feed::{self, AppFilter, FeedItem};
+use paircaster_core::follow::{self, Follow};
+use paircaster_core::node::{self, ShardSync, SyncState, parse};
+use paircaster_core::profile::{FollowerTally, Followers, Profile};
+use paircaster_core::proto::ReactionType;
+use paircaster_core::reaction::CastReactions;
+use paircaster_core::signer::{Signer, app_of};
+use paircaster_core::tally::PageTally;
+use paircaster_core::time::Timestamp;
 
 const FOLLOWED: [u64; 3] = [2, 194, 17];
 
@@ -41,7 +41,7 @@ fn signers_of(fid: u64) -> Vec<Signer> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn profile_takes_user_data_and_counts_follows() {
     let user_data = parse::user_data(fixture("userDataByFid-3.json")).expect("user data parses");
     let follows = parse::follows(fixture("linksByFid-follow-3.json")).expect("follows parse");
@@ -85,7 +85,7 @@ fn profile_takes_user_data_and_counts_follows() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn followers_are_the_accounts_whose_follow_targets_the_account() {
     let raw = fixture("linksByTargetFid-follow-17.json");
     let page = parse::followers(raw.clone(), 17).expect("followers parse");
@@ -116,7 +116,7 @@ fn a_page_that_brings_no_new_follower_ends_the_count() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn repeating_reply_pages_give_each_reply_once() {
     let page = |n: u32| {
         parse::casts(fixture(&format!("castsByParent-37-0x50184b62-p{n}.json")))
@@ -150,7 +150,7 @@ fn likes_page(name: &str) -> node::Page<Reaction> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn repeating_reaction_pages_give_each_account_once() {
     let mut tally = PageTally::default();
     let fresh: Vec<bool> = (1..=5)
@@ -164,14 +164,14 @@ fn repeating_reaction_pages_give_each_account_once() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_page_of_another_kind_of_reaction_is_refused() {
     let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
     assert!(parse::reactions_to_cast(file, &bounty(), ReactionType::Recast).is_err());
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_page_of_reactions_to_another_cast_is_refused() {
     let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
     let other = CastRef { fid: 3, ..bounty() };
@@ -179,7 +179,7 @@ fn a_page_of_reactions_to_another_cast_is_refused() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn reactions_are_oldest_first_and_each_account_listed_once() {
     let recasts = parse::reactions_to_cast(
         fixture("reactionsByCast-recast-37-0x50184b62-all.json"),
@@ -199,7 +199,7 @@ fn reactions_are_oldest_first_and_each_account_listed_once() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn mentions_are_written_in_where_they_were_made() {
     let replies = parse::casts(fixture("castsByParent-37-0x50184b62-all.json")).expect("parse");
     let mentioned: Vec<&Cast> = replies
@@ -227,7 +227,7 @@ fn mentions_are_written_in_where_they_were_made() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn mention_positions_the_network_refuses_are_refused() {
     let raw = fixture("castsByFid-3.json");
     let with = |edit: &dyn Fn(&mut serde_json::Value)| {
@@ -272,7 +272,7 @@ fn newest_set_value(raw: &serde_json::Value, kind: &str) -> Option<String> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn feed_is_newest_first_across_followed_accounts() {
     let casts: Vec<Cast> = FOLLOWED.iter().flat_map(|fid| casts_of(*fid)).collect();
     let signers: Vec<Signer> = FOLLOWED.iter().flat_map(|fid| signers_of(*fid)).collect();
@@ -302,7 +302,7 @@ fn whole_feed() -> (Vec<Cast>, Vec<Signer>, Vec<FeedItem>) {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn including_an_app_keeps_only_its_casts_newest_first() {
     let (casts, signers, all) = whole_feed();
     let ours = |i: &&FeedItem| i.app_fid == Some(FARCASTER_APP);
@@ -318,7 +318,7 @@ fn including_an_app_keeps_only_its_casts_newest_first() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn excluding_an_app_keeps_every_other_cast() {
     let (casts, signers, all) = whole_feed();
     let expected: Vec<FeedItem> = all
@@ -336,7 +336,7 @@ fn excluding_an_app_keeps_every_other_cast() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_cast_dated_over_ten_minutes_ahead_is_left_out() {
     let signers = signers_of(2);
     let dated = |secs: u64| Cast {
@@ -355,7 +355,7 @@ fn a_cast_dated_over_ten_minutes_ahead_is_left_out() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn onchain_signers_name_the_app_from_their_metadata() {
     let apps: std::collections::HashSet<Option<u64>> =
         signers_of(3).iter().map(|s| s.app_fid).collect();
@@ -364,7 +364,7 @@ fn onchain_signers_name_the_app_from_their_metadata() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn every_fixture_cast_is_attributed_to_an_app() {
     let unattributed: Vec<String> = [3, 2, 194, 17]
         .iter()
@@ -380,7 +380,7 @@ fn every_fixture_cast_is_attributed_to_an_app() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn reactions_parse_with_their_targets() {
     let likes = parse::reactions(fixture("reactionsByFid-like-3.json")).expect("likes parse");
     let recasts = parse::reactions(fixture("reactionsByFid-recast-3.json")).expect("recasts parse");
@@ -397,14 +397,14 @@ fn reactions_parse_with_their_targets() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_cast_remove_in_a_page_of_casts_is_skipped() {
     let messages = fixture_messages("castsByFid-194.json").len();
     assert_eq!(casts_of(194).len(), messages - 1);
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn cast_by_id_matches_the_same_cast_in_casts_by_fid() {
     let cast = parse::cast_by_id(fixture("castById-3.json")).expect("cast parses");
     assert_eq!(cast, casts_of(3)[0]);
@@ -497,7 +497,7 @@ fn request_fid_rejects_short_or_oversized_metadata() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn sync_state_takes_each_shards_height_and_lag() {
     let state = parse::sync_state(fixture("info.json")).expect("info parses");
     assert_eq!(state.version, "0.14.2");
@@ -586,7 +586,7 @@ fn name(s: &str) -> Username {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn each_kind_of_name_proof_gives_its_fid() {
     [("v", 2), ("vitalik.eth", 5650), ("jesse.base.eth", 99)]
         .iter()
@@ -597,7 +597,7 @@ fn each_kind_of_name_proof_gives_its_fid() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_proof_for_another_name_or_fid_0_is_refused() {
     let proof = || fixture("userNameProofByName-v.json");
     assert!(parse::name_proof(proof(), &name("w")).is_err());
@@ -607,7 +607,7 @@ fn a_proof_for_another_name_or_fid_0_is_refused() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_name_the_node_lacks_is_its_not_found_reply() {
     [
         "error-userNameProofByName.json",
@@ -640,7 +640,7 @@ fn channel_page(name: &str) -> Vec<Cast> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_small_page_holds_the_channels_newest_casts() {
     let newest = |casts: Vec<Cast>| {
         feed::assemble(
@@ -660,7 +660,7 @@ fn a_small_page_holds_the_channels_newest_casts() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_page_for_another_channel_is_refused() {
     let file = fixture("castsByParent-url-popup-ama-p10.json");
     let other: ChannelUrl = "https://warpcast.com/~/channel/popup".parse().expect("URL");
@@ -680,7 +680,7 @@ fn events_page() -> Vec<PageEvent> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn an_events_page_reads_every_kind_of_event() {
     let page = events_page();
     let count = |f: &dyn Fn(&PageEvent) -> bool| page.iter().filter(|e| f(e)).count();
@@ -721,7 +721,7 @@ fn an_events_page_reads_every_kind_of_event() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_walk_keeps_the_blocks_in_its_window_and_stops_at_until() {
     let since = Timestamp::from_farcaster(183_000_000);
     let until = Timestamp::from_farcaster(183_005_000);
@@ -742,7 +742,7 @@ fn a_walk_keeps_the_blocks_in_its_window_and_stops_at_until() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_walk_goes_on_after_the_last_event_of_a_page() {
     let page = events_page();
     let last = match page.last().expect("not empty") {
@@ -758,7 +758,7 @@ fn a_walk_goes_on_after_the_last_event_of_a_page() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn an_event_before_its_blocks_confirmation_is_refused() {
     let page = events_page();
     let first = page
@@ -780,7 +780,7 @@ fn an_event_before_its_blocks_confirmation_is_refused() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn an_event_outside_its_block_is_refused() {
     let mut page = fixture("events-1-49115416.json");
     let merge = page["events"]
@@ -801,7 +801,7 @@ fn newest_followers_page(n: u32) -> Vec<Follow> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_small_page_holds_the_newest_followers() {
     let small = newest_followers_page(50);
     assert_eq!(small.len(), 100, "50 from each of two shards");
@@ -811,7 +811,7 @@ fn a_small_page_holds_the_newest_followers() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn follows_keep_when_they_were_made() {
     let raw = fixture("linksByFid-follow-3.json");
     let times: Vec<u32> = raw["messages"]
@@ -842,7 +842,7 @@ fn addresses_of(fid: u64) -> Vec<address::Address> {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn primary_addresses_are_marked_ignoring_ethereum_case() {
     let summary = |fid| -> Vec<(String, Protocol, bool)> {
         addresses_of(fid)
@@ -882,7 +882,7 @@ fn primary_addresses_are_marked_ignoring_ethereum_case() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_verification_of_an_unknown_protocol_is_refused() {
     let mut page = fixture("verificationsByFid-3.json");
     page["messages"][0]["data"]["verificationAddAddressBody"]["protocol"] = "PROTOCOL_X".into();

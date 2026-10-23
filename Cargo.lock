@@ -1757,6 +1757,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "paircaster"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "flate2",
+ "getrandom 0.4.3",
+ "hex",
+ "pair-ui",
+ "paircaster-core",
+ "prost",
+ "reqwest",
+ "rustix",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
+name = "paircaster-core"
+version = "0.0.1"
+dependencies = [
+ "alloy-dyn-abi",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "base64 0.22.1",
+ "bip32",
+ "bip39",
+ "blake3",
+ "ed25519-dalek",
+ "futures-util",
+ "getrandom 0.2.17",
+ "hex",
+ "k256",
+ "prost",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
+name = "paircaster-wasm"
+version = "0.0.1"
+dependencies = [
+ "paircaster-core",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "parity-scale-codec"
 version = "3.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2389,62 +2445,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb913707158fadaf0d8702c2db0e857de66eb003ccfdda5924b5f5ac98efb38"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "selfcast"
-version = "0.0.1"
-dependencies = [
- "clap",
- "flate2",
- "getrandom 0.4.3",
- "hex",
- "pair-ui",
- "prost",
- "reqwest",
- "rustix",
- "selfcast-core",
- "serde",
- "serde_json",
- "tar",
- "thiserror",
- "tokio",
- "zeroize",
-]
-
-[[package]]
-name = "selfcast-core"
-version = "0.0.1"
-dependencies = [
- "alloy-dyn-abi",
- "alloy-primitives",
- "alloy-sol-types",
- "base64 0.22.1",
- "bip32",
- "bip39",
- "blake3",
- "ed25519-dalek",
- "futures-util",
- "getrandom 0.2.17",
- "hex",
- "k256",
- "prost",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
-name = "selfcast-wasm"
-version = "0.0.1"
-dependencies = [
- "selfcast-core",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]

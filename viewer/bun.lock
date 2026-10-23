@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "selfcast-viewer",
+      "name": "paircaster-viewer",
       "dependencies": {
         "pair-ui": "github:cyberchitta/pair-ui#a7ff54f06edecea10760dbdf21453a31f7f75149",
         "preact": "11.0.1",

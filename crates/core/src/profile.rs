@@ -94,7 +94,7 @@ impl Profile {
 /// shard has been read.
 ///
 /// ```
-/// use selfcast_core::profile::FollowerTally;
+/// use paircaster_core::profile::FollowerTally;
 /// let mut tally = FollowerTally::default();
 /// assert!(tally.add_page(&[5, 6]));
 /// assert!(tally.add_page(&[7, 5]));
@@ -123,7 +123,7 @@ impl FollowerTally {
     /// `cap` followers have been seen.
     ///
     /// ```
-    /// use selfcast_core::profile::{FollowerTally, Followers};
+    /// use paircaster_core::profile::{FollowerTally, Followers};
     /// let mut tally = FollowerTally::default();
     /// assert_eq!(tally.step(&[1, 2], true, Some(3)), None);
     /// assert_eq!(tally.step(&[3, 4], true, Some(3)), Some(Followers::AtLeast(4)));

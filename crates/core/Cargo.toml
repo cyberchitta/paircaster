@@ -1,5 +1,5 @@
 [package]
-name = "selfcast-core"
+name = "paircaster-core"
 description = "Higher-level Farcaster API over your own Snapchain node"
 version.workspace = true
 edition.workspace = true

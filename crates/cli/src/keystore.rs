@@ -1,5 +1,5 @@
-//! App keys on disk, under `$XDG_CONFIG_HOME/selfcast/keys`, else
-//! `~/.config/selfcast/keys`. The directory is mode 0700 and every file in
+//! App keys on disk, under `$XDG_CONFIG_HOME/paircaster/keys`, else
+//! `~/.config/paircaster/keys`. The directory is mode 0700 and every file in
 //! it 0600; a directory open to others is refused.
 //!
 //! - `<fid>-<public key hex>.key`: the app key's secret, as hex.
@@ -17,8 +17,8 @@ use std::io::{self, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use selfcast_core::build::AppKey;
-use selfcast_core::cast::SignerKey;
+use paircaster_core::build::AppKey;
+use paircaster_core::cast::SignerKey;
 use zeroize::Zeroizing;
 
 use crate::invocation;
@@ -36,9 +36,9 @@ pub enum KeyStoreError {
     TooOpen { path: PathBuf, mode: u32 },
     #[error("{path} is readable by other users (mode {mode:o}); run: chmod 600 {path}")]
     KeyTooOpen { path: PathBuf, mode: u32 },
-    #[error("{path} is not a Selfcast app key: {reason}")]
+    #[error("{path} is not a Paircaster app key: {reason}")]
     BadKeyFile { path: PathBuf, reason: &'static str },
-    #[error("no app key saved{}; run `{} key add` first", for_fid(*.fid), invocation::selfcast())]
+    #[error("no app key saved{}; run `{} key add` first", for_fid(*.fid), invocation::paircaster())]
     NoKey { fid: Option<u64> },
     #[error("several app keys saved; pass --fid to pick the account, or remove all but one: {}", list(.0))]
     SeveralKeys(Vec<PathBuf>),
@@ -74,7 +74,7 @@ pub struct KeyStore {
 
 impl KeyStore {
     pub fn open() -> Result<Self, KeyStoreError> {
-        Self::at(config_dir()?.join("selfcast").join("keys"))
+        Self::at(config_dir()?.join("paircaster").join("keys"))
     }
 
     /// The store in `dir`, created 0700 if missing.
@@ -253,12 +253,12 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
 
-    use selfcast_core::build::AppKey;
+    use paircaster_core::build::AppKey;
 
     use super::{KeyStore, KeyStoreError};
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("selfcast-ks-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("paircaster-ks-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir
     }

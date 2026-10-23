@@ -1,4 +1,4 @@
-//! The JSON the reads produce: `selfcast <read> --json`, and the same text
+//! The JSON the reads produce: `paircaster <read> --json`, and the same text
 //! from the viewer's WebAssembly. An external format the agent skill, the
 //! viewer and pages built on it depend on. Each shape is version 1. A new
 //! field keeps the `version`, so readers ignore fields they do not know; a
@@ -15,7 +15,7 @@ use crate::profile::{self, Names, Profile, Users};
 use crate::reaction::CastReactions;
 use crate::thread::{ChainTop, Thread};
 
-/// `selfcast profile <fid> --json`, version 1:
+/// `paircaster profile <fid> --json`, version 1:
 ///
 /// ```json
 /// {
@@ -60,7 +60,7 @@ pub fn profile_json(p: &Profile) -> String {
     })
 }
 
-/// `selfcast feed <fid> --json`, version 1:
+/// `paircaster feed <fid> --json`, version 1:
 ///
 /// ```json
 /// {
@@ -104,7 +104,7 @@ pub fn feed_json(fid: u64, items: &[FeedItem], users: &Users) -> String {
     })
 }
 
-/// `selfcast casts <fid>... --json`, version 1:
+/// `paircaster casts <fid>... --json`, version 1:
 ///
 /// ```json
 /// { "version": 1, "fids": [2, 3], "casts": [ … ], "accounts": [ … ] }
@@ -122,7 +122,7 @@ pub fn casts_json(fids: &[u64], items: &[FeedItem], users: &Users) -> String {
     })
 }
 
-/// `selfcast channel <URL> --json`, version 1:
+/// `paircaster channel <URL> --json`, version 1:
 ///
 /// ```json
 /// { "version": 1, "channel": "https://warpcast.com/~/channel/fc-updates", "casts": [ … ], "accounts": [ … ] }
@@ -140,7 +140,7 @@ pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], users: &Users) -> 
     })
 }
 
-/// One line of `selfcast events --json`, version 1. A message event:
+/// One line of `paircaster events --json`, version 1. A message event:
 ///
 /// ```json
 /// { "version": 1, "shard": 1, "id": 804707024897, "block": 49115419,
@@ -225,7 +225,7 @@ fn event_mention_v1(m: &Mention) -> EventMentionV1 {
     }
 }
 
-/// `selfcast replies <FID:HASH> --json`, version 1:
+/// `paircaster replies <FID:HASH> --json`, version 1:
 ///
 /// ```json
 /// { "version": 1, "parent": { "fid": 37, "hash": "0x…" }, "casts": [ … ], "accounts": [ … ] }
@@ -244,7 +244,7 @@ pub fn replies_json(parent: &CastRef, items: &[FeedItem], users: &Users) -> Stri
     })
 }
 
-/// `selfcast thread <FID:HASH> --json`, version 1:
+/// `paircaster thread <FID:HASH> --json`, version 1:
 ///
 /// ```json
 /// {
@@ -276,7 +276,7 @@ pub fn thread_json(t: &Thread, users: &Users) -> String {
     })
 }
 
-/// `selfcast followers <account> --json` and `selfcast following <account>
+/// `paircaster followers <account> --json` and `paircaster following <account>
 /// --json`, version 1:
 ///
 /// ```json
@@ -312,7 +312,7 @@ fn follow_v1(f: &Follow) -> AccountAtV1 {
     }
 }
 
-/// `selfcast addresses <account> --json`, version 1:
+/// `paircaster addresses <account> --json`, version 1:
 ///
 /// ```json
 /// {
@@ -345,7 +345,7 @@ pub fn addresses_json(fid: u64, addresses: &[Address]) -> String {
     })
 }
 
-/// `selfcast reactions <FID:HASH> --json`, version 1:
+/// `paircaster reactions <FID:HASH> --json`, version 1:
 ///
 /// ```json
 /// {

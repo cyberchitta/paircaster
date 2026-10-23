@@ -16,8 +16,8 @@ mod write;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use selfcast_core::Node;
-use selfcast_core::account::Account;
+use paircaster_core::Node;
+use paircaster_core::account::Account;
 
 /// Where a node's HTTP API answers when `--node` is not given: Snapchain's
 /// own compose file publishes it on this port.
@@ -118,14 +118,14 @@ enum NodeCommand {
     /// Pause the snapshot download. Everything downloaded stays on disk.
     Pause(control::PauseArgs),
     /// Resume the snapshot download in the background, logging to
-    /// selfcast-fetch.log in the install directory.
+    /// paircaster-fetch.log in the install directory.
     Resume(control::ResumeArgs),
 }
 
 #[derive(Debug, thiserror::Error)]
 enum CliError {
     #[error(transparent)]
-    Core(#[from] selfcast_core::Error),
+    Core(#[from] paircaster_core::Error),
     #[error(transparent)]
     Snapshot(#[from] snapshot::SnapshotError),
     #[error(transparent)]
@@ -199,7 +199,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
 
 async fn send(
     node: &str,
-    (action, flags): (selfcast_core::build::Action, write::WriteFlags),
+    (action, flags): (paircaster_core::build::Action, write::WriteFlags),
     json: bool,
 ) -> Result<(), CliError> {
     write::send(&Node::new(node)?, action, flags, json).await

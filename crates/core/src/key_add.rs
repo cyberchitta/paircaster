@@ -4,7 +4,7 @@
 //! The custody key makes two EIP-712 signatures, both in the domain
 //! `Farcaster KeyAdd`, version 1, chain id 1, with no verifying contract:
 //! `KeyAdd` over the key and its terms, and `SignedKeyRequest` naming the
-//! app that asked for the key. Selfcast is not a registered app, so the
+//! app that asked for the key. Paircaster is not a registered app, so the
 //! account requests its own key: `requestFid` is the account's FID and the
 //! request is signed by the same custody key. Types and field order follow
 //! snapchain v0.14.3 `src/core/validations/key.rs` (`key_add_types`,

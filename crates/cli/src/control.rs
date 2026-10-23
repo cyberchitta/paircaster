@@ -1,4 +1,4 @@
-//! `selfcast node pause` and `selfcast node resume`: stop and restart the
+//! `paircaster node pause` and `paircaster node resume`: stop and restart the
 //! snapshot download without finding its process by hand.
 //!
 //! The running download is the process holding the download lock
@@ -27,7 +27,7 @@ use crate::invocation;
 use crate::snapshot::{self, Observed};
 
 const CAFFEINATE: &str = "/usr/bin/caffeinate";
-const LOG: &str = "selfcast-fetch.log";
+const LOG: &str = "paircaster-fetch.log";
 /// How long to wait for a download to stop, or to start.
 const WAIT_TRIES: u32 = 50;
 const WAIT_EVERY: Duration = Duration::from_millis(200);

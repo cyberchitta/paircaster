@@ -1,10 +1,10 @@
 mod common;
 
 use common::fixture_messages;
+use paircaster_core::message::verify;
+use paircaster_core::proto::json::message_from_json;
+use paircaster_core::proto::{CastAddBody, CastType, MessageData};
 use prost::Message as _;
-use selfcast_core::message::verify;
-use selfcast_core::proto::json::message_from_json;
-use selfcast_core::proto::{CastAddBody, CastType, MessageData};
 
 const SIGNED_FIXTURES: &[&str] = &[
     "castsByFid-3.json",
@@ -19,7 +19,7 @@ const SIGNED_FIXTURES: &[&str] = &[
 ];
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn every_fixture_cast_reaction_and_link_reencodes_to_its_hash_and_signature() {
     let messages: Vec<_> = SIGNED_FIXTURES
         .iter()
@@ -50,7 +50,7 @@ fn every_fixture_cast_reaction_and_link_reencodes_to_its_hash_and_signature() {
 }
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn every_fixture_message_data_decodes_back_from_its_encoding() {
     let mismatches: Vec<String> = SIGNED_FIXTURES
         .iter()

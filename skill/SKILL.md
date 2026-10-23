@@ -1,11 +1,11 @@
 ---
-name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+name: paircaster
+description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
 ---
 
-# selfcast
+# paircaster
 
-`selfcast` is a command-line client for Farcaster that talks to the user's
+`paircaster` is a command-line client for Farcaster that talks to the user's
 own Snapchain node, by default at `http://localhost:3381`. No API keys, no
 hosted service.
 
@@ -43,7 +43,7 @@ blocks.
 `~/snapchain` by default. Pass it to every `node` command when the user's
 install is elsewhere.
 
-### Checking: `selfcast node status --json`
+### Checking: `paircaster node status --json`
 
 Read-only. Use it whenever the user asks how the node is doing, and after
 every `pause` or `resume`. Do not watch the download with `ps`, `du` or the
@@ -60,7 +60,7 @@ address is `localhost`, but it is not this machine's node.
 
 If `status` fails with `not permitted to connect`, your shell's sandbox is
 blocking network access, so nothing is known about the node: say so, and
-tell the user `selfcast` needs network access (in Codex,
+tell the user `paircaster` needs network access (in Codex,
 `-c sandbox_workspace_write.network_access=true`). Do not report the node
 as stopped.
 
@@ -93,7 +93,7 @@ When you report, give the user the numbers that matter: the phase, how far
 along (chunks or shards, as a percentage), the speed in MB/s
 (`bytes_per_second` / 1,000,000) and the time left, and anything to act on.
 
-### Pausing and resuming: `selfcast node pause`, `selfcast node resume`
+### Pausing and resuming: `paircaster node pause`, `paircaster node resume`
 
 These change what runs on the user's machine. Run them only when the user
 asks. Both print a line of plain text, not JSON. Follow either with
@@ -101,7 +101,7 @@ asks. Both print a line of plain text, not JSON. Follow either with
 
 - `node resume` starts the download in the background, or picks it up where
   it stopped, and prints the process ID and the log path,
-  `<dir>/selfcast-fetch.log`. It also finishes an interrupted unpack. If a
+  `<dir>/paircaster-fetch.log`. It also finishes an interrupted unpack. If a
   download is already running, or the snapshot is already unpacked, it says
   so and changes nothing (exit 0). `--jobs <n>` sets how many chunks download
   at once (default 4).
@@ -118,13 +118,13 @@ shows `running: false`.
 
 ### Do not run
 
-- `selfcast node fetch-snapshot`. It is the same download in the
+- `paircaster node fetch-snapshot`. It is the same download in the
   foreground, and it runs for hours. Use `node resume`.
 - `fetch-snapshot --fresh`. It discards every chunk downloaded so far and
   starts from the newest snapshot. If the user wants to start over, say
   what it discards (a slow download is usually the network, which starting
   over does not fix), and give them the command to run in their own
-  terminal: `selfcast node pause`, then `selfcast node fetch-snapshot
+  terminal: `paircaster node pause`, then `paircaster node fetch-snapshot
   --fresh`. To continue it later, use `node resume`, not `--fresh` again,
   which starts over each time.
 - `./snapchain.sh up`, or anything else that starts or stops the node,
@@ -144,7 +144,7 @@ exit 1. While the node is syncing it may simply not have the name yet.
 
 ### Check the node first
 
-Before the first read in a conversation, run `selfcast node status --json`.
+Before the first read in a conversation, run `paircaster node status --json`.
 Reads work in `syncing` as well as `ready`, but while syncing the node
 holds only what it has caught up to: nothing newer than each shard's
 `seconds_behind`. Say so when you answer, with the lag in hours, for
@@ -159,7 +159,7 @@ An account's data lives on one shard, and the CLI does not say which, so
 quote the largest `seconds_behind`. In any other phase there is no node to
 read from: report the phase instead.
 
-### `selfcast profile <account> --json`
+### `paircaster profile <account> --json`
 
 ```json
 {"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":10000,"followers_exact":false}
@@ -179,7 +179,7 @@ first, cold read, and balajis.eth on `crackle` did not finish in 120
 seconds.
 Use it only when the user wants the exact number, once per account.
 
-### `selfcast followers <account> --json`, `selfcast following <account> --json`
+### `paircaster followers <account> --json`, `paircaster following <account> --json`
 
 The accounts that follow `<account>`, or that it follows, newest follow
 first:
@@ -194,7 +194,7 @@ The list is `followers` or `following`, each `{fid, timestamp}` with
 the totals, so say when a list is not all of them. An account the node has
 no registration for exits 1.
 
-### `selfcast addresses <account> --json`
+### `paircaster addresses <account> --json`
 
 The wallet addresses an account has verified, oldest first:
 
@@ -209,7 +209,7 @@ the account proved it controls, not the address that owns the account (its
 custody address). An account with none gives `"addresses":[]`; one the
 node has no registration for exits 1.
 
-### `selfcast casts <account>... --json`
+### `paircaster casts <account>... --json`
 
 The newest casts of one or more accounts, merged, newest first. Accounts
 are separate arguments or comma-separated. `fids` in the output lists each
@@ -250,14 +250,14 @@ An FID with no account gives `"casts":[]` and exit 0, the same as an
 account that never cast. Check with `profile` before saying an account is
 quiet.
 
-### `selfcast feed <account> --json`
+### `paircaster feed <account> --json`
 
 The same as `casts`, over every account `<account>` follows: what that account
 would see. The shape is `{"version":1,"fid":…,"casts":[…],"accounts":[…]}`,
 with casts and accounts as above. It reads each followed account, eight at a time, so an account
 following thousands is slow. For a short named list, use `casts`.
 
-### `selfcast channel <URL> --json`
+### `paircaster channel <URL> --json`
 
 The newest casts posted in a channel, newest first. A channel is the URL
 its casts name as `parent` (`{"url": …}`), so take it from a cast posted
@@ -271,7 +271,7 @@ Replies in the channel are not included (their parent is a cast): use
 `replies` or `thread` on a cast. `--limit` (default 20, at most 1000) and
 the app filters work as for `casts`.
 
-### `selfcast events --json`
+### `paircaster events --json`
 
 What the node's shards merged, pruned and revoked, block by block: the
 network's recent activity, for counting, and the only way to find casts by
@@ -310,7 +310,7 @@ only for those days: say which days the count covers (the first line's
 days, about 176,000 lines and 54 MB. Count a day, for example:
 
 ```
-selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
 ```
 
 gave `{"casts":9421,"accounts":2427}`. Events carry no `app_fid`: the
@@ -320,7 +320,7 @@ To find casts on a subject, filter the `cast_add` merges on their text in
 the same pipe. Three days took under five seconds:
 
 ```
-selfcast events --since 2026-10-20T11:04:33Z --json | jq -c 'select(.event == "merge" and .type == "cast_add" and (.text | test("singapor"; "i"))) | {fid, hash, text}'
+paircaster events --since 2026-10-20T11:04:33Z --json | jq -c 'select(.event == "merge" and .type == "cast_add" and (.text | test("singapor"; "i"))) | {fid, hash, text}'
 ```
 
 gave 1,444 lines, most of them one templated vote post: group by text
@@ -329,7 +329,7 @@ names the subject only in an image or a link. Do not fetch casts one by one
 from the node's HTTP API instead: it drops requests under load, and the
 text is already here.
 
-### `selfcast replies <FID:HASH> --json`
+### `paircaster replies <FID:HASH> --json`
 
 The direct replies to one cast, oldest first. The shape is
 `{"version":1,"parent":{"fid":…,"hash":"0x…"},"casts":[…],"accounts":[…]}`,
@@ -345,7 +345,7 @@ with casts and accounts as above. Example, the replies from one app (here the te
 included: run `replies` again on the reply. A cast with no replies, and a
 cast the node does not hold, both give `"casts":[]`.
 
-### `selfcast thread <FID:HASH> --json`
+### `paircaster thread <FID:HASH> --json`
 
 A cast in its conversation: the casts it replies to, root first, then the
 cast, then its direct replies, oldest first. The shape is
@@ -358,7 +358,7 @@ node does not hold, `{"cut":{"fid","hash"}}` after 50 casts, naming the next
 one up (run `thread` on it for more). `--limit` caps the replies as in
 `replies`. A cast the node does not hold exits 1.
 
-### `selfcast reactions <FID:HASH> --json`
+### `paircaster reactions <FID:HASH> --json`
 
 Who liked and who recast one cast, each oldest first:
 
@@ -408,10 +408,10 @@ can find it on the page. Print casts in the reply only when no page is
 open, or when the user asks for the text.
 
 ```
-selfcast viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
-selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened
-selfcast viewer open <MONIKER>     # show what a selfcast moniker names (below)
-selfcast viewer state              # what the page shows: thread or list, marked casts, Back trail
+paircaster viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
+paircaster viewer open <FID:HASH>    # show that cast's thread; prints what it opened
+paircaster viewer open <MONIKER>     # show what a paircaster moniker names (below)
+paircaster viewer state              # what the page shows: thread or list, marked casts, Back trail
 ```
 
 A moniker names one view of the page, as one token. Each `<cast>` is a
@@ -419,9 +419,9 @@ A moniker names one view of the page, as one token. Each `<cast>` is a
 
 | Moniker | Shows |
 |---|---|
-| `selfcast://selfcast/thread/<cast>` | the cast's thread, as `open <cast>` does |
-| `selfcast://selfcast/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and only those of its direct replies, in the order given; the rest fold into a "Show all" button |
-| `selfcast://selfcast/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
+| `paircaster://paircaster/thread/<cast>` | the cast's thread, as `open <cast>` does |
+| `paircaster://paircaster/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and only those of its direct replies, in the order given; the rest fold into a "Show all" button |
+| `paircaster://paircaster/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
 
 Any of them may end `#cast=<cast>,…`, which marks those casts and scrolls
 to the first. Use `?only=` to show the user the replies an answer is
@@ -433,7 +433,7 @@ something to the shell.
 
 - **`serve` keeps running.** Run it in the background, or ask the user to
   run it in a terminal, and give them the address it prints to open. It
-  reads from `--node`, and the page can reach only that node. A selfcast
+  reads from `--node`, and the page can reach only that node. A paircaster
   built without the `viewer` feature says so and serves nothing.
 - `open` and `state` go to the page `serve` hosts when it is running, and
   otherwise to Shala. Exit 1, with the page's or the host's reason, when it
@@ -446,7 +446,7 @@ something to the shell.
   with `casts`; `selected` lists the marked casts or is `null`; `back` holds
   what Back returns to, each as `open` takes it), and `user_selected` what
   the user chose. In Shala, when `shala selection` says the user was last in
-  selfcast's app, this is where to look.
+  paircaster's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
 - **Profile pictures only with `serve --images`.** Each then loads from
@@ -480,7 +480,7 @@ The write commands are `cast`, `delete`, `react`, `unreact`, `follow`,
 `unfollow` and `resend`. Each is its own subcommand, so the user's harness
 can gate each one separately (*Gating writes in the harness*, below).
 
-### The app key: `selfcast key add` is the user's, not yours
+### The app key: `paircaster key add` is the user's, not yours
 
 A write is signed with an **app key**, which can only post as the account:
 casts, reactions and follows, each with its undo. It cannot move funds,
@@ -488,16 +488,16 @@ change the account's profile, or change who owns the account. The key that
 owns the account comes from the **recovery phrase** (seed phrase), and it
 can do all of those.
 
-- **Never run `selfcast key add`.** Tell the user to run it in their own
+- **Never run `paircaster key add`.** Tell the user to run it in their own
   terminal. It reads the recovery phrase from the keyboard only, never from
   a pipe, a file, an argument or the environment.
 - **Never ask for a recovery phrase, and never accept one.** If the user
   pastes one into the conversation, do not repeat it, store it, or pass it
   to any command. Tell them it is now in this transcript, that they should
   treat that account as exposed, and that they should only use a test
-  account with Selfcast.
+  account with Paircaster.
 - Do not open, read, copy or list the key files under
-  `~/.config/selfcast/keys` (or `$XDG_CONFIG_HOME/selfcast/keys`).
+  `~/.config/paircaster/keys` (or `$XDG_CONFIG_HOME/paircaster/keys`).
 
 What `key add` sets up, as built:
 
@@ -513,7 +513,7 @@ What `key add` sets up, as built:
 **Removing a key keeps what it signed.** The node does not delete the
 casts, reactions or follows an app key made when the key is removed
 (from Snapchain 0.14.3's source; not yet seen on a node). Delete those
-first if that is the goal. Selfcast has no `key remove`
+first if that is the goal. Paircaster has no `key remove`
 command yet.
 
 ### What each write does
@@ -532,7 +532,7 @@ for several accounts are saved. `cast` also takes `--reply-to` and
 | `resend` | Sends again any message an earlier write saved but did not see arrive. It does not ask: each one was approved when first written. |
 
 A write counts as done only once the node is seen to hold it. Before it is
-sent, the signed message is saved to an outbox (`~/.config/selfcast/outbox`).
+sent, the signed message is saved to an outbox (`~/.config/paircaster/outbox`).
 
 `--json` output, version 1:
 
@@ -579,7 +579,7 @@ or translate it.
 For every write:
 
 1. Run it with `--dry-run --json`, and the subcommand first:
-   `selfcast cast "gm" --dry-run --json`. This signs the message, prints
+   `paircaster cast "gm" --dry-run --json`. This signs the message, prints
    what it does to stderr, and asks the node whether it would accept it.
    Nothing is saved or sent.
 2. Show the user the stderr text **exactly as printed**, in a code block.
@@ -617,7 +617,7 @@ prints. Never drop the harness's prompt yourself (*below*).
 
 Each write is its own subcommand so that a harness can gate it apart from
 the reads. Recommend that the user's harness let reads run, ask before each
-write, and refuse `selfcast key` to the agent. Do not change any permission
+write, and refuse `paircaster key` to the agent. Do not change any permission
 setting yourself. How to express this, and whether it holds in every mode,
 is the harness's own; check its documentation.
 
@@ -627,17 +627,17 @@ Tried once in Claude Code, on 2026-10-21, with these rules in
 ```json
 {
   "permissions": {
-    "ask": ["Bash(*selfcast cast *)", "Bash(*selfcast delete *)", "Bash(*selfcast react *)",
-            "Bash(*selfcast unreact *)", "Bash(*selfcast follow *)", "Bash(*selfcast unfollow *)",
-            "Bash(*selfcast resend*)"],
-    "deny": ["Bash(*selfcast key *)"]
+    "ask": ["Bash(*paircaster cast *)", "Bash(*paircaster delete *)", "Bash(*paircaster react *)",
+            "Bash(*paircaster unreact *)", "Bash(*paircaster follow *)", "Bash(*paircaster unfollow *)",
+            "Bash(*paircaster resend*)"],
+    "deny": ["Bash(*paircaster key *)"]
   }
 }
 ```
 
-- The `deny` rule held: `target/release/selfcast key --help` was refused.
-- The `ask` rules did not prompt. With `--node` between `selfcast` and
-  `cast` the pattern cannot match, so always write `selfcast`, then the
+- The `deny` rule held: `target/release/paircaster key --help` was refused.
+- The `ask` rules did not prompt. With `--node` between `paircaster` and
+  `cast` the pattern cannot match, so always write `paircaster`, then the
   subcommand, then its arguments and flags. The session was also in auto
   mode, which ran the write without a prompt. Whether the `ask` rules
   prompt outside auto mode was not tried.
@@ -647,5 +647,5 @@ Tried once in Claude Code, on 2026-10-21, with these rules in
 gets past them. They are a convenience, not a boundary. On the user's own
 machine an agent with a shell can send anything the app key allows. What
 holds is the key's scope: casts, deletes, reactions and follows, never the
-account, its funds or its keys; and `selfcast key add` reads the phrase
+account, its funds or its keys; and `paircaster key add` reads the phrase
 only from a terminal, which an agent's shell does not have.

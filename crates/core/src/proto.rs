@@ -1,9 +1,9 @@
-//! Hand-written protobuf structs for the Farcaster messages Selfcast reads and
+//! Hand-written protobuf structs for the Farcaster messages Paircaster reads and
 //! writes.
 //!
 //! Each type mirrors `proto/definitions/message.proto` in snapchain v0.14.3
 //! (GPL-3.0, so neither vendored nor generated from); the line cited on each
-//! item is in that file. Only the messages and bodies Selfcast uses are here.
+//! item is in that file. Only the messages and bodies Paircaster uses are here.
 //! `prost` encodes fields in tag order, the order snapchain's own
 //! `encode_to_vec` uses when it hashes a message without `data_bytes`.
 //!
@@ -13,7 +13,7 @@
 //! values cannot be read from the node's JSON.
 //!
 //! Timestamps here are the raw protocol value, seconds since 2021-01-01 UTC:
-//! these are the wire format, not the types the rest of Selfcast works with.
+//! these are the wire format, not the types the rest of Paircaster works with.
 
 mod cast_add;
 pub mod json;
@@ -56,7 +56,7 @@ pub struct MessageData {
     pub body: Option<Body>,
 }
 
-/// The `body` oneof of `MessageData`, limited to the bodies Selfcast uses.
+/// The `body` oneof of `MessageData`, limited to the bodies Paircaster uses.
 /// `message.proto:29`.
 #[derive(Clone, PartialEq, prost::Oneof)]
 pub enum Body {
@@ -98,7 +98,7 @@ pub enum SignatureScheme {
     Ed25519 = 1,
 }
 
-/// The message types Selfcast reads and writes. `message.proto:69`.
+/// The message types Paircaster reads and writes. `message.proto:69`.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, prost::Enumeration, Deserialize,
 )]

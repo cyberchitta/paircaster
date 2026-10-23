@@ -1,4 +1,4 @@
-// The results of the reads other than `thread`: what `selfcast <read>
+// The results of the reads other than `thread`: what `paircaster <read>
 // --json` prints, version 1 (crates/core/src/output.rs, which documents
 // each field).
 

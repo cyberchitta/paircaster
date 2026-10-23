@@ -9,13 +9,13 @@
 use alloy_dyn_abi::TypedData;
 use alloy_primitives::{Address, Signature};
 use alloy_sol_types::{SolType, sol};
+use paircaster_core::build::{Action, AppKey, BuildError, Envelope, sign};
+use paircaster_core::custody::{CustodyError, CustodyKey};
+use paircaster_core::key_add::{KeyAddError, KeyRequest, MAX_TTL_SECS, authorize};
+use paircaster_core::node::parse;
+use paircaster_core::proto::{FarcasterNetwork, KeyAddBody, MessageType};
+use paircaster_core::time::Timestamp;
 use prost::Message as _;
-use selfcast_core::build::{Action, AppKey, BuildError, Envelope, sign};
-use selfcast_core::custody::{CustodyError, CustodyKey};
-use selfcast_core::key_add::{KeyAddError, KeyRequest, MAX_TTL_SECS, authorize};
-use selfcast_core::node::parse;
-use selfcast_core::proto::{FarcasterNetwork, KeyAddBody, MessageType};
-use selfcast_core::time::Timestamp;
 
 /// Published test phrases and the address each gives at m/44'/60'/0'/0/0:
 /// Hardhat's and Anvil's default account, and the BIP-39 all-`abandon`

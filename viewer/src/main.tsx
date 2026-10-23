@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import { makeRuntime, type Selfcast } from "./runtime";
+import { makeRuntime, type Paircaster } from "./runtime";
 import { type Answer, connect } from "pair-ui/page";
 import {
   type Account,
@@ -17,7 +17,7 @@ import {
 
 // The node the CLI reads when --node is not given.
 const DEFAULT_NODE = "http://localhost:3381";
-// The tell bodies this build takes: `{ selfcast: 1, get: "state" }`.
+// The tell bodies this build takes: `{ paircaster: 1, get: "state" }`.
 const PROTOCOL = 1;
 // The most casts one moniker may name.
 const MAX_LISTED = 50;
@@ -28,7 +28,7 @@ const COUNTING = 6;
 // page opened as a plain file has no host.
 const host = await connect();
 
-// What a moniker names, after `selfcast://<project>/`: `thread/<cast>`, with
+// What a moniker names, after `paircaster://<project>/`: `thread/<cast>`, with
 // `?only=<reply>,…` to show only those replies, in that order; or
 // `casts/<cast>,…`, casts from anywhere, in that order. Either may end
 // `#cast=<cast>,…` to mark casts it shows.
@@ -44,7 +44,7 @@ type View = { shown: Shown | null; error: string | null; loading: boolean };
 type Tally = { likes: number; recasts: number };
 
 // Where the page is, as the host keeps it across restarts. `at` and each of
-// `trail` are what `selfcast viewer open` takes: a cast for a whole thread,
+// `trail` are what `paircaster viewer open` takes: a cast for a whole thread,
 // else a moniker.
 type Place = { node: string; at: string; trail: string[] };
 
@@ -68,7 +68,7 @@ function App() {
   const [trail, setTrail] = useState<string[]>([]);
   const [marked, setMarked] = useState<string[]>([]);
   const [tallies, setTallies] = useState<Map<string, Tally>>(new Map());
-  const runtime = useRef<Selfcast | null>(null);
+  const runtime = useRef<Paircaster | null>(null);
   const latest = useRef(0);
   const live = useRef<Live>({ node: DEFAULT_NODE, spot: null, shown: null, marked: [], trail: [], userSelected: null });
   live.current = { ...live.current, shown: view.shown, marked, trail };
@@ -101,7 +101,7 @@ function App() {
 
   // Fills in each shown cast's likes and recasts as they arrive, a few at a
   // time, after the page is drawn; a later load stops it.
-  const countReactions = (rt: Selfcast, casts: Cast[], seq: number) => {
+  const countReactions = (rt: Paircaster, casts: Cast[], seq: number) => {
     const queue = casts.map(refOf);
     const worker = async () => {
       for (let ref = queue.shift(); ref && seq === latest.current; ref = queue.shift()) {
@@ -162,7 +162,7 @@ function App() {
     point(spot, refOf(cast));
   };
 
-  if (!host) return <p class="note">Open this page with <code>selfcast viewer open</code>.</p>;
+  if (!host) return <p class="note">Open this page with <code>paircaster viewer open</code>.</p>;
   const shown = view.shown;
   if (!shown) {
     if (view.error || view.loading) return <p class="note">{view.error ?? "Reading the node…"}</p>;
@@ -196,7 +196,7 @@ function App() {
   );
 }
 
-const SCHEME = "selfcast";
+const SCHEME = "paircaster";
 const CAST = /^\d+:0x[0-9a-f]{40}$/i;
 const base = () => `${SCHEME}://${host!.project}/`;
 
@@ -205,7 +205,7 @@ function monikerOf(spot: Spot): string {
   return `${base()}thread/${spot.cast}${spot.only ? `?only=${spot.only.join(",")}` : ""}`;
 }
 
-// A whole thread by its cast, the form `selfcast viewer open` takes most.
+// A whole thread by its cast, the form `paircaster viewer open` takes most.
 const atOf = (spot: Spot) => (spot.kind === "thread" && !spot.only ? spot.cast : monikerOf(spot));
 
 // A cast or a moniker, into what it shows and marks; throws on anything else.
@@ -245,13 +245,13 @@ function list(text: string, at: string): string[] {
 
 // A cast's thread, with any failure naming the cast, so a refused list says
 // which of its casts the node could not give.
-function threadOf(runtime: Selfcast, cast: string, options?: { limit?: number }): Promise<Thread> {
+function threadOf(runtime: Paircaster, cast: string, options?: { limit?: number }): Promise<Thread> {
   return runtime.thread(cast, options).catch((e: unknown) => {
     throw new Error(`${cast}: ${e instanceof Error ? e.message : String(e)}`);
   });
 }
 
-async function read(runtime: Selfcast, spot: Spot): Promise<Shown> {
+async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
   if (spot.kind === "casts") {
     const threads = await Promise.all(spot.casts.map((c) => threadOf(runtime, c, { limit: 1 })));
     const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
@@ -290,8 +290,8 @@ async function reveal(load: (place: Place) => Promise<Shown | null>, now: Live, 
 }
 
 async function tell(now: Live, body: unknown): Promise<Answer> {
-  if (!isObject(body) || body.selfcast !== PROTOCOL) {
-    return { ok: false, message: `this page takes selfcast: ${PROTOCOL}; run the selfcast that built it` };
+  if (!isObject(body) || body.paircaster !== PROTOCOL) {
+    return { ok: false, message: `this page takes paircaster: ${PROTOCOL}; run the paircaster that built it` };
   }
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
   const common = { node: now.node, user_selected: now.userSelected };

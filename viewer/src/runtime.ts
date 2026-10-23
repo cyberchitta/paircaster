@@ -1,12 +1,12 @@
-// What a page built on Selfcast can use: the reads, named after the CLI and
-// returning what `selfcast <read> --json` prints, run in the page through
-// selfcast-core compiled to WebAssembly. Reads only: a page holds no keys
+// What a page built on Paircaster can use: the reads, named after the CLI and
+// returning what `paircaster <read> --json` prints, run in the page through
+// paircaster-core compiled to WebAssembly. Reads only: a page holds no keys
 // and cannot write.
 //
 // The viewer is the first page built on this. A page an agent writes would
-// use the same object, found at `window.selfcast`.
+// use the same object, found at `window.paircaster`.
 
-import * as wasm from "../wasm/selfcast_wasm.js";
+import * as wasm from "../wasm/paircaster_wasm.js";
 import wasmBase64 from "../wasm/module";
 import type {
   Addresses,
@@ -30,30 +30,30 @@ export type AccountName = number | string;
 export type AppOptions = { includeApp?: number[]; excludeApp?: number[] };
 export type CastOptions = { limit?: number } & AppOptions;
 
-export type Selfcast = {
+export type Paircaster = {
   // The node the page reads.
   node: string;
-  // `selfcast profile <account> [--all-followers]`.
+  // `paircaster profile <account> [--all-followers]`.
   profile(account: AccountName, options?: { allFollowers?: boolean }): Promise<Profile>;
-  // `selfcast feed <account>`; limit 1–1000, default 20.
+  // `paircaster feed <account>`; limit 1–1000, default 20.
   feed(account: AccountName, options?: CastOptions): Promise<Feed>;
-  // `selfcast casts <account>,…`; limit 1–1000, default 20.
+  // `paircaster casts <account>,…`; limit 1–1000, default 20.
   casts(accounts: AccountName | AccountName[], options?: CastOptions): Promise<Casts>;
-  // `selfcast channel <url>`; limit 1–1000, default 20.
+  // `paircaster channel <url>`; limit 1–1000, default 20.
   channel(url: string, options?: CastOptions): Promise<Channel>;
-  // `selfcast addresses <account>`.
+  // `paircaster addresses <account>`.
   addresses(account: AccountName): Promise<Addresses>;
-  // `selfcast followers <account>`; limit 1–10000, default 100.
+  // `paircaster followers <account>`; limit 1–10000, default 100.
   followers(account: AccountName, options?: { limit?: number }): Promise<Followers>;
-  // `selfcast following <account>`; limit 1–10000, default 100.
+  // `paircaster following <account>`; limit 1–10000, default 100.
   following(account: AccountName, options?: { limit?: number }): Promise<Following>;
-  // `selfcast replies <fid:hash>`; limit 1–1000, default 100.
+  // `paircaster replies <fid:hash>`; limit 1–1000, default 100.
   replies(cast: string, options?: CastOptions): Promise<Replies>;
-  // `selfcast thread <fid:hash>`; limit 1–1000, default 100.
+  // `paircaster thread <fid:hash>`; limit 1–1000, default 100.
   thread(cast: string, options?: { limit?: number }): Promise<Thread>;
-  // `selfcast reactions <fid:hash>`.
+  // `paircaster reactions <fid:hash>`.
   reactions(cast: string): Promise<Reactions>;
-  // `selfcast events`, one event at a time, read a page of up to 10000
+  // `paircaster events`, one event at a time, read a page of up to 10000
   // underneath; `since` and `until` as the CLI takes them (2026-10-22 or
   // 2026-10-22T06:00:00Z). Leaving the loop early stops the reading.
   events(options?: { since?: string; until?: string; shard?: number }): AsyncIterable<Event>;
@@ -72,10 +72,10 @@ const nameOf = (account: AccountName) => String(account);
 const listOf = (a: AccountName | AccountName[]) => (Array.isArray(a) ? a : [a]).map(nameOf);
 const apps = (o: AppOptions) => [Float64Array.from(o.includeApp ?? []), Float64Array.from(o.excludeApp ?? [])] as const;
 
-export function makeRuntime(node: string): Selfcast {
+export function makeRuntime(node: string): Paircaster {
   load();
   const now = () => Math.floor(Date.now() / 1000);
-  const selfcast: Selfcast = {
+  const paircaster: Paircaster = {
     node,
     profile: async (account, o = {}) =>
       versioned(await wasm.profile(node, nameOf(account), o.allFollowers ?? false), "profile"),
@@ -96,8 +96,8 @@ export function makeRuntime(node: string): Selfcast {
     reactions: async (cast) => versioned(await wasm.reactions(node, cast), "reactions"),
     events: (o = {}) => events(node, o),
   };
-  (window as any).selfcast = selfcast;
-  return selfcast;
+  (window as any).paircaster = paircaster;
+  return paircaster;
 }
 
 async function* events(

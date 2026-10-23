@@ -2,17 +2,17 @@
 title: Using the client
 ---
 
-Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node, some of them taken while it was still catching up with the network.
+Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node, some of them taken while it was still catching up with the network. Paircaster was called Selfcast; output captured before the rename shows the old name.
 
-## Where to run selfcast
+## Where to run paircaster
 
-`selfcast node fetch-snapshot`, `pause`, `resume` and `status` are about the Snapchain installed on the machine you run them on: they read its install directory. Everything else, reads, writes and `key add`, only talks to a node's HTTP API, so it can run anywhere that reaches one. Without `--node`, that is the node on this machine, at `http://localhost:3381`.
+`paircaster node fetch-snapshot`, `pause`, `resume` and `status` are about the Snapchain installed on the machine you run them on: they read its install directory. Everything else, reads, writes and `key add`, only talks to a node's HTTP API, so it can run anywhere that reaches one. Without `--node`, that is the node on this machine, at `http://localhost:3381`.
 
-If the node is on a server, keep its API on the server's loopback (see [Ports](node.md#ports,-and-who-can-reach-your-node)) and reach it from your own machine through SSH: `ssh -N -L 3381:localhost:3381 you@your-server` makes the server's API answer at `localhost:3381` on your machine for as long as it runs. Reads and writes then work as they do on the server, and your app key stays on your own machine; the server holds no key. To ask how that node is doing from your machine, name it: `selfcast node status --node http://localhost:3381`. With `--node`, `status` reports only the node named, with no disk; without it, `status` describes this machine's own install. The server's download and disk are reported by `selfcast node status` run on the server.
+If the node is on a server, keep its API on the server's loopback (see [Ports](node.md#ports,-and-who-can-reach-your-node)) and reach it from your own machine through SSH: `ssh -N -L 3381:localhost:3381 you@your-server` makes the server's API answer at `localhost:3381` on your machine for as long as it runs. Reads and writes then work as they do on the server, and your app key stays on your own machine; the server holds no key. To ask how that node is doing from your machine, name it: `paircaster node status --node http://localhost:3381`. With `--node`, `status` reports only the node named, with no disk; without it, `status` describes this machine's own install. The server's download and disk are reported by `paircaster node status` run on the server.
 
 ```run
 ssh -N -L 3381:localhost:3381 you@your-server
-selfcast node status --node http://localhost:3381
+paircaster node status --node http://localhost:3381
 ```
 
 ```output
@@ -26,10 +26,10 @@ Reads work the same way through the tunnel. If the node behind it does not answe
 
 ## Accounts and FIDs
 
-A Farcaster account is a number, its *FID*: the protocol knows accounts only by FID, and every message names its author by one. A username is a name an account claims, which your node can look up. Wherever `selfcast` takes an account, it takes either, and the examples here use usernames:
+A Farcaster account is a number, its *FID*: the protocol knows accounts only by FID, and every message names its author by one. A username is a name an account claims, which your node can look up. Wherever `paircaster` takes an account, it takes either, and the examples here use usernames:
 
 ```run
-selfcast profile dwr
+paircaster profile dwr
 ```
 
 ```output
@@ -42,12 +42,12 @@ dwr  fid 3
   followers: at least 10000 (counting stopped; --all-followers counts them all)
 ```
 
-The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile dwr --all-followers` reads every one: 630,231 for this account, in 5 to 8 seconds, or 26 the first time, before the node had them cached.
+The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `paircaster` reads followers 1000 at a time and stops at 10,000. `paircaster profile dwr --all-followers` reads every one: 630,231 for this account, in 5 to 8 seconds, or 26 the first time, before the node had them cached.
 
-`selfcast following` and `selfcast followers` list them, the newest follow first, with when each was made:
+`paircaster following` and `paircaster followers` list them, the newest follow first, with when each was made:
 
 ```run
-selfcast following dwr --limit 3
+paircaster following dwr --limit 3
 ```
 
 ```output
@@ -73,7 +73,7 @@ curl -s 'http://localhost:3381/v1/userNameProofByName?name=vitalik.eth' | jq '{n
 ```
 
 ```run
-selfcast profile vitalik.eth
+paircaster profile vitalik.eth
 ```
 
 ```output
@@ -84,7 +84,7 @@ vitalik.eth  fid 5650
   followers: at least 10000 (counting stopped; --all-followers counts them all)
 ```
 
-A number on its own is taken as a FID. An fname can also be all digits, so write such a name with `@` before it: `selfcast profile @123` is the account named `123` (FID 1809), not FID 123. A name your node has no proof for is an error: `no account holds the username … on this node`. `selfcast` takes the FID from the proof and does not check it against the name the account has set for itself.
+A number on its own is taken as a FID. An fname can also be all digits, so write such a name with `@` before it: `paircaster profile @123` is the account named `123` (FID 1809), not FID 123. A name your node has no proof for is an error: `no account holds the username … on this node`. `paircaster` takes the FID from the proof and does not check it against the name the account has set for itself.
 
 An FID is issued on-chain, by Farcaster's ID registry contract on OP Mainnet (chain 10), to an Ethereum address: the account's *custody address*. The key behind that address comes from the account's recovery phrase and owns the account ([Adding an app key](#adding-an-app-key)). Your node records each registration, so it can say which FID an address owns. For the test account `@selfcast`, used in the examples below:
 
@@ -104,7 +104,7 @@ curl -s 'http://localhost:3381/v1/onChainIdRegistryEventByAddress?address=0x3375
 An account can also show *verified addresses*: wallets it has proved it controls, with a signature from the wallet, so others can see them on its profile. They do not own the account, and there can be several, Ethereum and Solana, with one of each marked *primary*. `@selfcast`'s are not its custody address:
 
 ```run
-selfcast addresses selfcast
+paircaster addresses paircaster
 ```
 
 ```output
@@ -117,7 +117,7 @@ The addresses are *verification* messages (`/v1/verificationsByFid`); which is p
 ## Casts, and what a message is
 
 ```run
-selfcast casts v,dwr --limit 3
+paircaster casts v,dwr --limit 3
 ```
 
 ```output
@@ -148,22 +148,22 @@ curl -s 'http://localhost:3381/v1/castsByFid?fid=3&pageSize=1&reverse=true' | jq
 }
 ```
 
-Everything an account does on Farcaster is a *message* like this one: a cast, a like, a follow, a profile field. The hash is the first 20 bytes of the BLAKE3 hash of the message's data, and `signer` is the public half of the *app key* that signed that hash with Ed25519. The timestamp counts seconds from 2021-01-01 UTC; `selfcast` shows it as an ordinary date. The node checks the signature and that the key belongs to the account, so nobody else can post as it.
+Everything an account does on Farcaster is a *message* like this one: a cast, a like, a follow, a profile field. The hash is the first 20 bytes of the BLAKE3 hash of the message's data, and `signer` is the public half of the *app key* that signed that hash with Ed25519. The timestamp counts seconds from 2021-01-01 UTC; `paircaster` shows it as an ordinary date. The node checks the signature and that the key belongs to the account, so nobody else can post as it.
 
 `--limit` (default 20, at most 1000) is also how many of each account's newest messages are read, so a removed cast counts against it, and there is no paging further back. Add `--json` to any read for output a program can use:
 
 ```run
-selfcast casts dwr --limit 1 --json
+paircaster casts dwr --limit 1 --json
 ```
 
 ```output
 {"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}],"accounts":[{"fid":3,"username":"dwr","display_name":"Dan Romero","pfp_url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/bc698287-5adc-4cc5-a503-de16963ed900/original"}]}
 ```
 
-A mention is not in a cast's `text`: the message carries the mentioned account's FID and a byte position, and a client writes the name in. `selfcast` looks the names up and writes them in for you, as `display_text` in JSON (`@fid:N` for an account with no username):
+A mention is not in a cast's `text`: the message carries the mentioned account's FID and a byte position, and a client writes the name in. `paircaster` looks the names up and writes them in for you, as `display_text` in JSON (`@fid:N` for an account with no username):
 
 ```run
-selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '.casts[] | select(.hash | startswith("0xeb68dbec")) | {text, display_text, mentions}'
+paircaster replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '.casts[] | select(.hash | startswith("0xeb68dbec")) | {text, display_text, mentions}'
 ```
 
 ```output
@@ -173,17 +173,17 @@ selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '.
 ## The feed
 
 ```run
-selfcast feed v --limit 5
+paircaster feed v --limit 5
 ```
 
 The same as `casts`, over every account `v` follows: what that account would see. It reads the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future are left out.
 
 ## Channels
 
-A channel is not an account or a kind of message. A cast posted in a channel names a URL as its parent where a reply names a cast. `selfcast channel` reads the casts whose parent is that URL, newest first (`/v1/castsByParent` with `url`):
+A channel is not an account or a kind of message. A cast posted in a channel names a URL as its parent where a reply names a cast. `paircaster channel` reads the casts whose parent is that URL, newest first (`/v1/castsByParent` with `url`):
 
 ```run
-selfcast channel https://warpcast.com/~/channel/fc-updates --limit 3 --json | jq -c '.casts[] | {fid, timestamp, app_fid, text: .text[:60]}'
+paircaster channel https://warpcast.com/~/channel/fc-updates --limit 3 --json | jq -c '.casts[] | {fid, timestamp, app_fid, text: .text[:60]}'
 ```
 
 ```output
@@ -192,10 +192,10 @@ selfcast channel https://warpcast.com/~/channel/fc-updates --limit 3 --json | jq
 {"fid":1,"timestamp":"2026-08-14T20:00:45Z","app_fid":9152,"text":"FIP Explainer: Onchain Config Registry for Snapchain #277\n\nt"}
 ```
 
-The node keeps no list of channel names, so `selfcast` takes the URL, not a name like `/fc-updates`. (Snapchain v0.14.3 has channel messages and a channel registry, but on mainnet they are not switched on.) Many channels are `https://warpcast.com/~/channel/<name>`, but casts on our node also name parents like `https://farcaster.group/berlin`, `chain://eip155:1/erc721:0x…` and `eip155:8453/erc20:0x…`. A URL nobody posted to gives no casts, not an error. To find a channel's URL, read it off a cast posted there:
+The node keeps no list of channel names, so `paircaster` takes the URL, not a name like `/fc-updates`. (Snapchain v0.14.3 has channel messages and a channel registry, but on mainnet they are not switched on.) Many channels are `https://warpcast.com/~/channel/<name>`, but casts on our node also name parents like `https://farcaster.group/berlin`, `chain://eip155:1/erc721:0x…` and `eip155:8453/erc20:0x…`. A URL nobody posted to gives no casts, not an error. To find a channel's URL, read it off a cast posted there:
 
 ```run
-selfcast casts dwr --limit 200 --json | jq -c '[.casts[].parent.url // empty] | unique'
+paircaster casts dwr --limit 200 --json | jq -c '[.casts[].parent.url // empty] | unique'
 ```
 
 ```output
@@ -207,7 +207,7 @@ Replies in a channel name the cast they reply to, not the channel, so `channel` 
 ## Replies
 
 ```run
-selfcast replies 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+paircaster replies 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 ```
 
 ```output
@@ -226,19 +226,19 @@ selfcast replies 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 The direct replies to one cast, oldest first (`/v1/castsByParent`). A reply to that reply is not listed: run `replies` on it. `--include-app` and `--exclude-app` work as for `casts`, over every reply. A busier thread, FID 37's cast `0x50184b62…`, has 48 replies, and 6 of them come from apps other than the Farcaster app:
 
 ```run
-selfcast replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --exclude-app 9152 --json | jq -c '{replies: (.casts | length), apps: (.casts | map(.app_fid) | unique)}'
+paircaster replies 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --exclude-app 9152 --json | jq -c '{replies: (.casts | length), apps: (.casts | map(.app_fid) | unique)}'
 ```
 
 ```output
 {"replies":6,"apps":[2904,11279,16823,1351215,3356360]}
 ```
 
-The node's pages of replies repeat: a shard that runs out starts again from its first reply, and the last page leads back to the first. So `selfcast` reads pages until one brings no reply it has not seen.
+The node's pages of replies repeat: a shard that runs out starts again from its first reply, and the last page leads back to the first. So `paircaster` reads pages until one brings no reply it has not seen.
 
 ## Threads
 
 ```run
-selfcast thread 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
+paircaster thread 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 ```
 
 ```output
@@ -266,17 +266,17 @@ A cast with the casts it replies to, root first, and its direct replies: the new
 ## Reactions
 
 ```run
-selfcast reactions 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d --json | jq -c '{likes: (.likes | length), recasts: (.recasts | length)}'
+paircaster reactions 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d --json | jq -c '{likes: (.likes | length), recasts: (.recasts | length)}'
 ```
 
 ```output
 {"likes":1,"recasts":0}
 ```
 
-Who liked and who recast one cast, each oldest first (`/v1/reactionsByCast`). Each list has one entry per account, `{fid, timestamp}`, as the node holds them now: an undone like is not listed. An `accounts` list gives each account's username, display name and picture, as in `thread`. Without `--json`, `selfcast` prints the two counts, then each like and recast with its time, username and FID. FID 37's cast `0x50184b62…` has 290 likes and 65 recasts, and 60 accounts did both:
+Who liked and who recast one cast, each oldest first (`/v1/reactionsByCast`). Each list has one entry per account, `{fid, timestamp}`, as the node holds them now: an undone like is not listed. An `accounts` list gives each account's username, display name and picture, as in `thread`. Without `--json`, `paircaster` prints the two counts, then each like and recast with its time, username and FID. FID 37's cast `0x50184b62…` has 290 likes and 65 recasts, and 60 accounts did both:
 
 ```run
-selfcast reactions 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '[.likes[].fid] as $l | {likes: ($l | length), recasts: (.recasts | length), both: ([.recasts[].fid | select(IN($l[]))] | length)}'
+paircaster reactions 37:0x50184b62b4c52fd76628713562e1eda3dccaf63d --json | jq -c '[.likes[].fid] as $l | {likes: ($l | length), recasts: (.recasts | length), both: ([.recasts[].fid | select(IN($l[]))] | length)}'
 ```
 
 ```output
@@ -287,10 +287,10 @@ These pages repeat as the replies' do, and are read the same way.
 
 ## Events
 
-Each shard records what it did, block by block: every message it stored (a *merge*), every message it dropped because the account was over its storage (a *prune*) or because it no longer holds (a *revoke*: a username that moved to another account, or a primary address the account stopped verifying; removing an app key revokes nothing), and each username proof and on-chain event (registrations, app keys, storage rent). `selfcast events` lists them (`/v1/events`):
+Each shard records what it did, block by block: every message it stored (a *merge*), every message it dropped because the account was over its storage (a *prune*) or because it no longer holds (a *revoke*: a username that moved to another account, or a primary address the account stopped verifying; removing an app key revokes nothing), and each username proof and on-chain event (registrations, app keys, storage rent). `paircaster events` lists them (`/v1/events`):
 
 ```run
-selfcast events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
+paircaster events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
 ```
 
 ```output
@@ -304,7 +304,7 @@ selfcast events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
 The time is the block's, when the shard merged the event, not the time a message gives itself (`timestamp` in `--json`). A node keeps about three days of events, so this is the network's recent activity, not its history. With `--json`, each event is one line, and counting is a matter of `jq`. One day, by kind of event:
 
 ```run
-selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'group_by(.event) | map({(.[0].event): length}) | add'
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'group_by(.event) | map({(.[0].event): length}) | add'
 ```
 
 ```output
@@ -314,7 +314,7 @@ selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'group_b
 The messages merged that day, by type:
 
 ```run
-selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge")) | group_by(.type) | map({(.[0].type): length}) | add'
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge")) | group_by(.type) | map({(.[0].type): length}) | add'
 ```
 
 ```output
@@ -324,14 +324,14 @@ selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(sel
 And how many accounts cast:
 
 ```run
-selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .type == "cast_add")) | {casts: length, accounts: (map(.fid) | unique | length)}'
 ```
 
 ```output
 {"casts":9421,"accounts":2427}
 ```
 
-`--since` finds its first block by halving block heights, a few dozen requests per shard. Then each shard is read 10,000 events at a time, one shard after the other, so lines are in order within a shard, not across shards. Reading all three days took 13 seconds here. `other` is an event `selfcast` does not read, with the node's name for it as `type` (here, merge failures). Where a merge replaces messages, as a cast remove replaces its cast, the replaced ones are not listed.
+`--since` finds its first block by halving block heights, a few dozen requests per shard. Then each shard is read 10,000 events at a time, one shard after the other, so lines are in order within a shard, not across shards. Reading all three days took 13 seconds here. `other` is an event `paircaster` does not read, with the node's name for it as `type` (here, merge failures). Where a merge replaces messages, as a cast remove replaces its cast, the replaced ones are not listed.
 
 ## Writing: casts, reactions, follows
 
@@ -345,7 +345,7 @@ The examples are from a test account, `@selfcast` (FID 3356360). They went throu
 | `follow <account>`, `unfollow <account>` | Link add, link remove |
 
 ```run
-selfcast cast --help
+paircaster cast --help
 ```
 
 ```output
@@ -370,7 +370,7 @@ Options:
 A dry run signs the message and asks the node whether it would accept it. Nothing is sent:
 
 ```run
-selfcast follow farcaster --node https://crackle.farcaster.xyz:3381 --dry-run
+paircaster follow farcaster --node https://crackle.farcaster.xyz:3381 --dry-run
 ```
 
 ```output
@@ -384,7 +384,7 @@ Dry run: the node would accept 0xd595a9e74ab802363c8f136940a1dbcceec88e95. Nothi
 Everything above the last two lines is written from the signed message, which names the account by its FID, not by the name you typed. The line naming `@farcaster` is the node's answer for FID 1, so you can see whom you are about to follow. A write sent by an agent, with `--yes` after the person approved the dry run's text:
 
 ```run
-selfcast cast "This cast will be deleted with selfcast delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json
+paircaster cast "This cast will be deleted with paircaster delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json
 ```
 
 ```output
@@ -410,14 +410,14 @@ A delete and an undo are messages of their own. After the delete, the node answe
 
 How a write goes:
 
-1. `selfcast` encodes the message once, hashes and signs those bytes with your app key, and sends exactly those bytes. Nothing is re-encoded in between.
+1. `paircaster` encodes the message once, hashes and signs those bytes with your app key, and sends exactly those bytes. Nothing is re-encoded in between.
 2. It shows you what it is about to send, written from the signed message itself, starting `Send as @<username> (FID <fid>), signed by app key <key>, dated <time>:`, and asks you to type <kbd>yes</kbd> at the terminal.
 3. It saves the signed message to an outbox, then submits it to your node (`POST /v1/submitMessage`). Your node checks it against what it holds and passes it on to the validators; it does not keep it.
-4. It reads the message back from your node. Only then does it report the write as sent; every write above was read back. If it does not show up within a minute, `selfcast resend` sends the saved message again later.
+4. It reads the message back from your node. Only then does it report the write as sent; every write above was read back. If it does not show up within a minute, `paircaster resend` sends the saved message again later.
 
 Because your node checks a write against what it holds, it has to be synced far enough to know your app key to accept one.
 
-**A node that is behind blocks writes after the first.** Snapchain keeps each account on one *shard*, and a node can be seconds behind on one shard and hours behind on another. Your node passes a write on at once, but shows it only once your account's shard has caught up. Until then the write stays in the outbox, and `selfcast` refuses every new write until `selfcast resend` sees the waiting one on your node. On a node still syncing, that can be hours. The error says why, and how far behind that shard is (not how long it will take to catch up), for example:
+**A node that is behind blocks writes after the first.** Snapchain keeps each account on one *shard*, and a node can be seconds behind on one shard and hours behind on another. Your node passes a write on at once, but shows it only once your account's shard has caught up. Until then the write stays in the outbox, and `paircaster` refuses every new write until `paircaster resend` sees the waiting one on your node. On a node still syncing, that can be hours. The error says why, and how far behind that shard is (not how long it will take to catch up), for example:
 
 ```output
 Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the node shows them only once it catches up (see `selfcast node status`)
@@ -426,7 +426,7 @@ Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the no
 A write sent this way reaches the network even though your node does not show it yet. Do not send it again: `resend` sends the same message, and a new write would be a second one. To clear it without waiting, resend it through a node that has caught up, such as Farcaster's public one; it checks there instead:
 
 ```run
-selfcast resend --node https://crackle.farcaster.xyz:3381
+paircaster resend --node https://crackle.farcaster.xyz:3381
 ```
 
 ```output
@@ -468,10 +468,10 @@ Snapchain refuses messages from an account with no storage. Once an account is o
 
 ## Adding an app key
 
-Writes are signed with an *app key* (also called a signer), which `selfcast key add` creates and registers. Your account itself is owned by a different key, the *custody key*, which comes from your recovery phrase and can do anything with the account. An app key can only post messages as it.
+Writes are signed with an *app key* (also called a signer), which `paircaster key add` creates and registers. Your account itself is owned by a different key, the *custody key*, which comes from your recovery phrase and can do anything with the account. An app key can only post messages as it.
 
 ```run
-selfcast key add --help
+paircaster key add --help
 ```
 
 ```output
@@ -488,7 +488,7 @@ Options:
 The node has to have seen your account. A new account reaches a node still catching up only once it is in sync, so the test account's key was added through `crackle`, which had it within minutes (the recovery phrase prompt is left out):
 
 ```run
-selfcast key add --node https://crackle.farcaster.xyz:3381
+paircaster key add --node https://crackle.farcaster.xyz:3381
 ```
 
 ```output
@@ -515,16 +515,16 @@ What it does:
 2. It looks up which FID that custody key owns, on your node.
 3. It creates a new app key and shows what the custody key is about to authorise: the account, the new key, what it may sign (casts, deleting casts, likes and recasts, undoing them, follows, unfollows), that it expires 90 days after it was last used, the deadline for the authorisation, and where the key will be saved. You type <kbd>yes</kbd>.
 4. The custody key signs the authorisation, and is then dropped. The app key is saved at mode 0600.
-5. The authorisation goes to your node as a `KEY_ADD` message: a Snapchain message, not a chain transaction, so it costs nothing. `selfcast` reads the key back from the node before it calls it added.
+5. The authorisation goes to your node as a `KEY_ADD` message: a Snapchain message, not a chain transaction, so it costs nothing. `paircaster` reads the key back from the node before it calls it added.
 
 ## Filtering by client
 
-Every app key is registered with the FID of the app that asked for it. The node lists an account's keys with that FID (`/v1/signersByFid`), and every cast carries the key that signed it, so `selfcast` can say which app each cast came from. FID 9152 is the Farcaster app (its own profile reads `warpcast`).
+Every app key is registered with the FID of the app that asked for it. The node lists an account's keys with that FID (`/v1/signersByFid`), and every cast carries the key that signed it, so `paircaster` can say which app each cast came from. FID 9152 is the Farcaster app (its own profile reads `warpcast`).
 
 `rish` (FID 194) posts from two apps. Grouping the casts among its newest 100 messages by app:
 
 ```run
-selfcast casts rish --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map({app_fid: .[0].app_fid, casts: length})'
+paircaster casts rish --limit 100 --json | jq -c '.casts | group_by(.app_fid) | map({app_fid: .[0].app_fid, casts: length})'
 ```
 
 ```output
@@ -534,8 +534,8 @@ selfcast casts rish --limit 100 --json | jq -c '.casts | group_by(.app_fid) | ma
 97 casts from 100 messages; the other three were removes. `--include-app` keeps only the apps named, `--exclude-app` drops them:
 
 ```run
-selfcast casts rish --limit 100 --include-app 194 --json | jq '.casts | length'
-selfcast casts rish --limit 100 --exclude-app 194 --json | jq '.casts | length'
+paircaster casts rish --limit 100 --include-app 194 --json | jq '.casts | length'
+paircaster casts rish --limit 100 --exclude-app 194 --json | jq '.casts | length'
 ```
 
 ```output
@@ -544,7 +544,7 @@ selfcast casts rish --limit 100 --exclude-app 194 --json | jq '.casts | length'
 ```
 
 ```run
-selfcast casts 194 --limit 20 --exclude-app 9152 --json | jq -r '.casts[:3][] | "\(.timestamp)  \(.hash)  app \(.app_fid)"'
+paircaster casts 194 --limit 20 --exclude-app 9152 --json | jq -r '.casts[:3][] | "\(.timestamp)  \(.hash)  app \(.app_fid)"'
 ```
 
 ```output
@@ -556,7 +556,7 @@ selfcast casts 194 --limit 20 --exclude-app 9152 --json | jq -r '.casts[:3][] | 
 Both flags take several FIDs, and work on `feed` too. They filter after `--limit`, so they can return fewer casts than asked for.
 
 - A cast whose key is no longer listed, for instance one since removed, has no known app. Such casts are left out by `--include-app` and kept by `--exclude-app`.
-- A key can name the account itself as its app, as FID 194's own app above does. Keys added by `selfcast key add` do the same (from its source), so casts sent with `selfcast` show your own FID as the app, not a separate one for Selfcast.
+- A key can name the account itself as its app, as FID 194's own app above does. Keys added by `paircaster key add` do the same (from its source), so casts sent with `paircaster` show your own FID as the app, not a separate one for Paircaster.
 
 ---
 

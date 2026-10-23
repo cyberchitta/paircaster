@@ -1,10 +1,10 @@
-//! `selfcast viewer`: the viewer page, hosted by pair-ui in a browser or by
+//! `paircaster viewer`: the viewer page, hosted by pair-ui in a browser or by
 //! Shala.
 //!
-//! The page reads the node itself, through `selfcast-core` compiled to
+//! The page reads the node itself, through `paircaster-core` compiled to
 //! WebAssembly. `open` and `state` only point it at a cast and ask it what it
 //! shows. They go to a pair-ui host when one is running for this project
-//! (`selfcast viewer serve`), else through Shala's own CLI (`shala reveal`,
+//! (`paircaster viewer serve`), else through Shala's own CLI (`shala reveal`,
 //! `shala tell`), whose output they pass on as it is. Both hosts take the
 //! same requests.
 //!
@@ -21,19 +21,19 @@ use pair_ui::{
 use reqwest::Url;
 use serde_json::{Value, json};
 
-use selfcast_core::cast::CastRef;
+use paircaster_core::cast::CastRef;
 
 use crate::out;
 
-const PROJECT: &str = "selfcast";
-const SCHEME: &str = "selfcast";
+const PROJECT: &str = "paircaster";
+const SCHEME: &str = "paircaster";
 /// The page refuses a body with any other number.
 const PROTOCOL: u32 = 1;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ViewerError {
     #[error(
-        "no viewer is open: run `selfcast viewer serve` and open its address, or open selfcast in Shala ({0})"
+        "no viewer is open: run `paircaster viewer serve` and open its address, or open paircaster in Shala ({0})"
     )]
     NoHost(std::io::Error),
     #[error("shala could not carry this to the page (its message is above)")]
@@ -42,7 +42,7 @@ pub enum ViewerError {
     PageRefused(String),
     #[error("the viewer's host: {0}")]
     Client(#[from] ClientError),
-    #[error("this selfcast was built without the viewer (the `viewer` feature)")]
+    #[error("this paircaster was built without the viewer (the `viewer` feature)")]
     NotBuiltIn,
     #[error("the viewer cannot reach this node: {0}")]
     BadNode(#[from] BadOrigin),
@@ -62,10 +62,10 @@ pub enum ViewerCommand {
         #[arg(long)]
         images: bool,
     },
-    /// Open a cast's thread in the viewer, or what a selfcast moniker
+    /// Open a cast's thread in the viewer, or what a paircaster moniker
     /// names, reading from --node.
     Open {
-        /// A cast, as FID:HASH, or a selfcast://selfcast/… moniker.
+        /// A cast, as FID:HASH, or a paircaster://paircaster/… moniker.
         #[arg(value_name = "FID:HASH|MONIKER")]
         shown: Shown,
     },
@@ -74,7 +74,7 @@ pub enum ViewerCommand {
     State,
 }
 
-/// `node` is a URL already accepted by [`selfcast_core::Node::new`].
+/// `node` is a URL already accepted by [`paircaster_core::Node::new`].
 pub async fn run(command: &ViewerCommand, node: &str) -> Result<(), ViewerError> {
     match command {
         ViewerCommand::Serve { images } => serve(node, *images).await,
@@ -83,14 +83,14 @@ pub async fn run(command: &ViewerCommand, node: &str) -> Result<(), ViewerError>
     }
 }
 
-/// What `viewer open` shows: a cast's thread, or whatever a selfcast moniker
-/// names. The page reads the moniker; this only checks it is selfcast's.
+/// What `viewer open` shows: a cast's thread, or whatever a paircaster moniker
+/// names. The page reads the moniker; this only checks it is paircaster's.
 #[derive(Debug, Clone)]
 pub struct Shown(Moniker);
 
 #[derive(Debug, thiserror::Error)]
 pub enum BadShown {
-    #[error("not a cast (FID:HASH) or a selfcast moniker: {0:?}")]
+    #[error("not a cast (FID:HASH) or a paircaster moniker: {0:?}")]
     Neither(String),
     #[error("a moniker for {0}://{1}, not {SCHEME}://{PROJECT}")]
     Elsewhere(String, String),
@@ -178,7 +178,7 @@ fn reveal_args(moniker: &Moniker, view: &Value) -> Vec<String> {
 }
 
 fn state_body() -> Value {
-    json!({ "selfcast": PROTOCOL, "get": "state" })
+    json!({ "paircaster": PROTOCOL, "get": "state" })
 }
 
 async fn serve(node: &str, remote_images: bool) -> Result<(), ViewerError> {
@@ -245,26 +245,25 @@ mod tests {
         assert_eq!(args[2], r#"{"node":"http://localhost:3381"}"#);
         assert_eq!(
             args[3],
-            "selfcast://selfcast/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1"
+            "paircaster://paircaster/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1"
         );
     }
 
     #[test]
-    fn open_takes_a_cast_or_a_selfcast_moniker_and_nothing_else() {
+    fn open_takes_a_cast_or_a_paircaster_moniker_and_nothing_else() {
         let shown = |s: &str| s.parse::<Shown>().map(|m| m.0.to_string());
-        let filtered =
-            "selfcast://selfcast/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1?only=1:0x2";
-        assert_eq!(shown(filtered).expect("selfcast's own"), filtered);
+        let filtered = "paircaster://paircaster/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1?only=1:0x2";
+        assert_eq!(shown(filtered).expect("paircaster's own"), filtered);
         assert_eq!(
             shown("37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1").expect("a cast"),
             moniker(&cast()).to_string()
         );
         assert!(matches!(
-            "khana://selfcast/thread/1:0x2".parse::<Shown>(),
+            "khana://paircaster/thread/1:0x2".parse::<Shown>(),
             Err(BadShown::Elsewhere(..))
         ));
         assert!(matches!(
-            "selfcast://other/thread/1:0x2".parse::<Shown>(),
+            "paircaster://other/thread/1:0x2".parse::<Shown>(),
             Err(BadShown::Elsewhere(..))
         ));
         assert!(matches!("dwr".parse::<Shown>(), Err(BadShown::Neither(_))));
@@ -272,6 +271,6 @@ mod tests {
 
     #[test]
     fn state_asks_the_page_in_its_own_protocol() {
-        assert_eq!(state_body(), json!({ "selfcast": 1, "get": "state" }));
+        assert_eq!(state_body(), json!({ "paircaster": 1, "get": "state" }));
     }
 }

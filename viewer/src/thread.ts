@@ -1,4 +1,4 @@
-// The `thread` tool's result: `selfcast thread --json`, version 1
+// The `thread` tool's result: `paircaster thread --json`, version 1
 // (crates/cli/src/reads.rs, `ThreadV1`).
 
 export type Ref = { fid: number; hash: string };

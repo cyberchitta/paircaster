@@ -1,5 +1,5 @@
 //! One download at a time, and a way to find it. `fetch-snapshot` holds an
-//! exclusive lock on `<install dir>/.selfcast-fetch.lock` for as long as it
+//! exclusive lock on `<install dir>/.paircaster-fetch.lock` for as long as it
 //! runs, with its process ID written inside. The operating system drops the
 //! lock when the process exits, however it exits, so a leftover file never
 //! reads as a running download.
@@ -14,7 +14,7 @@ use rustix::fs::{FlockOperation, flock};
 
 use super::SnapshotError;
 
-const NAME: &str = ".selfcast-fetch.lock";
+const NAME: &str = ".paircaster-fetch.lock";
 /// A status check holds a shared lock for an instant; a starting download
 /// waits that out instead of reporting itself already running.
 const TRIES: u32 = 10;
@@ -97,7 +97,8 @@ mod tests {
     use super::{SnapshotError, acquire, holder};
 
     fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("selfcast-lock-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("paircaster-lock-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir is writable");
         dir

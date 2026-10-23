@@ -2,6 +2,8 @@
 title: Running the node
 ---
 
+Paircaster was called Selfcast; output captured before the rename shows the old name.
+
 ## Hardware and disk
 
 Snapchain's README asks for 16 GB RAM, 4 vCPUs and 1.5 TB of disk; its getting-started page says 2 TB. What we measured:
@@ -10,7 +12,7 @@ Snapchain's README asks for 16 GB RAM, 4 vCPUs and 1.5 TB of disk; its getting-s
 | --- | --- | --- |
 | Snapshot, as downloaded | 5,691 chunks in 3 shards | `fetch-snapshot` output |
 | Node database after unpacking | 557 GB | `du -sh ~/snapchain/.rocks` |
-| Database size the node reports | 557,823,184,195 bytes | `selfcast info` |
+| Database size the node reports | 557,823,184,195 bytes | `paircaster info` |
 
 The download keeps each shard's chunks until that shard is unpacked, then deletes them. So the most disk it uses is while the second large shard unpacks: the chunks not yet unpacked plus the two large shards already unpacked, about 770 GB. `fetch-snapshot` refuses to start with less than 800 GB, counting what it has already downloaded (`--skip-disk-check` overrides it).
 
@@ -30,12 +32,12 @@ The test machine was an Apple M5 Max (18 cores, 128 GB RAM, 4 TB disk) running m
 
 A new node does not replay Farcaster's history block by block. It starts from a *snapshot*: a copy of a node's database, published for new nodes to start from and split into chunks of about 90 MB. The one we fetched was dated 2026-10-18.
 
-Snapchain can download the snapshot itself when it first starts, but that download cannot resume. A network gap of about 50 seconds stops the node, and the restart begins again at chunk 1. Worse, if the first shard has already been unpacked, the restart sees a non-empty database, skips the snapshot, and runs on an incomplete copy without saying so. On a home connection the download takes many hours, so `selfcast` has its own downloader, which can stop and pick up where it left off.
+Snapchain can download the snapshot itself when it first starts, but that download cannot resume. A network gap of about 50 seconds stops the node, and the restart begins again at chunk 1. Worse, if the first shard has already been unpacked, the restart sees a non-empty database, skips the snapshot, and runs on an incomplete copy without saying so. On a home connection the download takes many hours, so `paircaster` has its own downloader, which can stop and pick up where it left off.
 
 ### Download
 
 ```run
-selfcast node fetch-snapshot
+paircaster node fetch-snapshot
 ```
 
 ```output
@@ -49,7 +51,7 @@ selfcast node fetch-snapshot
 Ctrl-C stops it. Running it again continues, including chunks that were half done:
 
 ```run
-selfcast node fetch-snapshot --jobs 8
+paircaster node fetch-snapshot --jobs 8
 ```
 
 ```output
@@ -63,11 +65,11 @@ resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_0114.bin.part at 56.2 MB
 
 ### Download in the background
 
-To close the terminal while it runs, use `pause` and `resume` instead. `resume` starts the download in the background and appends its output to `~/snapchain/selfcast-fetch.log`; `pause` stops it, keeping everything downloaded.
+To close the terminal while it runs, use `pause` and `resume` instead. `resume` starts the download in the background and appends its output to `~/snapchain/paircaster-fetch.log`; `pause` stops it, keeping everything downloaded.
 
 ```run
-selfcast node resume
-selfcast node pause
+paircaster node resume
+paircaster node pause
 ```
 
 What `resume` writes to the log:
@@ -106,10 +108,10 @@ The node starts from the unpacked database without downloading again. `up` then 
 
 ## Watch it
 
-`selfcast node status` works in every phase: downloading the snapshot, unpacking, stopped, syncing and ready. It also reports free disk. While the node is behind:
+`paircaster node status` works in every phase: downloading the snapshot, unpacking, stopped, syncing and ready. It also reports free disk. While the node is behind:
 
 ```run
-selfcast node status
+paircaster node status
 ```
 
 ```output
@@ -123,7 +125,7 @@ Disk: 3165 GB free of 3996 GB.
 Snapchain splits the network into *shards*, each its own chain of blocks. A shard's *height* is the number of its newest block, and “behind” is how old that block is. The node reports *ready* once every shard is within a minute of its newest block. Your node's own numbers:
 
 ```run
-selfcast info
+paircaster info
 ```
 
 ```output

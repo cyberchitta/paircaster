@@ -1,19 +1,19 @@
-//! `selfcast profile`, `selfcast feed`, `selfcast casts`,
-//! `selfcast addresses`, `selfcast channel`, `selfcast followers`, `selfcast following`,
-//! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
+//! `paircaster profile`, `paircaster feed`, `paircaster casts`,
+//! `paircaster addresses`, `paircaster channel`, `paircaster followers`, `paircaster following`,
+//! `paircaster replies`, `paircaster thread` and `paircaster reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
-use selfcast_core::account::Account;
-use selfcast_core::cast::Reaction;
-use selfcast_core::cast::{CastRef, ChannelUrl};
-use selfcast_core::feed::{AppFilter, FeedItem};
-use selfcast_core::follow::Follow;
-use selfcast_core::node::reads::MAX_ANCESTORS;
-use selfcast_core::output;
-use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, Users, names_of};
-use selfcast_core::reaction::CastReactions;
-use selfcast_core::thread::{ChainTop, Thread};
-use selfcast_core::{Error, Node};
+use paircaster_core::account::Account;
+use paircaster_core::cast::Reaction;
+use paircaster_core::cast::{CastRef, ChannelUrl};
+use paircaster_core::feed::{AppFilter, FeedItem};
+use paircaster_core::follow::Follow;
+use paircaster_core::node::reads::MAX_ANCESTORS;
+use paircaster_core::output;
+use paircaster_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, Users, names_of};
+use paircaster_core::reaction::CastReactions;
+use paircaster_core::thread::{ChainTop, Thread};
+use paircaster_core::{Error, Node};
 
 use crate::clock;
 
@@ -63,7 +63,7 @@ pub struct FollowsArgs {
     /// The account, as a FID or a username.
     #[arg(value_name = "ACCOUNT")]
     account: Account,
-    /// How many to show, the newest follows first. `selfcast profile`
+    /// How many to show, the newest follows first. `paircaster profile`
     /// counts them all.
     #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(1..=10_000))]
     limit: u32,
@@ -217,7 +217,7 @@ pub async fn addresses(node: &Node, args: &AddressesArgs, json: bool) -> Result<
     Ok(())
 }
 
-/// `selfcast followers` when `followers`, else `selfcast following`.
+/// `paircaster followers` when `followers`, else `paircaster following`.
 pub async fn follows(
     node: &Node,
     args: &FollowsArgs,

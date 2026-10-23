@@ -121,8 +121,8 @@ impl Node {
     /// Connects to a node at `url`, e.g. `http://localhost:3381`.
     ///
     /// ```
-    /// assert!(selfcast_core::Node::new("http://localhost:3381").is_ok());
-    /// assert!(selfcast_core::Node::new("localhost:3381").is_err());
+    /// assert!(paircaster_core::Node::new("http://localhost:3381").is_ok());
+    /// assert!(paircaster_core::Node::new("localhost:3381").is_err());
     /// ```
     pub fn new(url: &str) -> Result<Self, Error> {
         let base = parse_base(url)?;

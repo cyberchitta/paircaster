@@ -1,12 +1,12 @@
-//! Saved node responses, found through `SELFCAST_FIXTURES`. They are never
+//! Saved node responses, found through `PAIRCASTER_FIXTURES`. They are never
 //! committed, so tests that read them are `#[ignore]`d and run with
 //! `--include-ignored` where the directory exists.
 
 use std::path::PathBuf;
 
 pub fn fixture(name: &str) -> serde_json::Value {
-    let dir = std::env::var_os("SELFCAST_FIXTURES")
-        .expect("SELFCAST_FIXTURES must name the fixtures directory");
+    let dir = std::env::var_os("PAIRCASTER_FIXTURES")
+        .expect("PAIRCASTER_FIXTURES must name the fixtures directory");
     let path = PathBuf::from(dir).join(name);
     let text = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("fixture {} unreadable: {e}", path.display()));

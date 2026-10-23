@@ -1,4 +1,4 @@
-//! `selfcast key add`: registers a new app key for the account whose
+//! `paircaster key add`: registers a new app key for the account whose
 //! recovery phrase is typed at the terminal, with a gasless `KEY_ADD`.
 //!
 //! The phrase is read only from the terminal, turned into the custody key,
@@ -11,17 +11,17 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use prost::Message as _;
-use selfcast_core::Node;
-use selfcast_core::build::{
+use paircaster_core::Node;
+use paircaster_core::build::{
     Action, AppKey, BuildError, DecodeError, Envelope, SignedMessage, sign,
 };
-use selfcast_core::cast::SignerKey;
-use selfcast_core::custody::{CustodyError, CustodyKey, EthAddress};
-use selfcast_core::key_add::{KeyAddError, KeyRequest, MAX_TTL_SECS, authorize};
-use selfcast_core::profile::{Followers, Profile};
-use selfcast_core::proto::{Body, FarcasterNetwork, MessageData, MessageType};
-use selfcast_core::time::Timestamp;
+use paircaster_core::cast::SignerKey;
+use paircaster_core::custody::{CustodyError, CustodyKey, EthAddress};
+use paircaster_core::key_add::{KeyAddError, KeyRequest, MAX_TTL_SECS, authorize};
+use paircaster_core::profile::{Followers, Profile};
+use paircaster_core::proto::{Body, FarcasterNetwork, MessageData, MessageType};
+use paircaster_core::time::Timestamp;
+use prost::Message as _;
 use serde::Serialize;
 use zeroize::Zeroizing;
 
@@ -31,7 +31,7 @@ use crate::invocation;
 use crate::keystore::{self, KeyStore, KeyStoreError};
 use crate::tty::{Tty, TtyError};
 
-/// Only what Selfcast sends: casts, reactions and follows, each with its
+/// Only what Paircaster sends: casts, reactions and follows, each with its
 /// undo. Not profile data, verifications or storage.
 const SCOPES: [MessageType; 6] = [
     MessageType::CastAdd,
@@ -70,18 +70,21 @@ pub enum KeyAddCliError {
     #[error("{path} is not a saved KEY_ADD: {reason}")]
     BadPending { path: PathBuf, reason: String },
     #[error(
-        "sent, but the node did not list the key within a minute. Run `{selfcast} key add` again \
+        "sent, but the node did not list the key within a minute. Run `{paircaster} key add` again \
          to check and resend; the key is saved at {}",
         .key_file.display()
     )]
-    NotConfirmed { key_file: PathBuf, selfcast: String },
+    NotConfirmed {
+        key_file: PathBuf,
+        paircaster: String,
+    },
 }
 
-/// `selfcast key add --json`, version 1:
+/// `paircaster key add --json`, version 1:
 ///
 /// ```json
 /// { "version": 1, "status": "added", "fid": 1234,
-///   "key": "0x…", "key_file": "/home/…/.config/selfcast/keys/1234-….key" }
+///   "key": "0x…", "key_file": "/home/…/.config/paircaster/keys/1234-….key" }
 /// ```
 ///
 /// `status` is `added`, or `already_added` when a rerun finds the key from
@@ -189,7 +192,7 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
 
 fn custody_key(tty: &mut Tty) -> Result<CustodyKey, KeyAddCliError> {
     tty.say(
-        "Selfcast needs your recovery phrase once, to authorise a new app key.\n\
+        "Paircaster needs your recovery phrase once, to authorise a new app key.\n\
          It is not stored, and the app key it authorises cannot move funds or change custody.\n",
     )?;
     let phrase = tty.ask_secret("Recovery phrase (hidden): ")?;
@@ -263,7 +266,7 @@ async fn send_and_confirm(
     }
     Err(KeyAddCliError::NotConfirmed {
         key_file: key_file.to_path_buf(),
-        selfcast: invocation::selfcast(),
+        paircaster: invocation::paircaster(),
     }
     .into())
 }
@@ -367,11 +370,11 @@ fn report(outcome: &Outcome, json: bool) {
 mod tests {
     use std::path::Path;
 
-    use selfcast_core::build::{Action, AppKey, Envelope, sign};
-    use selfcast_core::custody::CustodyKey;
-    use selfcast_core::key_add::{KeyRequest, MAX_TTL_SECS, authorize};
-    use selfcast_core::proto::FarcasterNetwork;
-    use selfcast_core::time::Timestamp;
+    use paircaster_core::build::{Action, AppKey, Envelope, sign};
+    use paircaster_core::custody::CustodyKey;
+    use paircaster_core::key_add::{KeyRequest, MAX_TTL_SECS, authorize};
+    use paircaster_core::proto::FarcasterNetwork;
+    use paircaster_core::time::Timestamp;
 
     use super::{SCOPES, Saved, confirmation};
 
@@ -424,7 +427,7 @@ mod tests {
             timestamp: Timestamp::from_unix(1_792_281_600),
         };
         let signed = sign(&app, &envelope, &Action::KeyAdd(body)).expect("signs");
-        let path = std::env::temp_dir().join(format!("selfcast-saved-{}", std::process::id()));
+        let path = std::env::temp_dir().join(format!("paircaster-saved-{}", std::process::id()));
         std::fs::write(&path, signed.encode()).expect("writes");
         let saved = Saved::read(&path).expect("reads back");
         assert_eq!(saved.fid, 1234);

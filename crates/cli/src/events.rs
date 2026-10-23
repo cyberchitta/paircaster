@@ -1,9 +1,9 @@
-//! `selfcast events`: what the node's shards merged, block by block.
+//! `paircaster events`: what the node's shards merged, block by block.
 
-use selfcast_core::event::{Change, Event, EventBody};
-use selfcast_core::output;
-use selfcast_core::time::Timestamp;
-use selfcast_core::{Error, Node};
+use paircaster_core::event::{Change, Event, EventBody};
+use paircaster_core::output;
+use paircaster_core::time::Timestamp;
+use paircaster_core::{Error, Node};
 
 #[derive(Debug, clap::Args)]
 pub struct EventsArgs {

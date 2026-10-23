@@ -1,4 +1,4 @@
-//! Casts and reactions as Selfcast works with them, past the `node` boundary.
+//! Casts and reactions as Paircaster works with them, past the `node` boundary.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -47,7 +47,7 @@ pub enum ParseRefError {
 /// is the node's to say.
 ///
 /// ```
-/// use selfcast_core::cast::ChannelUrl;
+/// use paircaster_core::cast::ChannelUrl;
 /// assert!("https://warpcast.com/~/channel/fc-updates".parse::<ChannelUrl>().is_ok());
 /// assert!("".parse::<ChannelUrl>().is_err());
 /// ```
@@ -80,7 +80,7 @@ impl fmt::Display for ChannelUrl {
 /// `0x` and 40 hex digits, as [`Display`](fmt::Display) writes it.
 ///
 /// ```
-/// use selfcast_core::cast::MessageHash;
+/// use paircaster_core::cast::MessageHash;
 /// let h: MessageHash = "0x68f602dd2b91063e7263366c98f38b0357fe1def".parse().unwrap();
 /// assert_eq!(h.to_string(), "0x68f602dd2b91063e7263366c98f38b0357fe1def");
 /// assert!("68f602dd2b91063e7263366c98f38b0357fe1def".parse::<MessageHash>().is_err());
@@ -129,7 +129,7 @@ pub struct CastRef {
 /// `FID:HASH`, the author's FID and the cast's hash.
 ///
 /// ```
-/// use selfcast_core::cast::CastRef;
+/// use paircaster_core::cast::CastRef;
 /// let r: CastRef = "576:0x68f602dd2b91063e7263366c98f38b0357fe1def".parse().unwrap();
 /// assert_eq!(r.fid, 576);
 /// assert_eq!(r.to_string(), "576:0x68f602dd2b91063e7263366c98f38b0357fe1def");
@@ -196,9 +196,9 @@ impl Cast {
     ///
     /// ```
     /// use std::collections::HashMap;
-    /// use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, SignerKey};
-    /// use selfcast_core::proto::CastType;
-    /// use selfcast_core::time::Timestamp;
+    /// use paircaster_core::cast::{Cast, CastRef, Mention, MessageHash, SignerKey};
+    /// use paircaster_core::proto::CastType;
+    /// use paircaster_core::time::Timestamp;
     /// let cast = |text: &str, positions: &[u32]| Cast {
     ///     id: CastRef { fid: 1, hash: MessageHash::from_bytes(&[0; 20]).unwrap() },
     ///     timestamp: Timestamp::from_farcaster(0),

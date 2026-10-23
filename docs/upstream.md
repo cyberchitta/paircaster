@@ -2,7 +2,7 @@
 title: Contributions upstream
 ---
 
-Building Selfcast meant checking Snapchain's documentation and code against a running node. Where they disagreed, we filed it with Snapchain and the Farcaster docs.
+Building Paircaster meant checking Snapchain's documentation and code against a running node. Where they disagreed, we filed it with Snapchain and the Farcaster docs.
 
 ## Pull requests
 

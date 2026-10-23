@@ -54,7 +54,7 @@ pub enum EventBody {
         /// `id_register`, `signer`, `storage_rent`, …
         kind: String,
     },
-    /// An event of a type Selfcast does not read, with the node's name for it.
+    /// An event of a type Paircaster does not read, with the node's name for it.
     Other { node_type: String },
 }
 

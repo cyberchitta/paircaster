@@ -2,7 +2,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use selfcast_core::time::Timestamp;
+use paircaster_core::time::Timestamp;
 
 pub fn now() -> Timestamp {
     let secs = SystemTime::now()

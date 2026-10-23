@@ -9,7 +9,7 @@ const FARCASTER_EPOCH: u64 = 1_609_459_200;
 /// A point in time, to the second, in UTC.
 ///
 /// ```
-/// use selfcast_core::time::Timestamp;
+/// use paircaster_core::time::Timestamp;
 /// let t = Timestamp::from_farcaster(100_000_000);
 /// assert_eq!(t.unix_seconds(), 1_709_459_200);
 /// assert_eq!(t.to_string(), "2024-03-03T09:46:40Z");
@@ -54,7 +54,7 @@ impl fmt::Display for Timestamp {
 /// `2026-10-22`, for its first second. Nothing before 1970.
 ///
 /// ```
-/// use selfcast_core::time::Timestamp;
+/// use paircaster_core::time::Timestamp;
 /// let t: Timestamp = "2024-03-03T09:46:40Z".parse().unwrap();
 /// assert_eq!(t, Timestamp::from_farcaster(100_000_000));
 /// assert_eq!("2024-03-03".parse::<Timestamp>().unwrap().to_string(), "2024-03-03T00:00:00Z");

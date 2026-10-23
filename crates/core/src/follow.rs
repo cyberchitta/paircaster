@@ -15,8 +15,8 @@ pub struct Follow {
 /// second are ordered by FID, so the order is the same on every run.
 ///
 /// ```
-/// use selfcast_core::follow::{Follow, newest};
-/// use selfcast_core::time::Timestamp;
+/// use paircaster_core::follow::{Follow, newest};
+/// use paircaster_core::time::Timestamp;
 /// let at = |fid, s| Follow { fid, timestamp: Timestamp::from_unix(s) };
 /// let n = newest(vec![at(1, 10), at(2, 30), at(3, 20)], 2);
 /// assert_eq!(n, [at(2, 30), at(3, 20)]);

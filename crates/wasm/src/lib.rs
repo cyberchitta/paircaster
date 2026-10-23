@@ -1,6 +1,6 @@
-//! `selfcast-core`'s reads for the viewer page and pages built on it. Each
+//! `paircaster-core`'s reads for the viewer page and pages built on it. Each
 //! function is named after a CLI read, takes what the CLI takes, and returns
-//! the JSON that `selfcast <read> --json` prints (`selfcast_core::output`),
+//! the JSON that `paircaster <read> --json` prints (`paircaster_core::output`),
 //! so the skill that documents the CLI documents these too. `node` is the
 //! node's URL; `now` is the page's clock in Unix seconds, used as the CLI
 //! uses its own: casts dated more than ten minutes past it are left out.
@@ -9,15 +9,15 @@ use std::collections::BTreeSet;
 
 use wasm_bindgen::prelude::*;
 
-use selfcast_core::Node;
-use selfcast_core::account::Account;
-use selfcast_core::cast::{CastRef, ChannelUrl};
-use selfcast_core::event::Event;
-use selfcast_core::feed::AppFilter;
-use selfcast_core::node::reads::EventRead;
-use selfcast_core::output;
-use selfcast_core::profile::FOLLOWER_COUNT_CAP;
-use selfcast_core::time::Timestamp;
+use paircaster_core::Node;
+use paircaster_core::account::Account;
+use paircaster_core::cast::{CastRef, ChannelUrl};
+use paircaster_core::event::Event;
+use paircaster_core::feed::AppFilter;
+use paircaster_core::node::reads::EventRead;
+use paircaster_core::output;
+use paircaster_core::profile::FOLLOWER_COUNT_CAP;
+use paircaster_core::time::Timestamp;
 
 /// The most casts or replies one read returns, as in the CLI.
 const MAX_CASTS: u32 = 1000;
@@ -25,7 +25,7 @@ const MAX_CASTS: u32 = 1000;
 /// The most followers or follows one read returns, as in the CLI.
 const MAX_FOLLOWS: u32 = 10_000;
 
-/// `selfcast profile <account> [--all-followers] --json`.
+/// `paircaster profile <account> [--all-followers] --json`.
 #[wasm_bindgen]
 pub async fn profile(
     node: String,
@@ -38,7 +38,7 @@ pub async fn profile(
     Ok(output::profile_json(&node.profile(fid, cap).await?))
 }
 
-/// `selfcast feed <account> --limit <limit> [--include-app …] [--exclude-app …] --json`.
+/// `paircaster feed <account> --limit <limit> [--include-app …] [--exclude-app …] --json`.
 #[wasm_bindgen]
 pub async fn feed(
     node: String,
@@ -58,7 +58,7 @@ pub async fn feed(
     Ok(output::feed_json(fid, &items, &users))
 }
 
-/// `selfcast casts <account>,… --limit <limit> [app filter] --json`.
+/// `paircaster casts <account>,… --limit <limit> [app filter] --json`.
 #[wasm_bindgen]
 pub async fn casts(
     node: String,
@@ -79,7 +79,7 @@ pub async fn casts(
     Ok(output::casts_json(&fids, &items, &users))
 }
 
-/// `selfcast channel <url> --limit <limit> [app filter] --json`.
+/// `paircaster channel <url> --limit <limit> [app filter] --json`.
 #[wasm_bindgen]
 pub async fn channel(
     node: String,
@@ -99,7 +99,7 @@ pub async fn channel(
     Ok(output::channel_json(&channel, &items, &users))
 }
 
-/// `selfcast addresses <account> --json`.
+/// `paircaster addresses <account> --json`.
 #[wasm_bindgen]
 pub async fn addresses(node: String, account: String) -> Result<String, JsError> {
     let node = Node::new(&node)?;
@@ -107,13 +107,13 @@ pub async fn addresses(node: String, account: String) -> Result<String, JsError>
     Ok(output::addresses_json(fid, &node.addresses(fid).await?))
 }
 
-/// `selfcast followers <account> --limit <limit> --json`.
+/// `paircaster followers <account> --limit <limit> --json`.
 #[wasm_bindgen]
 pub async fn followers(node: String, account: String, limit: u32) -> Result<String, JsError> {
     follows(node, account, true, limit).await
 }
 
-/// `selfcast following <account> --limit <limit> --json`.
+/// `paircaster following <account> --limit <limit> --json`.
 #[wasm_bindgen]
 pub async fn following(node: String, account: String, limit: u32) -> Result<String, JsError> {
     follows(node, account, false, limit).await
@@ -132,7 +132,7 @@ async fn follows(
     Ok(output::follows_json(fid, followers, &follows, &users))
 }
 
-/// `selfcast replies <cast> --limit <limit> [app filter] --json`.
+/// `paircaster replies <cast> --limit <limit> [app filter] --json`.
 #[wasm_bindgen]
 pub async fn replies(
     node: String,
@@ -152,7 +152,7 @@ pub async fn replies(
     Ok(output::replies_json(&id, &items, &users))
 }
 
-/// `selfcast thread <cast> --limit <limit> --json`.
+/// `paircaster thread <cast> --limit <limit> --json`.
 #[wasm_bindgen]
 pub async fn thread(node: String, cast: String, limit: u32, now: f64) -> Result<String, JsError> {
     let node = Node::new(&node)?;
@@ -162,7 +162,7 @@ pub async fn thread(node: String, cast: String, limit: u32, now: f64) -> Result<
     Ok(output::thread_json(&thread, &users))
 }
 
-/// `selfcast reactions <cast> --json`.
+/// `paircaster reactions <cast> --json`.
 #[wasm_bindgen]
 pub async fn reactions(node: String, cast: String) -> Result<String, JsError> {
     let node = Node::new(&node)?;
@@ -171,7 +171,7 @@ pub async fn reactions(node: String, cast: String) -> Result<String, JsError> {
     Ok(output::reactions_json(&id, &reactions, &users))
 }
 
-/// `selfcast events [--since …] [--until …] [--shard …] --json`, a page at
+/// `paircaster events [--since …] [--until …] [--shard …] --json`, a page at
 /// a time: [`Events::next`] gives the next page.
 #[wasm_bindgen]
 pub async fn events(
@@ -196,7 +196,7 @@ pub struct Events {
 
 #[wasm_bindgen]
 impl Events {
-    /// The next page as a JSON array of what `selfcast events --json`
+    /// The next page as a JSON array of what `paircaster events --json`
     /// prints, one element per line; it may be empty. `undefined` once
     /// every shard is read.
     pub async fn next(&mut self) -> Result<Option<String>, JsError> {

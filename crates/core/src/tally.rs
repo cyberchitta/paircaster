@@ -14,7 +14,7 @@ use std::hash::Hash;
 /// nothing new.
 ///
 /// ```
-/// use selfcast_core::tally::PageTally;
+/// use paircaster_core::tally::PageTally;
 /// let mut tally = PageTally::default();
 /// assert!(tally.add_page(vec![1, 2], |n: &u32| *n));
 /// assert!(tally.add_page(vec![2, 3], |n: &u32| *n));

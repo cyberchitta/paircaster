@@ -1,13 +1,13 @@
 mod common;
 
 use common::fixture_messages;
+use paircaster_core::build::{Action, AppKey, BuildError, Envelope, NewCast, cast_type_for, sign};
+use paircaster_core::cast::{CastRef, Mention, MessageHash, Target};
+use paircaster_core::message::{VerifyError, hash_data, verify};
+use paircaster_core::node::parse;
+use paircaster_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
+use paircaster_core::time::Timestamp;
 use prost::Message as _;
-use selfcast_core::build::{Action, AppKey, BuildError, Envelope, NewCast, cast_type_for, sign};
-use selfcast_core::cast::{CastRef, Mention, MessageHash, Target};
-use selfcast_core::message::{VerifyError, hash_data, verify};
-use selfcast_core::node::parse;
-use selfcast_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
-use selfcast_core::time::Timestamp;
 
 /// Not any account's key: 32 bytes of 0x11.
 const SECRET: [u8; 32] = [0x11; 32];
@@ -149,7 +149,8 @@ fn every_built_message_verifies_and_decodes_back() {
 fn the_submitted_message_carries_the_signed_bytes() {
     let key = AppKey::from_secret(&SECRET);
     let signed = sign(&key, &envelope(), &Action::FollowAdd(3)).expect("builds");
-    let sent = selfcast_core::proto::Message::decode(signed.encode().as_slice()).expect("decodes");
+    let sent =
+        paircaster_core::proto::Message::decode(signed.encode().as_slice()).expect("decodes");
     assert_eq!(sent.data_bytes.as_deref(), Some(signed.data_bytes()));
     assert_eq!(sent.hash, hash_data(signed.data_bytes()));
 }
@@ -200,7 +201,7 @@ const CAST_FIXTURES: &[&str] = &[
 ];
 
 #[test]
-#[ignore = "needs SELFCAST_FIXTURES"]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
 fn the_encoder_rebuilds_every_fixture_cast_exactly() {
     let key = AppKey::from_secret(&SECRET);
     let mut rebuilt = 0;

@@ -1,5 +1,5 @@
 [package]
-name = "selfcast"
+name = "paircaster"
 description = "Farcaster from your own Snapchain node, for humans and agents"
 version.workspace = true
 edition.workspace = true
@@ -8,16 +8,16 @@ repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "selfcast"
+name = "paircaster"
 path = "src/main.rs"
 
 [features]
 # Compiles the viewer page (viewer/dist, built by `bun build.ts` in viewer/)
-# into the binary, for `selfcast viewer serve`. Release builds turn it on.
+# into the binary, for `paircaster viewer serve`. Release builds turn it on.
 viewer = []
 
 [dependencies]
-selfcast-core.workspace = true
+paircaster-core.workspace = true
 pair-ui.workspace = true
 clap.workspace = true
 flate2.workspace = true

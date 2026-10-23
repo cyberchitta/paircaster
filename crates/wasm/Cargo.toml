@@ -1,6 +1,6 @@
 [package]
-name = "selfcast-wasm"
-description = "selfcast-core's reads for the viewer page, as WebAssembly"
+name = "paircaster-wasm"
+description = "paircaster-core's reads for the viewer page, as WebAssembly"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,7 +12,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-selfcast-core.workspace = true
+paircaster-core.workspace = true
 serde_json.workspace = true
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

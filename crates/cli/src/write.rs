@@ -14,21 +14,21 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use prost::Message as _;
-use selfcast_core::Node;
-use selfcast_core::account::Account;
-use selfcast_core::build::{
+use paircaster_core::Node;
+use paircaster_core::account::Account;
+use paircaster_core::build::{
     Action, BuildError, CAST_MAX_BYTES, Envelope, LONG_CAST_MAX_BYTES, NewCast, SignedMessage,
     cast_type_for, sign,
 };
-use selfcast_core::cast::{CastRef, MessageHash, ParseRefError, Target};
-use selfcast_core::node::{ShardSync, SyncState};
-use selfcast_core::profile::{Followers, Profile};
-use selfcast_core::proto::{
+use paircaster_core::cast::{CastRef, MessageHash, ParseRefError, Target};
+use paircaster_core::node::{ShardSync, SyncState};
+use paircaster_core::profile::{Followers, Profile};
+use paircaster_core::proto::{
     Body, CastParent, CastType, Embed, EmbedTarget, FarcasterNetwork, LinkTarget, MessageData,
     MessageType, ReactionTarget, ReactionType,
 };
-use selfcast_core::time::Timestamp;
+use paircaster_core::time::Timestamp;
+use prost::Message as _;
 use serde::Serialize;
 
 use crate::CliError;
@@ -119,26 +119,26 @@ pub enum WriteError {
     Tty(#[from] TtyError),
     #[error(transparent)]
     Build(#[from] BuildError),
-    #[error("{0} is not a message Selfcast writes")]
+    #[error("{0} is not a message Paircaster writes")]
     Unknown(String),
     #[error(
         "the app key in {} is not registered to FID {fid} on this node; \
-         finish `{selfcast} key add`, or check --node",
+         finish `{paircaster} key add`, or check --node",
         .path.display()
     )]
     NotRegistered {
         fid: u64,
         path: PathBuf,
-        selfcast: String,
+        paircaster: String,
     },
     #[error(
         "{count} message(s) from an earlier write are saved but not seen sent; \
-         run `{selfcast} resend` {}{behind}",
+         run `{paircaster} resend` {}{behind}",
         .behind.when("first", "once the node shows them")
     )]
     Unsent {
         count: usize,
-        selfcast: String,
+        paircaster: String,
         behind: Behind,
     },
     #[error("not confirmed; nothing was sent")]
@@ -147,13 +147,13 @@ pub enum WriteError {
     Invalid,
     #[error(
         "sent, but the node did not show it within a minute. It is saved at {}; \
-         run `{selfcast} resend` {}{behind}",
+         run `{paircaster} resend` {}{behind}",
         .path.display(),
         .behind.when("to check and send it again", "once the node shows it")
     )]
     NotConfirmed {
         path: PathBuf,
-        selfcast: String,
+        paircaster: String,
         behind: Behind,
     },
 }
@@ -163,7 +163,7 @@ pub enum WriteError {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Behind {
     shards: Vec<(u64, ShardSync)>,
-    selfcast: String,
+    paircaster: String,
 }
 
 impl Behind {
@@ -185,14 +185,14 @@ impl std::fmt::Display for Behind {
                  the node shows them only once it catches up (see `{} node status`)",
                 shard.id,
                 status::duration(shard.seconds_behind),
-                self.selfcast,
+                self.paircaster,
             )
         })
     }
 }
 
 /// Which of `fids` sit on a shard further behind than the wait for a send.
-fn behind(state: &SyncState, fids: &[u64], selfcast: String) -> Behind {
+fn behind(state: &SyncState, fids: &[u64], paircaster: String) -> Behind {
     let wait = CONFIRM_EVERY.as_secs() * u64::from(CONFIRM_TRIES);
     Behind {
         shards: fids
@@ -200,7 +200,7 @@ fn behind(state: &SyncState, fids: &[u64], selfcast: String) -> Behind {
             .filter_map(|&fid| Some((fid, *state.shard_of(fid)?)))
             .filter(|(_, shard)| shard.seconds_behind > wait)
             .collect(),
-        selfcast,
+        paircaster,
     }
 }
 
@@ -209,7 +209,7 @@ fn behind(state: &SyncState, fids: &[u64], selfcast: String) -> Behind {
 /// error.
 async fn behind_now(node: &Node, fids: &[u64]) -> Behind {
     match node.sync_state().await {
-        Ok(state) => behind(&state, fids, invocation::selfcast()),
+        Ok(state) => behind(&state, fids, invocation::paircaster()),
         Err(_) => Behind::default(),
     }
 }
@@ -247,7 +247,7 @@ enum Status {
     Invalid,
 }
 
-/// A decoded message, in the terms Selfcast writes.
+/// A decoded message, in the terms Paircaster writes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum What {
     Cast {
@@ -306,7 +306,7 @@ impl FollowArgs {
         self,
         node: &Node,
         undo: bool,
-    ) -> Result<(Action, WriteFlags), selfcast_core::Error> {
+    ) -> Result<(Action, WriteFlags), paircaster_core::Error> {
         let fid = node.resolve(&self.account).await?;
         let action = match undo {
             false => Action::FollowAdd(fid),
@@ -441,7 +441,7 @@ async fn refuse_if_unsent(node: &Node, outbox: &Outbox) -> Result<(), CliError> 
     fids.dedup();
     Err(WriteError::Unsent {
         count: unsent.len(),
-        selfcast: invocation::selfcast(),
+        paircaster: invocation::paircaster(),
         behind: behind_now(node, &fids).await,
     }
     .into())
@@ -459,7 +459,7 @@ async fn ensure_registered(node: &Node, loaded: &LoadedKey) -> Result<(), CliErr
         false => Err(WriteError::NotRegistered {
             fid: loaded.fid,
             path: loaded.path.clone(),
-            selfcast: invocation::selfcast(),
+            paircaster: invocation::paircaster(),
         }
         .into()),
     }
@@ -710,7 +710,7 @@ async fn deliver(
     }
     Err(WriteError::NotConfirmed {
         path: saved.to_path_buf(),
-        selfcast: invocation::selfcast(),
+        paircaster: invocation::paircaster(),
         behind: behind_now(node, &[data.fid]).await,
     }
     .into())
@@ -758,12 +758,12 @@ fn report(status: Status, what: &What, fid: u64, hash: MessageHash, json: bool) 
 
 #[cfg(test)]
 mod tests {
-    use selfcast_core::build::{Action, AppKey, Envelope, NewCast, SignedMessage, sign};
-    use selfcast_core::cast::{CastRef, MessageHash, Target};
-    use selfcast_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
-    use selfcast_core::time::Timestamp;
+    use paircaster_core::build::{Action, AppKey, Envelope, NewCast, SignedMessage, sign};
+    use paircaster_core::cast::{CastRef, MessageHash, Target};
+    use paircaster_core::proto::{CastType, FarcasterNetwork, MessageData, ReactionType};
+    use paircaster_core::time::Timestamp;
 
-    use selfcast_core::node::{ShardSync, SyncState};
+    use paircaster_core::node::{ShardSync, SyncState};
 
     use super::{
         What, behind, cast_text, confirmation, decode, embed_arg, kind_name, shows, subject, what,
@@ -958,14 +958,14 @@ mod tests {
             version: "0.14.3".to_owned(),
             shards: vec![shard(0, 3), shard(1, 60), shard(2, 15_580)],
         };
-        let lagging = behind(&state, &[3, 3_356_360], "selfcast".to_owned());
+        let lagging = behind(&state, &[3, 3_356_360], "paircaster".to_owned());
         assert_eq!(
             lagging.to_string(),
             "\nShard 2, which holds FID 3356360's messages, is 4h19m behind the network; \
-             the node shows them only once it catches up (see `selfcast node status`)"
+             the node shows them only once it catches up (see `paircaster node status`)"
         );
         assert_eq!(lagging.when("first", "later"), "later");
-        let current = behind(&state, &[3], "selfcast".to_owned());
+        let current = behind(&state, &[3], "paircaster".to_owned());
         assert_eq!(current.to_string(), "");
         assert_eq!(current.when("first", "later"), "first");
     }

@@ -1,4 +1,4 @@
-//! `selfcast node fetch-snapshot`: a pausable, resumable replacement for the
+//! `paircaster node fetch-snapshot`: a pausable, resumable replacement for the
 //! snapshot download Snapchain does on first start. Snapchain's own download
 //! cannot resume and, if interrupted after the first shard unpacks, leaves a
 //! database it then treats as complete. This one downloads every chunk first,
@@ -106,7 +106,7 @@ impl Paths {
         Self {
             db: dir.join(".rocks"),
             partial: dir.join(".rocks.partial"),
-            work: dir.join(".selfcast-snapshot"),
+            work: dir.join(".paircaster-snapshot"),
             dir,
         }
     }
@@ -337,7 +337,8 @@ mod tests {
 
     #[test]
     fn dir_bytes_sums_nested_files_and_treats_missing_as_empty() {
-        let root = std::env::temp_dir().join(format!("selfcast-dir-bytes-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("paircaster-dir-bytes-{}", std::process::id()));
         std::fs::create_dir_all(root.join("a/b")).expect("temp dir is writable");
         std::fs::write(root.join("x"), [0u8; 10]).expect("temp dir is writable");
         std::fs::write(root.join("a/b/y"), [0u8; 5]).expect("temp dir is writable");

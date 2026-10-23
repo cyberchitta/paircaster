@@ -1,4 +1,4 @@
-//! Turns the node's HTTP JSON into Selfcast's types. Pure, so it is tested on
+//! Turns the node's HTTP JSON into Paircaster's types. Pure, so it is tested on
 //! saved responses without a node.
 //!
 //! Paged responses follow snapchain v0.14.3 `src/network/http_server.rs`

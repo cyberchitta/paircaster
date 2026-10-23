@@ -1,4 +1,4 @@
-//! `selfcast node status`: which phase the node is in (downloading the
+//! `paircaster node status`: which phase the node is in (downloading the
 //! snapshot, unpacking it, stopped, syncing, ready) and how far along.
 //!
 //! The node is asked first. Without `--node` the node asked is the one
@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use selfcast_core::Node;
-use selfcast_core::node::SyncState;
+use paircaster_core::Node;
+use paircaster_core::node::SyncState;
 use serde::Serialize;
 
 use crate::CliError;
@@ -34,7 +34,7 @@ pub struct StatusArgs {
     dir: Option<PathBuf>,
 }
 
-/// `selfcast node status --json`, version 1. `phase` is one of
+/// `paircaster node status --json`, version 1. `phase` is one of
 /// `not_started`, `downloading`, `unpacking`, `node_stopped`, `syncing`,
 /// `ready`, and decides which other fields are present:
 ///
@@ -138,10 +138,10 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
     let (node_url, local) = (target.url, target.here);
     let phase = match Node::new(node_url)?.sync_state().await {
         Ok(state) => synced(state),
-        Err(selfcast_core::Error::Transport(e)) if denied(&e) => {
+        Err(paircaster_core::Error::Transport(e)) if denied(&e) => {
             return Err(StatusError::NetworkDenied(node_url.to_owned()).into());
         }
-        Err(selfcast_core::Error::Transport(_)) if local => on_disk(
+        Err(paircaster_core::Error::Transport(_)) if local => on_disk(
             snapshot::observe(&dir)?,
             snapshot::holder(&dir)?.is_some(),
             SystemTime::now(),
@@ -179,7 +179,7 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
 #[derive(Debug, thiserror::Error)]
 pub enum StatusError {
     #[error(
-        "not permitted to connect to {0}, so the node's state is unknown; an agent's sandbox may be blocking network access for selfcast"
+        "not permitted to connect to {0}, so the node's state is unknown; an agent's sandbox may be blocking network access for paircaster"
     )]
     NetworkDenied(String),
 }
@@ -420,7 +420,7 @@ pub(crate) fn duration(secs: u64) -> String {
 mod tests {
     use std::time::{Duration, SystemTime};
 
-    use selfcast_core::node::{ShardSync, SyncState};
+    use paircaster_core::node::{ShardSync, SyncState};
 
     use super::{
         Chunk, Observed, Phase, Target, bytes_per_second, denied, duration, eta_seconds, is_low,

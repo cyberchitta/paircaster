@@ -58,7 +58,7 @@ pub struct NewCast {
 
 /// The most bytes of text a standard cast, and a long cast, may carry
 /// (snapchain `src/core/validations/cast.rs`, `4e547eb`). Longer casts need
-/// Farcaster Pro, which Selfcast does not support.
+/// Farcaster Pro, which Paircaster does not support.
 pub const CAST_MAX_BYTES: usize = 320;
 pub const LONG_CAST_MAX_BYTES: usize = 1024;
 
@@ -67,8 +67,8 @@ pub const LONG_CAST_MAX_BYTES: usize = 1024;
 /// or fewer). `None` past 1024.
 ///
 /// ```
-/// use selfcast_core::build::cast_type_for;
-/// use selfcast_core::proto::CastType;
+/// use paircaster_core::build::cast_type_for;
+/// use paircaster_core::proto::CastType;
 /// assert_eq!(cast_type_for(&"a".repeat(320)), Some(CastType::Cast));
 /// assert_eq!(cast_type_for(&"a".repeat(321)), Some(CastType::LongCast));
 /// assert_eq!(cast_type_for(&"a".repeat(1025)), None);

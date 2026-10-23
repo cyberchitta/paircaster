@@ -1,13 +1,13 @@
 //! Signed messages saved before they are sent, under
-//! `$XDG_CONFIG_HOME/selfcast/outbox`, else `~/.config/selfcast/outbox`: one
+//! `$XDG_CONFIG_HOME/paircaster/outbox`, else `~/.config/paircaster/outbox`: one
 //! `<hash hex>.msg` file each, mode 0600, in a 0700 directory. A message
 //! leaves once the node is seen to hold it. One left behind by a failed send
-//! is sent again as the same bytes by `selfcast resend`; signing again would
+//! is sent again as the same bytes by `paircaster resend`; signing again would
 //! make a second message with a new hash.
 
 use std::path::{Path, PathBuf};
 
-use selfcast_core::build::{DecodeError, SignedMessage};
+use paircaster_core::build::{DecodeError, SignedMessage};
 
 use crate::keystore::{self, KeyStoreError};
 
@@ -27,7 +27,7 @@ pub struct Outbox {
 
 impl Outbox {
     pub fn open() -> Result<Self, OutboxError> {
-        Self::at(keystore::config_dir()?.join("selfcast").join("outbox"))
+        Self::at(keystore::config_dir()?.join("paircaster").join("outbox"))
     }
 
     fn at(dir: PathBuf) -> Result<Self, OutboxError> {
@@ -64,15 +64,15 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
-    use selfcast_core::build::{Action, AppKey, Envelope, sign};
-    use selfcast_core::proto::FarcasterNetwork;
-    use selfcast_core::time::Timestamp;
+    use paircaster_core::build::{Action, AppKey, Envelope, sign};
+    use paircaster_core::proto::FarcasterNetwork;
+    use paircaster_core::time::Timestamp;
 
     use super::{Outbox, read, remove};
 
     #[test]
     fn a_saved_message_reads_back_as_the_same_bytes_until_removed() {
-        let dir = std::env::temp_dir().join(format!("selfcast-outbox-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("paircaster-outbox-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let outbox = Outbox::at(dir.clone()).expect("opens");
         let envelope = Envelope {

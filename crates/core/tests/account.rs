@@ -1,4 +1,4 @@
-use selfcast_core::account::{Account, ParseAccountError, Username};
+use paircaster_core::account::{Account, ParseAccountError, Username};
 
 fn name(s: &str) -> Username {
     s.parse().expect("a username")

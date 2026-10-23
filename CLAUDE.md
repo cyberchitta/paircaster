@@ -1,6 +1,6 @@
-# Selfcast: working context
+# Paircaster: working context
 
-Selfcast is a Farcaster read node plus an agent-ready client, run on your own
+Paircaster is a Farcaster read node plus an agent-ready client, run on your own
 infrastructure with no API keys from anyone: a provision script, a wrapper
 around the Snapchain bootstrap, a Rust library and CLI over the node's HTTP
 API, an agent skill that calls the CLI, and a microsite that teaches it. It is
@@ -10,8 +10,8 @@ The project publishes code and a static site only. It runs no service, holds
 no one's keys, and has no default endpoint pointing at a server it runs or at
 any third party's API. The default node is `http://localhost:3381`.
 
-**To use Selfcast rather than change it** (check the node, read casts, show
-a thread in the viewer), read `skill/SKILL.md` before the first `selfcast`
+**To use Paircaster rather than change it** (check the node, read casts, show
+a thread in the viewer), read `skill/SKILL.md` before the first `paircaster`
 command. Claude Code lists that skill only when started in this directory;
 started from its parent, it never sees it.
 
@@ -36,7 +36,7 @@ started from its parent, it never sees it.
   so. What has not been run is listed once, in the site's "Not tried yet"
   list, not marked inline. The site is a guide, not a log: no dates of runs
   and no account of how a check was done; that record is kept out of the
-  repo. A statement about what Selfcast does with no check behind it is
+  repo. A statement about what Paircaster does with no check behind it is
   written as a limit, not a property.
 - No telemetry or phoning home. Farcaster's public nodes (`crackle` mainnet,
   `iris` testnet) may be used during development, never as a default.
@@ -83,7 +83,7 @@ keep them auditable by someone who does not read the crypto.
 Rust follows the global `rust-style` skill; load it before writing Rust. What
 this repo adds:
 
-- `selfcast-core` keeps its logic pure (feed and profile assembly, signer
+- `paircaster-core` keeps its logic pure (feed and profile assembly, signer
   attribution, message construction) and confines network access to the
   `node` module, so the logic is tested without a node.
 - Snapchain's HTTP responses are a third-party format that will grow: parse

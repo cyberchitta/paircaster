@@ -46,7 +46,7 @@ impl AppFilter {
     /// Whether a cast from `app_fid` (`None`: app unknown) is kept.
     ///
     /// ```
-    /// use selfcast_core::feed::AppFilter;
+    /// use paircaster_core::feed::AppFilter;
     /// let only = AppFilter::Only([9152].into());
     /// assert!(only.admits(Some(9152)) && !only.admits(Some(1)) && !only.admits(None));
     /// let not = AppFilter::Not([9152].into());
