@@ -11,10 +11,12 @@
 //! `serve` hosts the build compiled in with the `viewer` feature.
 
 use std::process::Command;
+use std::str::FromStr;
 
 use pair_ui::client::{self, ClientError};
 use pair_ui::{
-    Answer, BadOrigin, Build, Config, Host, HostError, Moniker, Origin, Policy, socket_path,
+    Answer, BadMoniker, BadOrigin, Build, Config, Host, HostError, Moniker, Origin, Policy,
+    socket_path,
 };
 use reqwest::Url;
 use serde_json::{Value, json};
@@ -60,11 +62,12 @@ pub enum ViewerCommand {
         #[arg(long)]
         images: bool,
     },
-    /// Open a cast's thread in the viewer, reading from --node.
+    /// Open a cast's thread in the viewer, or what a selfcast moniker
+    /// names, reading from --node.
     Open {
-        /// The cast to show, as FID:HASH.
-        #[arg(value_name = "FID:HASH")]
-        cast: CastRef,
+        /// A cast, as FID:HASH, or a selfcast://selfcast/… moniker.
+        #[arg(value_name = "FID:HASH|MONIKER")]
+        shown: Shown,
     },
     /// Print what the viewer shows: the thread, the cast selected in it, and
     /// the trail Back returns along.
@@ -75,15 +78,44 @@ pub enum ViewerCommand {
 pub async fn run(command: &ViewerCommand, node: &str) -> Result<(), ViewerError> {
     match command {
         ViewerCommand::Serve { images } => serve(node, *images).await,
-        ViewerCommand::Open { cast } => open(cast, node).await,
+        ViewerCommand::Open { shown } => open(&shown.0, node).await,
         ViewerCommand::State => state().await,
     }
 }
 
-async fn open(cast: &CastRef, node: &str) -> Result<(), ViewerError> {
-    let (moniker, view) = (moniker(cast), view_state(node));
-    match client::reveal(&socket_path(PROJECT), &moniker, Some(&view)).await {
-        Err(ClientError::NoHost(_)) => shala(&reveal_args(&moniker, &view)),
+/// What `viewer open` shows: a cast's thread, or whatever a selfcast moniker
+/// names. The page reads the moniker; this only checks it is selfcast's.
+#[derive(Debug, Clone)]
+pub struct Shown(Moniker);
+
+#[derive(Debug, thiserror::Error)]
+pub enum BadShown {
+    #[error("not a cast (FID:HASH) or a selfcast moniker: {0:?}")]
+    Neither(String),
+    #[error("a moniker for {0}://{1}, not {SCHEME}://{PROJECT}")]
+    Elsewhere(String, String),
+}
+
+impl FromStr for Shown {
+    type Err = BadShown;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<Moniker>() {
+            Ok(m) if (m.scheme(), m.project()) == (SCHEME, PROJECT) => Ok(Self(m)),
+            Ok(m) => Err(BadShown::Elsewhere(m.scheme().into(), m.project().into())),
+            Err(BadMoniker::NotAMoniker(_)) => s
+                .parse::<CastRef>()
+                .map(|cast| Self(moniker(&cast)))
+                .map_err(|_| BadShown::Neither(s.into())),
+            Err(BadMoniker::Malformed(_)) => Err(BadShown::Neither(s.into())),
+        }
+    }
+}
+
+async fn open(moniker: &Moniker, node: &str) -> Result<(), ViewerError> {
+    let view = view_state(node);
+    match client::reveal(&socket_path(PROJECT), moniker, Some(&view)).await {
+        Err(ClientError::NoHost(_)) => shala(&reveal_args(moniker, &view)),
         answer => print(answer?, &format!("revealed {moniker}")),
     }
 }
@@ -215,6 +247,27 @@ mod tests {
             args[3],
             "selfcast://selfcast/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1"
         );
+    }
+
+    #[test]
+    fn open_takes_a_cast_or_a_selfcast_moniker_and_nothing_else() {
+        let shown = |s: &str| s.parse::<Shown>().map(|m| m.0.to_string());
+        let filtered =
+            "selfcast://selfcast/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1?only=1:0x2";
+        assert_eq!(shown(filtered).expect("selfcast's own"), filtered);
+        assert_eq!(
+            shown("37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1").expect("a cast"),
+            moniker(&cast()).to_string()
+        );
+        assert!(matches!(
+            "khana://selfcast/thread/1:0x2".parse::<Shown>(),
+            Err(BadShown::Elsewhere(..))
+        ));
+        assert!(matches!(
+            "selfcast://other/thread/1:0x2".parse::<Shown>(),
+            Err(BadShown::Elsewhere(..))
+        ));
+        assert!(matches!("dwr".parse::<Shown>(), Err(BadShown::Neither(_))));
     }
 
     #[test]

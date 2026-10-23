@@ -369,8 +369,26 @@ yourself: for that, `thread --json` is the read.
 ```
 selfcast viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
 selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened
-selfcast viewer state              # what the page shows: thread, selected cast, Back trail
+selfcast viewer open <MONIKER>     # show what a selfcast moniker names (below)
+selfcast viewer state              # what the page shows: thread or list, marked casts, Back trail
 ```
+
+A moniker names one view of the page, as one token. Each `<cast>` is a
+`FID:HASH`, and a list is casts separated by commas, at most 50:
+
+| Moniker | Shows |
+|---|---|
+| `selfcast://selfcast/thread/<cast>` | the cast's thread, as `open <cast>` does |
+| `selfcast://selfcast/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and only those of its direct replies, in the order given; the rest fold into a "Show all" button |
+| `selfcast://selfcast/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
+
+Any of them may end `#cast=<cast>,…`, which marks those casts and scrolls
+to the first. Use `?only=` to show the user the replies an answer is
+about, ranked as you ranked them, and `casts/` for casts from different
+threads. The page refuses a moniker it cannot show in full (a reply that
+is not one, a cast the node does not hold, a marked cast not on the page)
+and changes nothing. Quote the moniker in single quotes: `?` and `#` mean
+something to the shell.
 
 - **`serve` keeps running.** Run it in the background, or ask the user to
   run it in a terminal, and give them the address it prints to open. It
@@ -380,11 +398,13 @@ selfcast viewer state              # what the page shows: thread, selected cast,
   otherwise to Shala. Exit 1, with the page's or the host's reason, when it
   could not show the cast or no page is open.
 - **What the user points at is `user_selected` in `viewer state`**: the
-  cast they last clicked or opened, as
-  `selfcast://selfcast/thread/<FID:HASH>`, with `#cast=<FID:HASH>` for a cast
-  selected in that thread. What `viewer open` shows never changes it, so
-  `cast` and `selected` say what is on screen, `user_selected` what the user
-  chose. In Shala, when `shala selection` says the user was last in
+  cast they last clicked or opened, as a moniker: the view they were on,
+  with `#cast=<FID:HASH>` for a cast selected in it. What `viewer open`
+  shows never changes it, so the rest of the state says what is on screen
+  (`view` is `thread`, with `cast` and `only` when filtered, or `casts`,
+  with `casts`; `selected` lists the marked casts or is `null`; `back` holds
+  what Back returns to, each as `open` takes it), and `user_selected` what
+  the user chose. In Shala, when `shala selection` says the user was last in
   selfcast's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
