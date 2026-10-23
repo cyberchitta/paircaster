@@ -1,6 +1,6 @@
-# selfcast: site-build
+# paircaster: site-build
 
-The toolchain that builds the Selfcast site. The pages themselves are
+The toolchain that builds the Paircaster site. The pages themselves are
 markdown in `docs/` on `main`; this branch holds only what turns them into
 HTML, so `main` carries no JavaScript dependencies.
 
@@ -19,11 +19,11 @@ and ` ```file <path> `. A screenshot is
 Supramental Gold's `image-figure`, with the file in `docs/images/`.
 
 Build only in CI or in a container that does not mount your home
-directory: a local build runs every dependency as you, and Selfcast's app
+directory: a local build runs every dependency as you, and Paircaster's app
 keys live under your home directory.
 
 ```sh
-mkdir -p content && cp -R ../selfcast/docs/. content/
+mkdir -p content && cp -R ../paircaster/docs/. content/
 docker run --rm -v "$PWD":/site -w /site oven/bun:1.3.14 \
   sh -c 'bun install --frozen-lockfile && bun run build'
 ```

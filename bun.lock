@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "selfcast-site",
+      "name": "paircaster-site",
       "dependencies": {
         "@cyberchitta/supramental-gold": "github:cyberchitta/supramental-gold#v0.5.1",
       },

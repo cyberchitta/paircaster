@@ -13,7 +13,7 @@ const sgEleventy = path.join(
 const includesDir = path.join(__dirname, '_includes');
 const site = JSON.parse(fs.readFileSync(path.join(__dirname, '_data', 'site.json'), 'utf8'));
 
-// Boxes for a warning, what Selfcast cannot do, and a note.
+// Boxes for a warning, what Paircaster cannot do, and a note.
 // Authored as <warning>, <limit> and <note>, each with a markdown body.
 // All three share the neutral alert: alert-warning's yellow leaves inline
 // code unreadable, so the label carries the meaning.
