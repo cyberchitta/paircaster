@@ -2,7 +2,7 @@
 title: Using the client
 ---
 
-Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node while it was still about two days behind the network, so the newest casts in them are from mid-October 2026.
+Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node, some of them taken while it was still catching up with the network.
 
 ## Where to run selfcast
 
@@ -121,12 +121,12 @@ selfcast casts v,dwr --limit 3
 ```
 
 ```output
-2026-10-17T02:30:02Z  fid 3  0x0256ae66308d546514fa666cda44052abbfea066  app 9152
+2026-10-17T02:30:02Z  @dwr  fid 3  0x0256ae66308d546514fa666cda44052abbfea066  app 9152
 
-2026-10-17T02:23:28Z  fid 3  0xec0c8a227d7f34ad3e2243ae098b46459b7d1847  app 9152
+2026-10-17T02:23:28Z  @dwr  fid 3  0xec0c8a227d7f34ad3e2243ae098b46459b7d1847  app 9152
   Neat
 
-2026-10-16T00:31:40Z  fid 3  0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6  app 9152
+2026-10-16T00:31:40Z  @dwr  fid 3  0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6  app 9152
   I just want it for me.
 ```
 
@@ -157,7 +157,7 @@ selfcast casts dwr --limit 1 --json
 ```
 
 ```output
-{"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+{"version":1,"fids":[3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/9f4bda20-a039-4770-5605-8eb24d259e00/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}],"accounts":[{"fid":3,"username":"dwr","display_name":"Dan Romero","pfp_url":"https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/bc698287-5adc-4cc5-a503-de16963ed900/original"}]}
 ```
 
 A mention is not in a cast's `text`: the message carries the mentioned account's FID and a byte position, and a client writes the name in. `selfcast` looks the names up and writes them in for you, as `display_text` in JSON (`@fid:N` for an account with no username):
@@ -211,7 +211,7 @@ selfcast replies 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 ```
 
 ```output
-2026-10-21T19:04:46Z  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
+2026-10-21T19:04:46Z  @selfcast  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
   How:
   selfcast node fetch-snapshot
   cd ~/snapchain && ./snapchain.sh up
@@ -243,13 +243,13 @@ selfcast thread 3356360:0x3820fb679133cd50df09d95beb8a5fbe2553069d
 
 ```output
 --- the cast ---
-2026-10-21T11:32:08Z  fid 3356360  0x3820fb679133cd50df09d95beb8a5fbe2553069d  app 3356360
+2026-10-21T11:32:08Z  @selfcast  fid 3356360  0x3820fb679133cd50df09d95beb8a5fbe2553069d  app 3356360
   This cast went out through my own Snapchain node, signed by an app key I added with a gasless KEY_ADD message. No API key, no hosted service, no one else's server.
   
   Selfcast: run your own Farcaster read node, plus a CLI and an agent skill that use it.
 
 --- 1 replies ---
-2026-10-21T19:04:46Z  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
+2026-10-21T19:04:46Z  @selfcast  fid 3356360  0x4853a7d5837632037621a83f1068c8b57ba5ed24  app 3356360
   How:
   selfcast node fetch-snapshot
   cd ~/snapchain && ./snapchain.sh up
@@ -295,6 +295,9 @@ selfcast events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
 
 ```output
 2026-10-23T03:00:03Z  shard 2  merge cast_add  fid 3356482  0xe89cce326e9ceaed7cd01bd321e13cd3c87388fd
+    Posted from readnode: my own Snapchain read node + a client that reads only from it. No hosted API, gasless app key, seed phrase never leaves my machine.
+    
+    https://readnode.aft.page
 2026-10-23T03:00:04Z  shard 2  merge reaction_add  fid 3356524  0x9c00192cc0c2514ff08a3a7c8e12a62ada74f4d8
 ```
 

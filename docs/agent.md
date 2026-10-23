@@ -9,7 +9,7 @@ Before you start: a node that `selfcast node status` reports ready, and `selfcas
 
 ## The skill
 
-The repository's `skill/` directory is an agent skill: instructions an AI agent loads before it runs `selfcast`. The agent runs the same commands you do, with `--json`, and has the same limits: no search, and nothing older than an account's newest 1000 messages.
+The repository's `skill/` directory is an agent skill: instructions an AI agent loads before it runs `selfcast`. The agent runs the same commands you do, with `--json`, and has the same limits: search reaches back about three days, through `selfcast events`, and nothing older than an account's newest 1000 messages can be read.
 
 Claude Code finds the skill in the clone. From the directory you cloned into:
 

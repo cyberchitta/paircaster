@@ -31,15 +31,15 @@ selfcast casts v,dwr --limit 4
 ```
 
 ```output
-2026-10-17T02:30:02Z  fid 3  0x0256ae66308d546514fa666cda44052abbfea066  app 9152
+2026-10-17T02:30:02Z  @dwr  fid 3  0x0256ae66308d546514fa666cda44052abbfea066  app 9152
 
-2026-10-17T02:23:28Z  fid 3  0xec0c8a227d7f34ad3e2243ae098b46459b7d1847  app 9152
+2026-10-17T02:23:28Z  @dwr  fid 3  0xec0c8a227d7f34ad3e2243ae098b46459b7d1847  app 9152
   Neat
 
-2026-10-16T00:31:40Z  fid 3  0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6  app 9152
+2026-10-16T00:31:40Z  @dwr  fid 3  0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6  app 9152
   I just want it for me.
 
-2026-10-16T00:30:24Z  fid 3  0x35f104e944de03c93cc4eb513e8b84cef58d9b77  app 9152
+2026-10-16T00:30:24Z  @dwr  fid 3  0x35f104e944de03c93cc4eb513e8b84cef58d9b77  app 9152
   Snapchain node wishlist
   
   1. I want to sync only a subset of the network. 
