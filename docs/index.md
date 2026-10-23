@@ -3,29 +3,46 @@ title: Paircaster
 dek: Farcaster from your own Snapchain node, for you and your AI agent. No API keys from anyone.
 ---
 
-[Farcaster](https://farcaster.xyz) is a decentralised social network: its accounts, casts (posts), likes and follows are signed messages, and every node keeps a copy of them. Snapchain is the software those nodes run. Paircaster sets up a Snapchain node on your own machine and gives you, and the AI agent you use, a command-line client that reads from that node and posts through it. It is for people at home in a terminal who want Farcaster without an app or a hosted API in between. The node needs about 800 GB of disk and about 12 hours of download before it starts catching up with the network. Paircaster was called Selfcast. Its test account is still `@selfcast`, and output captured before the rename shows the old name.
+[Farcaster](https://farcaster.xyz) is a decentralised social network: its accounts, casts (posts), likes and follows are signed messages, and every node keeps a copy of them. Paircaster lets you and your AI agent read and post on Farcaster from your own node, with no app or hosted API in between. It has three parts:
+
+- **A node.** Snapchain, the software Farcaster's nodes run, set up on your machine by Snapchain's own installer and run in Docker. It starts from a snapshot of the network: about 800 GB and 12 hours of download, then a day or more catching up. Snapchain's own download starts over after a network drop, so `paircaster` does it instead, pausing and resuming where it stopped, and tells you how far the node has got ([Running the node](node.md)).
+- **A command-line client, `paircaster`.** It reads profiles, casts, threads, follows and the network's recent messages from your node, and casts, reacts and follows through it ([Using the client](client.md)). You run it, and so does your agent, following instructions in the repository (a *skill*, [Your AI agent](agent.md)).
+- **A viewer.** An interactive page in your browser that shows threads the way a Farcaster app does, reading your node itself. It reads only; posting is the command line's. You and your agent both use it: the agent puts threads on it with `paircaster viewer`, you follow the replies and click the cast you mean, and the agent asks the page which one you chose. It is an option of `paircaster`, built with extra tools ([Looking at a thread together](agent.md#looking-at-a-thread-together)).
+
+```
+  your machine
+ ┌──────────────────────────────────────────────────────────┐
+ │  you ───┬──▶ paircaster ────────────HTTP──┐              │
+ │         │    (command line)               ▼              │
+ │  agent ─┘        │ viewer open      Snapchain node       │
+ │                  ▼                  localhost:3381       │
+ │  you ──────▶ viewer page ───────────HTTP──▲              │
+ │              (your browser)                              │
+ └───────────────────────────────────────────┬──────────────┘
+                                             │ gossip, UDP 3382
+                                             ▼
+                                     other Snapchain nodes
+                                     and the validators
+```
 
 <warning>
 
-**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase.** As with any code from the internet, review it yourself, or have someone you trust or an AI agent review it, and use a test account either way. Make it in the Farcaster app, which also gives it the storage an account needs to post, and use its Farcaster recovery phrase, not the wallet one ([Before you start](testing.md#before-you-start)). [Safety](safety.md) lists the files that handle the phrase.
+**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase, and use a test account** ([Before you start](testing.md#before-you-start), [Safety](safety.md)).
 
 </warning>
 
 <note>
 
-**Paircaster is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs while Paircaster was being built; where a command has changed since, the guide shows the current one, so what you see may differ in small ways. Paths under your home directory are shown as `~`. To run it on a clean machine and report what happened, see [Testing Paircaster](testing.md).
+**Paircaster is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs; where a command has changed since, the guide shows the current one. Paircaster was called Selfcast: some output shows the old name, and the test account is still `@selfcast`. To run it on a clean machine and report what happened, see [Testing Paircaster](testing.md).
 
 </note>
 
 ## What you get
 
-- **Your own node, no API keys.** `paircaster` reads from the Snapchain node on your machine, at `http://localhost:3381` unless you point it elsewhere, so the reads themselves pass through no one else's server ([how it fits together](#what-you-just-did)). What you read goes further only where you send it: to your AI agent's model provider, and, with the viewer's `--images`, to the hosts of profile pictures.
-- **No server needed.** It can run on a machine you already use. Snapchain's own snapshot download starts over after a short network drop, so `paircaster` has its own, which you can pause and resume where it stopped. A node on a laptop syncs only while the laptop is awake; after a 40-minute sleep it reconnected and carried on ([The snapshot](node.md#the-snapshot), [Sleep](node.md#sleep,-shutdown-and-logout)).
-- **Your recovery phrase stays in your terminal.** `paircaster key add` reads it from the terminal only, never from a file, an argument, a pipe or an environment variable, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
-- **You see what is signed, and every write is read back.** Before a write, `paircaster` shows the message it is about to sign, written from the signed message itself. After sending, it reads the message back from the node before it calls it sent. So far that text has been approved through an agent's dry run, not yet typed at the prompt ([Writing](client.md#writing:-casts,-reactions,-follows)).
-- **Your AI agent uses the same commands.** A skill tells an agent to run `paircaster`, to stay read-only until you enable writes, and to show you `paircaster`'s own text before each one. Those are instructions, not a lock: an agent with a shell on your machine can send anything the app key allows ([Your AI agent](agent.md)).
-- **A thread you and your agent look at together.** You start a page in your browser, and your agent puts threads on it. You follow its replies and click the cast you mean, and the agent reads what you chose. The page reads your node itself. It needs `paircaster` built with the `viewer` feature, which the quickstart's build leaves out ([building it](agent.md#build-it)).
-- **Farcaster from the command line.** Read profiles, casts and a feed; cast and delete, like and unlike, follow and unfollow. Each cast shows the app that posted it, so you can keep or drop casts by app ([Filtering by client](client.md#filtering-by-client)). There is no search command: `paircaster events` lists the network's last three days or so of messages, each cast with its text, for you to filter with `jq` or `grep` ([Events](client.md#events)). Nothing older than an account's newest 1000 messages can be read.
+- **No API keys, no hosted service.** Reads go to your own node and pass through no one else's server. What you read goes further only where you send it: to your agent's model provider, and, with the viewer's `--images`, to the hosts of profile pictures.
+- **Your recovery phrase stays in your terminal.** `paircaster key add` reads it from the terminal only, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
+- **You see what is signed, and every write is read back.** Before a write, `paircaster` shows the message it is about to sign, written from the signed message itself, and after sending it reads the message back from your node ([Writing](client.md#writing:-casts,-reactions,-follows)).
+- **Your agent is read-only until you enable writes.** The skill says so, and has the agent show you `paircaster`'s own text before each write. Those are instructions, not a lock: an agent with a shell on your machine can send anything the app key allows ([Your AI agent](agent.md)).
 
 ## Quickstart
 
@@ -150,20 +167,6 @@ Ready (Snapchain 0.14.3): every shard within a minute of its newest block.
 If nothing answers at that address, it says `could not reach node` and exits 1. Without `--node`, reads and writes both go to your own node; some of the guide's writes were sent through Farcaster's public node instead, by naming it with `--node`, because the test node had not yet synced the new test account, and a node accepts writes only from accounts it has seen ([Writing](client.md#writing:-casts,-reactions,-follows)).
 
 ## What you just did
-
-```
-  your machine
- ┌──────────────────────────────────────────────┐
- │  paircaster ──HTTP──▶ localhost:3381           │
- │  (you, or your agent)     │                  │
- │                    Snapchain read node       │
- │                    (~/snapchain/.rocks)      │
- └───────────────────────────┬──────────────────┘
-                             │ gossip, UDP 3382
-                             ▼
-                  other Snapchain nodes
-                  and the validators
-```
 
 Your node keeps its own copy of the network's messages: casts, reactions, follows and profile data. Ours reports 914,246,336 messages in 557 GB. `paircaster` reads from the node at `http://localhost:3381` unless you point it elsewhere.
 
