@@ -14,7 +14,9 @@ fetched from jsDelivr at the pinned tag.
 
 Pages use three boxes, `<warning>`, `<limit>` and `<note>`, each with a
 markdown body, and three labelled code fences: ` ```run `, ` ```output `
-and ` ```file <path> `.
+and ` ```file <path> `. A screenshot is
+`<showcase type="image" src="images/<file>.webp" frame="WxH" alt="…" caption="…" />`,
+Supramental Gold's `image-figure`, with the file in `docs/images/`.
 
 Build only in CI or in a container that does not mount your home
 directory: a local build runs every dependency as you, and Selfcast's app

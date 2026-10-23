@@ -51,8 +51,15 @@ export default function (eleventyConfig) {
   eleventyConfig.amendLibrary('md', labelFences);
   eleventyConfig.addGlobalData('layout', 'layouts/page.ejs');
 
+  // Figures, authored as <showcase type="image" src frame alt caption />:
+  // the template is SG's, found in its eleventy dir.
+  const SHOWCASES = { image: 'primitives/image-figure.ejs' };
+
   const renderCallouts = createCustomElementRenderer(
-    Object.fromEntries(Object.keys(CALLOUTS).map((tag) => [tag, 'elements/callout.ejs'])),
+    {
+      ...Object.fromEntries(Object.keys(CALLOUTS).map((tag) => [tag, 'elements/callout.ejs'])),
+      showcase: SHOWCASES,
+    },
     includesDir,
     { data: { site } },
     Object.fromEntries(
@@ -75,6 +82,8 @@ export default function (eleventyConfig) {
   // The words come from main's docs/, copied into content/ by the workflow,
   // which is why content/ is gitignored here and the gitignore is not used.
   eleventyConfig.setUseGitIgnore(false);
+  // Figures' files, beside the pages that show them.
+  eleventyConfig.addPassthroughCopy('content/images');
   // upstream-fixes.md is a working record kept in the repository, not a page.
   eleventyConfig.ignores.add('content/upstream-fixes.md');
 
