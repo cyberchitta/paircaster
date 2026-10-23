@@ -389,6 +389,15 @@ node itself, so the user can follow replies and go back without you. Use it
 when the user wants to look at a conversation with you, not to read one
 yourself: for that, `thread --json` is the read.
 
+**While a page is open, casts go on the page, not in your reply.** `viewer
+state` succeeds when one is; then "show me" means `viewer open`. Don't
+reprint the casts you put up: the user is reading them there. Your reply
+says what the page now shows and why you chose it, and carries what only
+you can add: the summary, the ranking's reasons, the answer to the
+question. Name a cast by its author and a few of its words, so the user
+can find it on the page. Print casts in the reply only when no page is
+open, or when the user asks for the text.
+
 ```
 selfcast viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
 selfcast viewer open <FID:HASH>    # show that cast's thread; prints what it opened

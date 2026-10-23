@@ -252,7 +252,7 @@ After a restart with the node running, it came back without being started, and h
 
 ## Upgrades
 
-The bootstrap script adds a weekly cron job that upgrades Snapchain, unless `~/snapchain/.env` contains `SKIP_CRONTAB=true`. The quickstart adds it, so upgrades happen by hand. The weekly job also runs `docker system prune --volumes -f` after each upgrade (the `autoupgrade` branch of `snapchain.sh`), which deletes every stopped container and unused volume on the machine, not only Snapchain's. On a server used only for the node that is harmless; on your own computer it is not. To upgrade:
+The bootstrap script adds a weekly cron job that upgrades Snapchain, unless `~/snapchain/.env` contains `SKIP_CRONTAB=true`. The quickstart adds it, so upgrades happen by hand. It also lets you leave the operator FID blank: without it, a blank FID stops the script before it starts the node, because it needs the FID to pick a day for the weekly job ([snapchain #1030](https://github.com/farcasterxyz/snapchain/issues/1030)). The weekly job also runs `docker system prune --volumes -f` after each upgrade (the `autoupgrade` branch of `snapchain.sh`), which deletes every stopped container and unused volume on the machine, not only Snapchain's. On a server used only for the node that is harmless; on your own computer it is not. To upgrade:
 
 ```run
 cd ~/snapchain && ./snapchain.sh upgrade

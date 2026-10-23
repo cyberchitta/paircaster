@@ -26,7 +26,7 @@ Check each of these and note the result. The run comes in two parts, so you can 
 
 **Part 1: the node and reads** (a day or more, mostly waiting).
 
-1. The quickstart's three steps run as shown, and their output looks like the output on the site.
+1. The quickstart's steps run as shown, and their output looks like the output on the site.
 2. The node downloads its snapshot, starts, and `selfcast node status` reports it ready. Stopping and restarting the download resumes it instead of starting over.
 3. `selfcast` reads a profile, an account's casts, and the feed of an account that follows others (a new test account follows no one, so its own feed is empty), from your own node.
 4. Filtering the feed to include or exclude casts from a given app.

@@ -10,6 +10,11 @@ The project publishes code and a static site only. It runs no service, holds
 no one's keys, and has no default endpoint pointing at a server it runs or at
 any third party's API. The default node is `http://localhost:3381`.
 
+**To use Selfcast rather than change it** (check the node, read casts, show
+a thread in the viewer), read `skill/SKILL.md` before the first `selfcast`
+command. Claude Code lists that skill only when started in this directory;
+started from its parent, it never sees it.
+
 ## Hard constraints
 
 - **No API keys, no hosted APIs in the stack.** Neynar's docs may be read;
