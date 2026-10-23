@@ -1,6 +1,7 @@
 //! The one timestamp type past the `node` boundary.
 
 use std::fmt;
+use std::str::FromStr;
 
 /// The Farcaster epoch, 2021-01-01T00:00:00Z, in Unix seconds.
 const FARCASTER_EPOCH: u64 = 1_609_459_200;
@@ -49,6 +50,80 @@ impl fmt::Display for Timestamp {
     }
 }
 
+/// A time as a person types it, in UTC: `2026-10-22T06:00:00Z`, or a date,
+/// `2026-10-22`, for its first second. Nothing before 1970.
+///
+/// ```
+/// use selfcast_core::time::Timestamp;
+/// let t: Timestamp = "2024-03-03T09:46:40Z".parse().unwrap();
+/// assert_eq!(t, Timestamp::from_farcaster(100_000_000));
+/// assert_eq!("2024-03-03".parse::<Timestamp>().unwrap().to_string(), "2024-03-03T00:00:00Z");
+/// ```
+impl FromStr for Timestamp {
+    type Err = ParseTimeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (date, time) = s.split_once('T').unwrap_or((s, "00:00:00Z"));
+        let time = time.strip_suffix('Z').ok_or(ParseTimeError)?;
+        let [y, m, d] = fields(date, '-', [4, 2, 2])?;
+        let [hh, mm, ss] = fields(time, ':', [2, 2, 2])?;
+        let valid = (1970..).contains(&y)
+            && (1..=12).contains(&m)
+            && (1..=days_in_month(y, m)).contains(&d)
+            && hh < 24
+            && mm < 60
+            && ss < 60;
+        match valid {
+            true => Ok(Self(
+                days_from_civil(y, m, d) * 86_400 + hh * 3600 + mm * 60 + ss,
+            )),
+            false => Err(ParseTimeError),
+        }
+    }
+}
+
+/// Why a time typed by a person did not parse.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("a time is UTC, as 2026-10-22T06:00:00Z or 2026-10-22")]
+pub struct ParseTimeError;
+
+/// Three numbers of exactly `widths` digits, separated by `sep`.
+fn fields(s: &str, sep: char, widths: [usize; 3]) -> Result<[u64; 3], ParseTimeError> {
+    let parts: Vec<&str> = s.split(sep).collect();
+    let ok = parts.len() == 3
+        && parts
+            .iter()
+            .zip(widths)
+            .all(|(p, w)| p.len() == w && p.bytes().all(|b| b.is_ascii_digit()));
+    match ok {
+        true => Ok([0, 1, 2].map(|i| parts[i].parse().expect("checked to be digits"))),
+        false => Err(ParseTimeError),
+    }
+}
+
+fn days_in_month(y: u64, m: u64) -> u64 {
+    let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
+    match m {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// A proleptic Gregorian date to days since 1970-01-01, for dates from
+/// 1970. Howard Hinnant's `days_from_civil`, the inverse of
+/// [`civil_from_days`].
+fn days_from_civil(y: u64, m: u64, d: u64) -> u64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y / 400;
+    let yoe = y - era * 400;
+    let mp = if m > 2 { m - 3 } else { m + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
 /// Days since 1970-01-01 to a proleptic Gregorian date, for days ≥ 0.
 /// Howard Hinnant's `civil_from_days` (public domain, "chrono-Compatible
 /// Low-Level Date Algorithms").
@@ -83,6 +158,36 @@ mod tests {
             Timestamp::from_farcaster(150_000_000).to_string(),
             "2025-10-03T02:40:00Z"
         );
+    }
+
+    #[test]
+    fn parsing_inverts_formatting_for_every_day_from_1970_to_2200() {
+        (0..(230 * 366))
+            .map(|day| Timestamp::from_unix(day * 86_400 + 86_399))
+            .filter(|t| t.unix_seconds() < 7_258_118_400)
+            .for_each(|t| assert_eq!(t.to_string().parse(), Ok(t), "{t}"));
+    }
+
+    #[test]
+    fn malformed_times_are_refused() {
+        [
+            "",
+            "2026-10-22T",
+            "2026-10-22T06:00:00",
+            "2026-1-22",
+            "2026-02-30",
+            "2025-02-29",
+            "2026-10-22T24:00:00Z",
+            "1969-12-31",
+            "2026-10-22 06:00:00Z",
+            "+026-10-22",
+            "2026-10-22T06:00Z",
+            "2100-02-29",
+        ]
+        .iter()
+        .for_each(|s| assert!(s.parse::<Timestamp>().is_err(), "{s:?} accepted"));
+        assert!("2024-02-29".parse::<Timestamp>().is_ok());
+        assert!("2000-02-29".parse::<Timestamp>().is_ok());
     }
 
     #[test]

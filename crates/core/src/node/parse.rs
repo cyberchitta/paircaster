@@ -14,6 +14,7 @@ use crate::Error;
 use crate::account::Username;
 use crate::cast::{Cast, CastRef, ChannelUrl, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
+use crate::event::{Change, EventBody, PageEvent};
 use crate::profile::UserDatum;
 use crate::proto::json::message_from_json;
 use crate::proto::{
@@ -90,6 +91,156 @@ pub fn casts_in_channel(page: Value, channel: &ChannelUrl) -> Result<Page<Cast>,
         true => Ok(page),
         false => Err(bad("cast with another parent in a page for a channel")),
     }
+}
+
+/// A `GET /v1/events` page (snapchain v0.14.3 `src/network/http_server.rs`,
+/// `HubEvent` line 1986). Message bodies are not read past the fields the
+/// event list shows.
+pub fn events(page: Value) -> Result<Vec<PageEvent>, Error> {
+    #[derive(Deserialize)]
+    struct Raw {
+        events: Vec<RawEvent>,
+    }
+    from_value::<Raw>(page)?
+        .events
+        .into_iter()
+        .map(page_event)
+        .collect()
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawEvent {
+    #[serde(rename = "type")]
+    kind: String,
+    id: u64,
+    block_number: u64,
+    block_confirmed_body: Option<RawBlockConfirmed>,
+    merge_message_body: Option<RawMessageEvent>,
+    prune_message_body: Option<RawMessageEvent>,
+    revoke_message_body: Option<RawMessageEvent>,
+    merge_username_proof_body: Option<RawProofEvent>,
+    merge_on_chain_event_body: Option<RawMergeOnChain>,
+}
+
+#[derive(Deserialize)]
+struct RawBlockConfirmed {
+    timestamp: u32,
+}
+
+#[derive(Deserialize)]
+struct RawMessageEvent {
+    message: RawEventMessage,
+}
+
+#[derive(Deserialize)]
+struct RawEventMessage {
+    data: RawEventData,
+    hash: String,
+    signer: String,
+}
+
+#[derive(Deserialize)]
+struct RawEventData {
+    #[serde(rename = "type")]
+    kind: String,
+    fid: u64,
+    timestamp: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawProofEvent {
+    username_proof: RawProof,
+}
+
+#[derive(Deserialize)]
+struct RawProof {
+    fid: u64,
+    name: String,
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawMergeOnChain {
+    on_chain_event: RawOnChain,
+}
+
+#[derive(Deserialize)]
+struct RawOnChain {
+    fid: u64,
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+fn page_event(raw: RawEvent) -> Result<PageEvent, Error> {
+    if raw.kind == "HUB_EVENT_TYPE_BLOCK_CONFIRMED" {
+        let body = needed(raw.block_confirmed_body, &raw.kind)?;
+        return Ok(PageEvent::Block {
+            block: raw.block_number,
+            time: Timestamp::from_farcaster(body.timestamp),
+        });
+    }
+    let (id, block) = (raw.id, raw.block_number);
+    if id >> 14 != block {
+        return Err(bad(&format!("event {id} is not in block {block}")));
+    }
+    let body = event_body(raw)?;
+    Ok(PageEvent::Event { id, block, body })
+}
+
+fn event_body(raw: RawEvent) -> Result<EventBody, Error> {
+    let message = |body, change| message_event(needed(body, &raw.kind)?, change);
+    match raw.kind.as_str() {
+        "HUB_EVENT_TYPE_MERGE_MESSAGE" => message(raw.merge_message_body, Change::Merge),
+        "HUB_EVENT_TYPE_PRUNE_MESSAGE" => message(raw.prune_message_body, Change::Prune),
+        "HUB_EVENT_TYPE_REVOKE_MESSAGE" => message(raw.revoke_message_body, Change::Revoke),
+        "HUB_EVENT_TYPE_MERGE_USERNAME_PROOF" => {
+            let proof = needed(raw.merge_username_proof_body, &raw.kind)?.username_proof;
+            Ok(EventBody::UsernameProof {
+                fid: proof.fid,
+                name: proof.name,
+                kind: unprefixed(&proof.kind, "USERNAME_TYPE_")?,
+            })
+        }
+        "HUB_EVENT_TYPE_MERGE_ON_CHAIN_EVENT" => {
+            let event = needed(raw.merge_on_chain_event_body, &raw.kind)?.on_chain_event;
+            Ok(EventBody::OnChain {
+                fid: event.fid,
+                kind: unprefixed(&event.kind, "EVENT_TYPE_")?,
+            })
+        }
+        _ => Ok(EventBody::Other {
+            node_type: raw.kind.clone(),
+        }),
+    }
+}
+
+fn message_event(body: RawMessageEvent, change: Change) -> Result<EventBody, Error> {
+    let m = body.message;
+    Ok(EventBody::Message {
+        change,
+        kind: unprefixed(&m.data.kind, "MESSAGE_TYPE_")?,
+        fid: m.data.fid,
+        hash: MessageHash::from_bytes(&hex_bytes(&m.hash)?)
+            .ok_or_else(|| bad("hash is not 20 bytes"))?,
+        timestamp: Timestamp::from_farcaster(m.data.timestamp),
+        signer: SignerKey::from_bytes(&hex_bytes(&m.signer)?)
+            .ok_or_else(|| bad("signer is not 32 bytes"))?,
+    })
+}
+
+fn needed<T>(body: Option<T>, kind: &str) -> Result<T, Error> {
+    body.ok_or_else(|| bad(&format!("{kind} without its body")))
+}
+
+/// `name` without `prefix`, lowercase: `MESSAGE_TYPE_CAST_ADD` is `cast_add`.
+fn unprefixed(name: &str, prefix: &str) -> Result<String, Error> {
+    name.strip_prefix(prefix)
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| bad(&format!("{name} does not start {prefix}")))
 }
 
 /// A `castById` response.

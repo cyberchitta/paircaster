@@ -6,6 +6,7 @@ use common::{fixture, fixture_messages};
 use selfcast_core::Error;
 use selfcast_core::account::Username;
 use selfcast_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
+use selfcast_core::event::{self, Change, EventBody, EventWalk, PageEvent};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
@@ -670,4 +671,103 @@ fn a_channel_url_is_1_to_256_bytes() {
     assert!("x".repeat(256).parse::<ChannelUrl>().is_ok());
     assert!("x".repeat(257).parse::<ChannelUrl>().is_err());
     assert!("".parse::<ChannelUrl>().is_err());
+}
+
+fn events_page() -> Vec<PageEvent> {
+    parse::events(fixture("events-1-49115416.json")).expect("events parse")
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn an_events_page_reads_every_kind_of_event() {
+    let page = events_page();
+    let count = |f: &dyn Fn(&PageEvent) -> bool| page.iter().filter(|e| f(e)).count();
+    let change = |c: Change| move |e: &PageEvent| matches!(e, PageEvent::Event { body: EventBody::Message { change, .. }, .. } if *change == c);
+    assert_eq!(count(&|e| matches!(e, PageEvent::Block { .. })), 15_600);
+    assert_eq!(count(&change(Change::Merge)), 2_850);
+    assert_eq!(count(&change(Change::Prune)), 1_458);
+    assert_eq!(count(&change(Change::Revoke)), 2);
+    let body = |f: fn(&EventBody) -> bool| {
+        count(&|e| matches!(e, PageEvent::Event { body, .. } if f(body)))
+    };
+    assert_eq!(body(|b| matches!(b, EventBody::OnChain { .. })), 69);
+    assert_eq!(body(|b| matches!(b, EventBody::UsernameProof { .. })), 21);
+    assert_eq!(body(|b| matches!(b, EventBody::Other { .. })), 0);
+    let casts = body(
+        |b| matches!(b, EventBody::Message { change: Change::Merge, kind, .. } if kind == "cast_add"),
+    );
+    assert_eq!(casts, 799);
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_walk_keeps_the_blocks_in_its_window_and_stops_at_until() {
+    let since = Timestamp::from_farcaster(183_000_000);
+    let until = Timestamp::from_farcaster(183_005_000);
+    let mut walk = EventWalk::new(
+        1,
+        event::first_event_of(49_115_416),
+        Some(since),
+        Some(until),
+    );
+    let kept = walk.add_page(events_page()).expect("walks");
+    assert!(!kept.is_empty());
+    assert!(
+        kept.iter()
+            .all(|e| e.block_time >= since && e.block_time < until)
+    );
+    assert!(kept.iter().all(|e| e.shard == 1 && e.id >> 14 == e.block));
+    assert_eq!(walk.next_id(), None, "until falls inside the page");
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_walk_goes_on_after_the_last_event_of_a_page() {
+    let page = events_page();
+    let last = match page.last().expect("not empty") {
+        PageEvent::Block { block, .. } => event::first_event_of(*block),
+        PageEvent::Event { id, .. } => *id,
+    };
+    let mut walk = EventWalk::new(1, 0, None, None);
+    let kept = walk.add_page(page).expect("walks");
+    assert_eq!(kept.len(), 20_000 - 15_600);
+    assert_eq!(walk.next_id(), Some(last + 1));
+    walk.add_page(Vec::new()).expect("an empty page");
+    assert_eq!(walk.next_id(), None, "an empty page ends it");
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn an_event_before_its_blocks_confirmation_is_refused() {
+    let page = events_page();
+    let first = page
+        .iter()
+        .find_map(|e| match e {
+            PageEvent::Event { block, .. } => Some(*block),
+            PageEvent::Block { .. } => None,
+        })
+        .expect("an event");
+    let without: Vec<PageEvent> = page
+        .into_iter()
+        .filter(|e| !matches!(e, PageEvent::Block { block, .. } if *block == first))
+        .collect();
+    assert!(
+        matches!(without[0], PageEvent::Block { .. }),
+        "an earlier block stays"
+    );
+    assert!(EventWalk::new(1, 0, None, None).add_page(without).is_err());
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn an_event_outside_its_block_is_refused() {
+    let mut page = fixture("events-1-49115416.json");
+    let merge = page["events"]
+        .as_array_mut()
+        .expect("events")
+        .iter_mut()
+        .find(|e| e["type"] == "HUB_EVENT_TYPE_MERGE_MESSAGE")
+        .expect("a merge");
+    merge["blockNumber"] = 1.into();
+    assert!(parse::events(page).is_err());
 }

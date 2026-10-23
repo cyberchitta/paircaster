@@ -5,6 +5,7 @@ pub mod build;
 pub mod cast;
 pub mod custody;
 pub mod error;
+pub mod event;
 pub mod feed;
 pub mod key_add;
 pub mod message;
