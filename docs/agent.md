@@ -131,7 +131,7 @@ The page cannot tell whether you are looking at it, or who chose what it shows. 
 
 </limit>
 
-What the agent cannot read yet: search results, channels, finding an account by username (accounts are named by FID; mentions come with their usernames), and anything older than an account's newest 1000 messages.
+What the agent cannot read yet: search results, channels, and anything older than an account's newest 1000 messages.
 
 ---
 

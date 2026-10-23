@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::account::Username;
+
 /// Errors from talking to a Snapchain node or reading what it returns.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -19,6 +21,10 @@ pub enum Error {
     UnexpectedResponse { status: u16, body: String },
     #[error("FID {0} is not registered on this node; a node still syncing may not have it yet")]
     NotRegistered(u64),
+    #[error(
+        "no account holds the username {0} on this node; a node still syncing may not have it yet"
+    )]
+    UnknownName(Username),
 }
 
 /// The JSON error body Snapchain returns for failed lookups. Query-parsing

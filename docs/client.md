@@ -26,7 +26,7 @@ Reads work the same way through the tunnel. If the node behind it does not answe
 
 ## Accounts and FIDs
 
-A Farcaster account is a number, its *FID*. `selfcast` names accounts by FID; it has no username lookup yet.
+A Farcaster account is a number, its *FID*. Wherever `selfcast` takes an account, it takes either the FID or a username.
 
 ```run
 selfcast profile 3
@@ -43,6 +43,34 @@ dwr  fid 3
 ```
 
 The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile 3 --all-followers` reads every one: 630,232 for this account, in 7.6 seconds, or 36 the first time, before the node had them cached.
+
+A username is looked up on your node, which holds a signed *username proof* for each name it knows: the name, the FID it belongs to and what kind of name it is. Usernames come in three kinds: fnames like `v`, ENS names like `vitalik.eth`, and basenames like `jesse.base.eth`.
+
+```run
+curl -s 'http://localhost:3381/v1/userNameProofByName?name=vitalik.eth' | jq '{name, type, fid}'
+```
+
+```output
+{
+  "name": "vitalik.eth",
+  "type": "USERNAME_TYPE_ENS_L1",
+  "fid": 5650
+}
+```
+
+```run
+selfcast profile vitalik.eth
+```
+
+```output
+vitalik.eth  fid 5650
+  name: Vitalik Buterin
+  bio: hullo
+  following: 111
+  followers: at least 10000 (counting stopped; --all-followers counts them all)
+```
+
+A number on its own is taken as a FID. An fname can also be all digits, so write such a name with `@` before it: `selfcast profile @123` is the account named `123` (FID 1809), not FID 123. A name your node has no proof for is an error: `no account holds the username … on this node`. `selfcast` takes the FID from the proof and does not check it against the name the account has set for itself.
 
 An FID is issued on-chain, by Farcaster's ID registry contract on OP Mainnet (chain 10), to an Ethereum address: the account's *custody address*. The key behind that address comes from the account's recovery phrase and owns the account ([Adding an app key](#adding-an-app-key)). Your node records each registration, so it can say which FID an address owns. For the test account `@selfcast`, used in the examples below:
 
@@ -213,7 +241,7 @@ The examples are from a test account, `@selfcast` (FID 3356360). They went throu
 | `cast <text>`, `--reply-to FID:HASH`, `--embed URL\|FID:HASH` | Cast add |
 | `delete <hash>` | Cast remove |
 | `react like\|recast FID:HASH`, `unreact …` | Reaction add, reaction remove |
-| `follow <fid>`, `unfollow <fid>` | Link add, link remove |
+| `follow <account>`, `unfollow <account>` | Link add, link remove |
 
 ```run
 selfcast cast --help

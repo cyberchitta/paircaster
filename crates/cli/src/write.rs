@@ -16,6 +16,7 @@ use std::time::Duration;
 
 use prost::Message as _;
 use selfcast_core::Node;
+use selfcast_core::account::Account;
 use selfcast_core::build::{
     Action, BuildError, CAST_MAX_BYTES, Envelope, LONG_CAST_MAX_BYTES, NewCast, SignedMessage,
     cast_type_for, sign,
@@ -100,9 +101,10 @@ pub struct ReactArgs {
 
 #[derive(Debug, clap::Args)]
 pub struct FollowArgs {
-    /// The account to follow or unfollow.
-    #[arg(value_name = "FID")]
-    account: u64,
+    /// The account to follow or unfollow, as a FID or a username. The
+    /// confirmation shows the FID a username resolved to.
+    #[arg(value_name = "ACCOUNT")]
+    account: Account,
     #[command(flatten)]
     flags: WriteFlags,
 }
@@ -300,12 +302,17 @@ impl ReactArgs {
 }
 
 impl FollowArgs {
-    pub fn into_parts(self, undo: bool) -> (Action, WriteFlags) {
+    pub async fn into_parts(
+        self,
+        node: &Node,
+        undo: bool,
+    ) -> Result<(Action, WriteFlags), selfcast_core::Error> {
+        let fid = node.resolve(&self.account).await?;
         let action = match undo {
-            false => Action::FollowAdd(self.account),
-            true => Action::FollowRemove(self.account),
+            false => Action::FollowAdd(fid),
+            true => Action::FollowRemove(fid),
         };
-        (action, self.flags)
+        Ok((action, self.flags))
     }
 }
 

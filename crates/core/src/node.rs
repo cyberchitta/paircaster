@@ -7,6 +7,7 @@ use reqwest::{Client, Url};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::account::Username;
 use crate::build::SignedMessage;
 use crate::cast::{Cast, CastRef, MessageHash, Reaction};
 use crate::custody::EthAddress;
@@ -334,6 +335,17 @@ impl Node {
         match self.get("v1/onChainIdRegistryEventByAddress", &query).await {
             Ok(event) => parse::id_register(event, address).map(Some),
             Err(e) if parse::is_not_found(&e) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// `GET /v1/userNameProofByName`: the account that the node's proof for
+    /// `name` names. A name with no proof is [`Error::UnknownName`].
+    pub async fn fid_of_name(&self, name: &Username) -> Result<u64, Error> {
+        let query = [("name", name.to_string())];
+        match self.get("v1/userNameProofByName", &query).await {
+            Ok(proof) => parse::name_proof(proof, name),
+            Err(e) if parse::is_not_found(&e) => Err(Error::UnknownName(name.clone())),
             Err(e) => Err(e),
         }
     }

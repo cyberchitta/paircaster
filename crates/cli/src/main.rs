@@ -16,6 +16,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use selfcast_core::Node;
+use selfcast_core::account::Account;
 
 /// Where a node's HTTP API answers when `--node` is not given: Snapchain's
 /// own compose file publishes it on this port.
@@ -42,8 +43,10 @@ enum Command {
     Info,
     /// Show an account's profile.
     Profile {
-        /// The account's FID.
-        fid: u64,
+        /// The account, as a FID or a username (dwr, vitalik.eth). Digits
+        /// alone are a FID; write @123 for a username made of digits.
+        #[arg(value_name = "ACCOUNT")]
+        account: Account,
         /// Count every follower, however many. By default counting stops
         /// at 10000 and the count is a lower bound.
         #[arg(long)]
@@ -142,9 +145,10 @@ async fn run(cli: Cli) -> Result<(), CliError> {
     let node = named.unwrap_or(DEFAULT_NODE);
     match cli.command {
         Command::Info => print(&Node::new(node)?.info().await?, cli.json),
-        Command::Profile { fid, all_followers } => {
-            reads::profile(&Node::new(node)?, fid, all_followers, cli.json).await?
-        }
+        Command::Profile {
+            account,
+            all_followers,
+        } => reads::profile(&Node::new(node)?, &account, all_followers, cli.json).await?,
         Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
         Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
@@ -154,8 +158,8 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
         Command::React(args) => send(node, args.into_parts(false), cli.json).await?,
         Command::Unreact(args) => send(node, args.into_parts(true), cli.json).await?,
-        Command::Follow(args) => send(node, args.into_parts(false), cli.json).await?,
-        Command::Unfollow(args) => send(node, args.into_parts(true), cli.json).await?,
+        Command::Follow(args) => follow(node, args, false, cli.json).await?,
+        Command::Unfollow(args) => follow(node, args, true, cli.json).await?,
         Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
         Command::Viewer(command) => {
             Node::new(node)?;
@@ -178,6 +182,17 @@ async fn send(
     json: bool,
 ) -> Result<(), CliError> {
     write::send(&Node::new(node)?, action, flags, json).await
+}
+
+async fn follow(
+    node: &str,
+    args: write::FollowArgs,
+    undo: bool,
+    json: bool,
+) -> Result<(), CliError> {
+    let node = Node::new(node)?;
+    let (action, flags) = args.into_parts(&node, undo).await?;
+    write::send(&node, action, flags, json).await
 }
 
 fn print(value: &serde_json::Value, json: bool) {

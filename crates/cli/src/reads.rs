@@ -2,6 +2,7 @@
 //! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
+use selfcast_core::account::Account;
 use selfcast_core::cast::CastRef;
 use selfcast_core::cast::Reaction;
 use selfcast_core::feed::{self, AppFilter, FeedItem};
@@ -17,17 +18,19 @@ use crate::clock;
 
 #[derive(Debug, clap::Args)]
 pub struct FeedArgs {
-    /// The account whose follows make up the feed.
-    fid: u64,
+    /// The account whose follows make up the feed, as a FID or a username.
+    #[arg(value_name = "ACCOUNT")]
+    account: Account,
     #[command(flatten)]
     filter: CastFilter,
 }
 
 #[derive(Debug, clap::Args)]
 pub struct CastsArgs {
-    /// The accounts whose casts to show. Repeat or separate with commas.
-    #[arg(required = true, value_delimiter = ',')]
-    fids: Vec<u64>,
+    /// The accounts whose casts to show, as FIDs or usernames. Repeat or
+    /// separate with commas.
+    #[arg(value_name = "ACCOUNT", required = true, value_delimiter = ',')]
+    accounts: Vec<Account>,
     #[command(flatten)]
     filter: CastFilter,
 }
@@ -100,7 +103,13 @@ impl AppArgs {
     }
 }
 
-pub async fn profile(node: &Node, fid: u64, all_followers: bool, json: bool) -> Result<(), Error> {
+pub async fn profile(
+    node: &Node,
+    account: &Account,
+    all_followers: bool,
+    json: bool,
+) -> Result<(), Error> {
+    let fid = node.resolve(account).await?;
     if !node.is_registered(fid).await? {
         return Err(Error::NotRegistered(fid));
     }
@@ -118,11 +127,12 @@ pub async fn profile(node: &Node, fid: u64, all_followers: bool, json: bool) -> 
 }
 
 pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error> {
-    let follows = node.all_follows_by_fid(args.fid).await?;
+    let fid = node.resolve(&args.account).await?;
+    let follows = node.all_follows_by_fid(fid).await?;
     let items = newest_casts(node, follows, &args.filter).await?;
     let names = node.mention_names(&items).await?;
     if json {
-        crate::out::line(output::feed_json(args.fid, &items, &names));
+        crate::out::line(output::feed_json(fid, &items, &names));
     } else {
         items.iter().for_each(|i| print_item(i, &names));
     }
@@ -130,10 +140,11 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
 }
 
 pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Error> {
-    let items = newest_casts(node, args.fids.clone(), &args.filter).await?;
+    let fids = node.resolve_all(&args.accounts).await?;
+    let items = newest_casts(node, fids.clone(), &args.filter).await?;
     let names = node.mention_names(&items).await?;
     if json {
-        crate::out::line(output::casts_json(&args.fids, &items, &names));
+        crate::out::line(output::casts_json(&fids, &items, &names));
     } else {
         items.iter().for_each(|i| print_item(i, &names));
     }

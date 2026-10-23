@@ -129,9 +129,12 @@ shows `running: false`.
 
 ## Reads
 
-Every read comes from the user's node and nowhere else. Accounts are named
-by FID, a number; the CLI has no username lookup, so if the user gives you
-names, ask them for the FIDs.
+Every read comes from the user's node and nowhere else. Wherever a command
+takes an account (`<account>` below), give it the FID or the username:
+`3`, `dwr`, `vitalik.eth`, `jesse.base.eth`. Digits alone are a FID; an
+fname can be all digits, so write one as `@123`. A name the node holds no
+proof for is an error (`no account holds the username … on this node`),
+exit 1. While the node is syncing it may simply not have the name yet.
 
 ### Check the node first
 
@@ -150,7 +153,7 @@ An account's data lives on one shard, and the CLI does not say which, so
 quote the largest `seconds_behind`. In any other phase there is no node to
 read from: report the phase instead.
 
-### `selfcast profile <fid> --json`
+### `selfcast profile <account> --json`
 
 ```json
 {"version":1,"fid":3,"username":"dwr","display_name":"Dan Romero","bio":"Interested in technology and other stuff.","pfp_url":"https://imagedelivery.net/…/original","url":"https://danromero.org","location":null,"twitter":"dwr","github":null,"banner_url":"https://imagedelivery.net/…/original","following":79,"followers":10000,"followers_exact":false}
@@ -169,10 +172,11 @@ followers took 7.6 seconds on 2026-10-21 (36 seconds on a first, cold
 read, 2026-10-20), and fid 37 on `crackle` did not finish in 120 seconds.
 Use it only when the user wants the exact number, once per account.
 
-### `selfcast casts <fid>... --json`
+### `selfcast casts <account>... --json`
 
-The newest casts of one or more accounts, merged, newest first. FIDs are
-separate arguments or comma-separated.
+The newest casts of one or more accounts, merged, newest first. Accounts
+are separate arguments or comma-separated. `fids` in the output lists each
+account's FID, in the order given, names already looked up.
 
 ```json
 {"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
@@ -207,9 +211,9 @@ An FID with no account gives `"casts":[]` and exit 0, the same as an
 account that never cast. Check with `profile` before saying an account is
 quiet.
 
-### `selfcast feed <fid> --json`
+### `selfcast feed <account> --json`
 
-The same as `casts`, over every account `<fid>` follows: what that account
+The same as `casts`, over every account `<account>` follows: what that account
 would see. The shape is `{"version":1,"fid":…,"casts":[…]}`, with casts as
 above. It reads each followed account, eight at a time, so an account
 following thousands is slow. For a short named list, use `casts`.
@@ -263,8 +267,7 @@ it once per cast. A cast the node does not hold exits 1.
 
 - No reactions in `casts`, `feed`, `replies` or `thread`: run `reactions`
   per cast. No reactions to a channel URL.
-- No search, no channels, and no finding an account by its username
-  (accounts are named by FID; mentions come with their usernames).
+- No search and no channels.
 - Nothing older than an account's newest 1000 messages.
 
 ### Examples
@@ -380,7 +383,7 @@ for several accounts are saved. `cast` also takes `--reply-to` and
 | `delete <hash>` | Deletes one of the account's own casts. |
 | `react like\|recast <FID:HASH>` | Likes or recasts a cast. |
 | `unreact like\|recast <FID:HASH>` | Undoes a like or a recast. |
-| `follow <fid>`, `unfollow <fid>` | Follows or unfollows an account. |
+| `follow <account>`, `unfollow <account>` | Follows or unfollows an account, by FID or username. The confirmation names the FID a username resolved to. |
 | `resend` | Sends again any message an earlier write saved but did not see arrive. It does not ask: each one was approved when first written. |
 
 A write counts as done only once the node is seen to hold it. Before it is

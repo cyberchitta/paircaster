@@ -3,6 +3,8 @@ mod common;
 use std::collections::{BTreeSet, HashMap};
 
 use common::{fixture, fixture_messages};
+use selfcast_core::Error;
+use selfcast_core::account::Username;
 use selfcast_core::cast::{Cast, CastRef, Reaction, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::{self, ShardSync, SyncState, parse};
@@ -574,4 +576,49 @@ fn shard_of_skips_the_block_shard_when_counting() {
         ..state
     };
     assert_eq!(blocks_only.shard_of(3), None);
+}
+
+fn name(s: &str) -> Username {
+    s.parse().expect("a username")
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn each_kind_of_name_proof_gives_its_fid() {
+    [("v", 2), ("vitalik.eth", 5650), ("jesse.base.eth", 99)]
+        .iter()
+        .for_each(|(n, fid)| {
+            let proof = fixture(&format!("userNameProofByName-{n}.json"));
+            assert_eq!(parse::name_proof(proof, &name(n)).expect("parses"), *fid);
+        });
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_proof_for_another_name_or_fid_0_is_refused() {
+    let proof = || fixture("userNameProofByName-v.json");
+    assert!(parse::name_proof(proof(), &name("w")).is_err());
+    let mut zero = proof();
+    zero["fid"] = 0.into();
+    assert!(parse::name_proof(zero, &name("v")).is_err());
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_name_the_node_lacks_is_its_not_found_reply() {
+    [
+        "error-userNameProofByName.json",
+        "error-userNameProofByName-ens.json",
+    ]
+    .iter()
+    .for_each(|f| {
+        let body = fixture(f);
+        let detail = body["error_detail"].as_str().expect("error_detail");
+        let e = Error::Node {
+            status: 400,
+            error: String::new(),
+            detail: detail.to_owned(),
+        };
+        assert!(parse::is_not_found(&e), "{f}");
+    });
 }

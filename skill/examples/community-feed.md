@@ -3,18 +3,19 @@
 The user asks: "Make me a feed of just v and dwr."
 
 Run on 2026-10-20 against a node about 46 hours behind. The outputs below
-are what it printed.
+are what it printed, except step 1: the CLI took usernames later, and that
+step was run again with them.
 
 ## 1. Get the FIDs
 
-The CLI has no username lookup. Ask the user for the FIDs, or use ones they
-gave earlier. Here, v is fid 2 and dwr is fid 3. Confirm with `profile`:
+The CLI takes usernames as well as FIDs. Confirm who each name is with
+`profile`:
 
 ```
-selfcast profile 2 --json
+selfcast profile v --json
 ```
 
-`username` `v`, `display_name` `Varun Srinivasan`. Do the same for 3. A list
+`fid` 2, `display_name` `Varun Srinivasan`. Do the same for dwr (fid 3). A list
 the user keeps (a team, a club, a conference's speakers) is just these FIDs;
 remember it for the conversation and pass it each time.
 

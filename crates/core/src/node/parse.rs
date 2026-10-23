@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use super::{Page, ShardSync, Submitted, SyncState, node_error, unexpected};
 use crate::Error;
+use crate::account::Username;
 use crate::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
 use crate::profile::UserDatum;
@@ -206,6 +207,24 @@ pub fn id_register(event: Value, address: &EthAddress) -> Result<u64, Error> {
     match EthAddress::from_bytes(&to) {
         Some(a) if a == *address => Ok(raw.fid),
         _ => Err(bad("id registry event for a different custody address")),
+    }
+}
+
+/// A `userNameProofByName` reply for `name`, as the FID its proof names.
+/// FID 0 is no account: an fname proof for FID 0 releases the name, and the
+/// node deletes it rather than storing it (snapchain v0.14.3
+/// `src/storage/store/account/user_data_store.rs`, `merge_username_proof`).
+pub fn name_proof(proof: Value, name: &Username) -> Result<u64, Error> {
+    #[derive(Deserialize)]
+    struct Raw {
+        name: String,
+        fid: u64,
+    }
+    let raw: Raw = from_value(proof)?;
+    match (raw.name == name.as_str(), raw.fid) {
+        (false, _) => Err(bad("username proof for another name")),
+        (true, 0) => Err(bad("username proof naming FID 0")),
+        (true, fid) => Ok(fid),
     }
 }
 

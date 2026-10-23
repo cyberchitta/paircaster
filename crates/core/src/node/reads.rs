@@ -8,6 +8,7 @@ use std::future::Future;
 use futures_util::{StreamExt, TryStreamExt, future, stream};
 
 use super::{Node, PageRequest};
+use crate::account::Account;
 use crate::cast::{Cast, CastRef};
 use crate::error::Error;
 use crate::feed::FeedItem;
@@ -93,6 +94,23 @@ impl Node {
         })
         .await?;
         Ok(fetched.into_iter().collect())
+    }
+
+    /// The FID `account` names, looking a username up on the node.
+    pub async fn resolve(&self, account: &Account) -> Result<u64, Error> {
+        match account {
+            Account::Fid(fid) => Ok(*fid),
+            Account::Name(name) => self.fid_of_name(name).await,
+        }
+    }
+
+    /// The FID of each of `accounts`, in the same order.
+    pub async fn resolve_all(&self, accounts: &[Account]) -> Result<Vec<u64>, Error> {
+        stream::iter(accounts)
+            .map(|a| self.resolve(a))
+            .buffered(FETCH_AT_ONCE)
+            .try_collect()
+            .await
     }
 
     /// The username of each account mentioned in `items` that has one.
