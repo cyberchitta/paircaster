@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="pcd-title" class="pcd">
+  <title id="pcd-title">On your machine, you and your agent run paircaster, which reads and writes through your Snapchain node over HTTP; you also look at threads in the viewer page in your browser, which reads the node itself, and paircaster puts threads on that page and reads back what you chose. The node exchanges messages with other Snapchain nodes and the validators by gossip on UDP port 3382.</title>
+  <style>
+    .pcd { --pcd-ink: var(--color-base-content, #2c2a27); --pcd-fill: var(--color-base-200, #eeecea); --pcd-accent: var(--color-primary, #b08a28); font-family: var(--font-sans, Inter, sans-serif); }
+    .pcd-frame { fill: none; stroke: var(--pcd-ink); stroke-opacity: 0.35; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .pcd-box { fill: var(--pcd-fill); stroke: var(--pcd-ink); stroke-opacity: 0.55; stroke-width: 1.5; }
+    .pcd-node { fill: var(--pcd-fill); stroke: var(--pcd-accent); stroke-width: 2; }
+    .pcd-actor { fill: none; stroke: var(--pcd-ink); stroke-width: 1.5; }
+    .pcd-line { fill: none; stroke: var(--pcd-ink); stroke-opacity: 0.8; stroke-width: 1.5; }
+    .pcd-head { fill: var(--pcd-ink); fill-opacity: 0.8; }
+    .pcd-name { fill: var(--pcd-ink); font-size: 16px; font-weight: 600; text-anchor: middle; }
+    .pcd-code { font-family: var(--font-mono, 'Fira Code', monospace); }
+    .pcd-sub { fill: var(--pcd-ink); fill-opacity: 0.7; font-size: 12.5px; text-anchor: middle; }
+    .pcd-label { fill: var(--pcd-ink); fill-opacity: 0.7; font-size: 12px; }
+  </style>
+  <defs>
+    <marker id="pcd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="pcd-head" d="M0 0 L10 5 L0 10 z" />
+    </marker>
+  </defs>
+
+  <rect class="pcd-frame" x="10" y="10" width="700" height="300" rx="12" />
+  <text class="pcd-label" x="28" y="34">your machine</text>
+
+  <rect class="pcd-actor" x="40" y="70" width="90" height="36" rx="18" />
+  <text class="pcd-name" x="85" y="93">agent</text>
+  <rect class="pcd-actor" x="40" y="230" width="90" height="36" rx="18" />
+  <text class="pcd-name" x="85" y="253">you</text>
+
+  <rect class="pcd-box" x="200" y="55" width="200" height="66" rx="8" />
+  <text class="pcd-name pcd-code" x="300" y="84">paircaster</text>
+  <text class="pcd-sub" x="300" y="105">command line</text>
+
+  <rect class="pcd-box" x="200" y="215" width="200" height="66" rx="8" />
+  <text class="pcd-name" x="300" y="244">viewer page</text>
+  <text class="pcd-sub" x="300" y="265">in your browser</text>
+
+  <rect class="pcd-node" x="490" y="135" width="200" height="72" rx="8" />
+  <text class="pcd-name" x="590" y="166">Snapchain node</text>
+  <text class="pcd-sub pcd-code" x="590" y="188">localhost:3381</text>
+
+  <rect class="pcd-box" x="490" y="352" width="200" height="56" rx="8" />
+  <text class="pcd-sub" x="590" y="376">other Snapchain nodes</text>
+  <text class="pcd-sub" x="590" y="394">and the validators</text>
+
+  <!-- agent and you to paircaster; you to the viewer page -->
+  <path class="pcd-line" d="M130 80 H198" marker-end="url(#pcd-arrow)" />
+  <path class="pcd-line" d="M130 240 H160 V100 H198" marker-end="url(#pcd-arrow)" />
+  <path class="pcd-line" d="M130 256 H198" marker-end="url(#pcd-arrow)" />
+
+  <!-- paircaster and the viewer page, both ways -->
+  <path class="pcd-line" d="M300 123 V213" marker-start="url(#pcd-arrow)" marker-end="url(#pcd-arrow)" />
+  <text class="pcd-label pcd-code" x="312" y="162">viewer open</text>
+  <text class="pcd-label pcd-code" x="312" y="180">viewer state</text>
+
+  <!-- both read the node over HTTP -->
+  <path class="pcd-line" d="M400 88 H540 V133" marker-end="url(#pcd-arrow)" />
+  <text class="pcd-label" x="430" y="80">HTTP</text>
+  <path class="pcd-line" d="M400 248 H540 V209" marker-end="url(#pcd-arrow)" />
+  <text class="pcd-label" x="430" y="240">HTTP</text>
+
+  <!-- the node and the network -->
+  <path class="pcd-line" d="M640 207 V350" marker-end="url(#pcd-arrow)" />
+  <text class="pcd-label" x="630" y="336" text-anchor="end">gossip, UDP 3382</text>
+</svg>

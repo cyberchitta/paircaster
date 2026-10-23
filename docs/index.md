@@ -9,21 +9,7 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 - **A command-line client, `paircaster`.** It reads profiles, casts, threads, follows and the network's recent messages from your node, and casts, reacts and follows through it ([Using the client](client.md)). You run it, and so does your agent, following instructions in the repository (a *skill*, [Your AI agent](agent.md)).
 - **A viewer.** An interactive page in your browser that shows threads the way a Farcaster app does, reading your node itself. It reads only; posting is the command line's. You and your agent both use it: the agent puts threads on it with `paircaster viewer`, you follow the replies and click the cast you mean, and the agent asks the page which one you chose. It is an option of `paircaster`, built with extra tools ([Looking at a thread together](agent.md#looking-at-a-thread-together)).
 
-```
-  your machine
- ┌──────────────────────────────────────────────────────────┐
- │  you ───┬──▶ paircaster ────────────HTTP──┐              │
- │         │    (command line)               ▼              │
- │  agent ─┘        ▲ viewer open,     Snapchain node       │
- │                  ▼ viewer state     localhost:3381       │
- │  you ──────▶ viewer page ───────────HTTP──▲              │
- │              (your browser)                              │
- └───────────────────────────────────────────┬──────────────┘
-                                             │ gossip, UDP 3382
-                                             ▼
-                                     other Snapchain nodes
-                                     and the validators
-```
+<showcase type="diagram" src="diagrams/structure.svg" alt="On your machine, you and your agent run paircaster, which reads and writes through your Snapchain node over HTTP. You also look at threads in the viewer page in your browser, which reads the node itself; paircaster puts threads on the page with viewer open and reads back what you chose with viewer state. The node exchanges messages with other Snapchain nodes and the validators by gossip on UDP port 3382." />
 
 <warning>
 
