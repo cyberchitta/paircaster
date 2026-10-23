@@ -7,7 +7,7 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 
 <warning>
 
-**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase.** As with any code from the internet, review it yourself, or have someone you trust or an AI agent review it, and use a test account either way. [Safety](safety.md) lists the files that handle the phrase.
+**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase.** As with any code from the internet, review it yourself, or have someone you trust or an AI agent review it, and use a test account either way. Make it in the Farcaster app, which also gives it the storage an account needs to post, and use its Farcaster recovery phrase, not the wallet one ([Before you start](testing.md#before-you-start)). [Safety](safety.md) lists the files that handle the phrase.
 
 </warning>
 
@@ -19,7 +19,7 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 
 ## What you get
 
-- **Your own node, no API keys.** `paircaster` reads from the Snapchain node on your machine, at `http://localhost:3381` unless you point it elsewhere, so what you read does not pass through anyone else's server ([how it fits together](#what-you-just-did)).
+- **Your own node, no API keys.** `paircaster` reads from the Snapchain node on your machine, at `http://localhost:3381` unless you point it elsewhere, so the reads themselves pass through no one else's server ([how it fits together](#what-you-just-did)). What you read goes further only where you send it: to your AI agent's model provider, and, with the viewer's `--images`, to the hosts of profile pictures.
 - **No server needed.** It can run on a machine you already use. Snapchain's own snapshot download starts over after a short network drop, so `paircaster` has its own, which you can pause and resume where it stopped. A node on a laptop syncs only while the laptop is awake; after a 40-minute sleep it reconnected and carried on ([The snapshot](node.md#the-snapshot), [Sleep](node.md#sleep,-shutdown-and-logout)).
 - **Your recovery phrase stays in your terminal.** `paircaster key add` reads it from the terminal only, never from a file, an argument, a pipe or an environment variable, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
 - **You see what is signed, and every write is read back.** Before a write, `paircaster` shows the message it is about to sign, written from the signed message itself. After sending, it reads the message back from the node before it calls it sent. So far that text has been approved through an agent's dry run, not yet typed at the prompt ([Writing](client.md#writing:-casts,-reactions,-follows)).
@@ -155,7 +155,7 @@ If nothing answers at that address, it says `could not reach node` and exits 1. 
                   and the validators
 ```
 
-Your node keeps its own copy of the network's messages: casts, reactions, follows and profile data. Ours reports 914,246,336 messages in 557 GB. `paircaster` reads from the node at `http://localhost:3381` unless you point it elsewhere, so what you read does not pass through anyone else's server.
+Your node keeps its own copy of the network's messages: casts, reactions, follows and profile data. Ours reports 914,246,336 messages in 557 GB. `paircaster` reads from the node at `http://localhost:3381` unless you point it elsewhere.
 
 A read node does not decide what goes on the network; validators do. When you post, your node checks the message against what it has and passes it on to the validators, without adding it to its copy ([Snapchain's node types](https://snapchain.farcaster.xyz/node-types#message-submission-and-the-mempool)). The message is on the network only once it comes back in a read, which is why `paircaster` reads every write back before it calls it sent.
 

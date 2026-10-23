@@ -5,7 +5,7 @@ dek: A skill that lets your AI agent read Farcaster from your own node, show you
 
 Paircaster runs a Farcaster node on your own machine, which needs about 800 GB of disk and a day or more before it is ready, and a command-line client, `paircaster`, that reads from that node and posts through it. This page hands the client to your AI agent. Not set up yet? Start at the [quickstart](index.md#quickstart). Paircaster was called Selfcast; output captured before the rename shows the old name.
 
-Before you start: a node that `paircaster node status` reports ready, and `paircaster` on your `PATH`, both from the quickstart. For writes, an app key, which you add yourself in your own terminal ([Adding an app key](client.md#adding-an-app-key)).
+Before you start: a node that `paircaster node status` reports ready, and `paircaster` on your `PATH`, both from the quickstart. For writes, a test account made in the Farcaster app ([Before you start](testing.md#before-you-start)) and an app key for it, which you add yourself in your own terminal ([Adding an app key](client.md#adding-an-app-key)).
 
 ## The skill
 
@@ -43,7 +43,7 @@ On Windows, git checks both links out as plain files unless symlinks are enabled
 - **Check the node first.** Run `paircaster node status` before reading, and say how far behind the node is in every answer.
 - **Reads only, until you say otherwise.** It runs no write until you tell it, in that conversation, that it may write, and that lasts for the conversation only.
 - **You approve Paircaster's text, not the agent's.** For each write it runs the command with `--dry-run`, shows you the text `paircaster` printed, exactly as printed, and waits for your yes before running it again with `--yes`. `paircaster` writes that text from the message it signs, so within one run it cannot show one thing and send another. The two runs are separate commands, though: the `--yes` run prints the text again from what it actually sent, and the skill shows you that too, so check that it matches what you approved.
-- **Never a recovery phrase.** It never runs `key add`, never asks for a phrase, and refuses one if it is pasted in: you run `key add` in your own terminal.
+- **Never a recovery phrase.** It never runs `key add`, never asks for a phrase, and refuses one if it is pasted in: you run `key add` in your own terminal. Refusing does not undo a paste: the phrase has already gone to the model's provider, so treat that account as exposed and stop using it.
 
 The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) were sent by an agent following these steps.
 
@@ -59,7 +59,7 @@ Each write is its own command so that your agent's harness can gate it apart fro
 }
 ```
 
-In Claude Code's auto mode it refused the agent's `paircaster key --help`, and also a command that only contained those words. Rules that ask before each write have not yet been seen to prompt. The ones tried, such as `Bash(*paircaster cast *)`, cannot match a write run as `paircaster --node … cast …`, which is how the writes were run (through Farcaster's public node, because the test node had not yet synced the new test account), and auto mode ran them without asking. Until one does, what stands between the agent and a write is the skill's instructions, which are not a lock, and the key's scope.
+In Claude Code's auto mode it refused the agent's `paircaster key --help`, and also a command that only contained those words. It has the limit described next: `paircaster --node … key add` does not match it. `key add` cannot finish without you anyway, since it reads the phrase only from a terminal; the rule keeps the agent from starting it. Rules that ask before each write have not yet been seen to prompt. The ones tried, such as `Bash(*paircaster cast *)`, cannot match a write run as `paircaster --node … cast …`, which is how the writes were run (through Farcaster's public node, because the test node had not yet synced the new test account), and auto mode ran them without asking. Until one does, what stands between the agent and a write is the skill's instructions, which are not a lock, and the key's scope.
 
 <limit>
 

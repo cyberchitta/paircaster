@@ -335,7 +335,7 @@ paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(s
 
 ## Writing: casts, reactions, follows
 
-The examples are from a test account, `@selfcast` (FID 3356360). They went through Farcaster's public node `crackle` because the test node had not yet synced the new account: a node has to have seen an account to accept its writes.
+The examples are from a test account, `@selfcast` (FID 3356360). They went through Farcaster's public node `crackle` because the test node had not yet synced the new account: a node has to have seen an account to accept its writes. Three casts, a like and its undo, and a follow and its undo have since gone through the test node itself.
 
 | Command | Message it sends |
 | --- | --- |
