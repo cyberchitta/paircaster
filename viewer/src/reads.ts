@@ -2,7 +2,7 @@
 // --json` prints, version 1 (crates/core/src/output.rs, which documents
 // each field).
 
-import type { Account, Cast, Ref } from "./thread";
+import type { Account, Cast, Ref, Target } from "./thread";
 
 export type Profile = {
   version: 1;
@@ -21,10 +21,10 @@ export type Profile = {
   followers_exact: boolean;
 };
 
-export type Feed = { version: 1; fid: number; casts: Cast[] };
-export type Casts = { version: 1; fids: number[]; casts: Cast[] };
-export type Channel = { version: 1; channel: string; casts: Cast[] };
-export type Replies = { version: 1; parent: Ref; casts: Cast[] };
+export type Feed = { version: 1; fid: number; casts: Cast[]; accounts: Account[] };
+export type Casts = { version: 1; fids: number[]; casts: Cast[]; accounts: Account[] };
+export type Channel = { version: 1; channel: string; casts: Cast[]; accounts: Account[] };
+export type Replies = { version: 1; parent: Ref; casts: Cast[]; accounts: Account[] };
 
 // An account and when it followed, liked or recast.
 export type AccountAt = { fid: number; timestamp: string };
@@ -63,6 +63,11 @@ export type Event = EventHead &
         hash: string;
         timestamp: string;
         signer: string;
+        // A cast_add's cast, without usernames; absent for other types.
+        text?: string;
+        mentions?: { fid: number; position: number }[];
+        embeds?: Target[];
+        parent?: Target | null;
       }
     | { event: "username_proof"; type: string; fid: number; name: string }
     | { event: "onchain"; type: string; fid: number }

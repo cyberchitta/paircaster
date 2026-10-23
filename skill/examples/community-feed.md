@@ -49,8 +49,8 @@ leaving them to wonder why it is missing.
 
 ## 4. Answer
 
-Show each cast with who posted it (by username), when, and whether it is a
-reply. An empty `text` with an `embeds` entry is an image or link post; say
+Show each cast with who posted it (by username, from the output's
+`accounts`), when, and whether it is a reply. An empty `text` with an `embeds` entry is an image or link post; say
 so rather than showing a blank. Add where the data came from and how far
 behind it is: "From your node, which is caught up."
 

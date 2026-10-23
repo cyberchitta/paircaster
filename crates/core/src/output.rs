@@ -1,12 +1,13 @@
 //! The JSON the reads produce: `selfcast <read> --json`, and the same text
 //! from the viewer's WebAssembly. An external format the agent skill, the
-//! viewer and pages built on it depend on. Each shape is version 1; a change
-//! to a shape bumps its `version`.
+//! viewer and pages built on it depend on. Each shape is version 1. A new
+//! field keeps the `version`, so readers ignore fields they do not know; a
+//! field removed, renamed or changed in meaning bumps it.
 
 use serde::Serialize;
 
 use crate::address::Address;
-use crate::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
+use crate::cast::{Cast, CastRef, ChannelUrl, Mention, Reaction, Target};
 use crate::event::{Change, Event, EventBody};
 use crate::feed::FeedItem;
 use crate::follow::Follow;
@@ -78,7 +79,8 @@ pub fn profile_json(p: &Profile) -> String {
 ///       "signer": "0x…",
 ///       "app_fid": 9152
 ///     }
-///   ]
+///   ],
+///   "accounts": [ { "fid": 1235, "username": "bob", "display_name": "Bob", "pfp_url": "https://…" } ]
 /// }
 /// ```
 ///
@@ -91,45 +93,50 @@ pub fn profile_json(p: &Profile) -> String {
 /// position falls inside a character, which the network allows.
 /// `app_fid` is the account of the app whose key signed the cast, or `null`
 /// when that key is no longer listed or its registration names no app.
-pub fn feed_json(fid: u64, items: &[FeedItem], names: &Names) -> String {
+/// `accounts` is as in `thread`: each author and each mentioned account
+/// once, by FID.
+pub fn feed_json(fid: u64, items: &[FeedItem], users: &Users) -> String {
     to_json(&FeedV1 {
         version: 1,
         fid,
-        casts: casts_v1(items, names),
+        casts: casts_v1(items, &profile::names_of(users)),
+        accounts: accounts_v1(users),
     })
 }
 
 /// `selfcast casts <fid>... --json`, version 1:
 ///
 /// ```json
-/// { "version": 1, "fids": [2, 3], "casts": [ … ] }
+/// { "version": 1, "fids": [2, 3], "casts": [ … ], "accounts": [ … ] }
 /// ```
 ///
 /// `fids` are the accounts asked for, in the order given. Each element of
 /// `casts` has the same shape as in `feed`, newest first, after any app
-/// filter.
-pub fn casts_json(fids: &[u64], items: &[FeedItem], names: &Names) -> String {
+/// filter, and `accounts` is as in `feed`.
+pub fn casts_json(fids: &[u64], items: &[FeedItem], users: &Users) -> String {
     to_json(&CastsV1 {
         version: 1,
         fids,
-        casts: casts_v1(items, names),
+        casts: casts_v1(items, &profile::names_of(users)),
+        accounts: accounts_v1(users),
     })
 }
 
 /// `selfcast channel <URL> --json`, version 1:
 ///
 /// ```json
-/// { "version": 1, "channel": "https://warpcast.com/~/channel/fc-updates", "casts": [ … ] }
+/// { "version": 1, "channel": "https://warpcast.com/~/channel/fc-updates", "casts": [ … ], "accounts": [ … ] }
 /// ```
 ///
 /// `channel` is the URL asked for. Each element of `casts` has the same
 /// shape as in `feed`, newest first, after any app filter; replies to them
-/// are not included.
-pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], names: &Names) -> String {
+/// are not included. `accounts` is as in `feed`.
+pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], users: &Users) -> String {
     to_json(&ChannelV1 {
         version: 1,
         channel: channel.as_str(),
-        casts: casts_v1(items, names),
+        casts: casts_v1(items, &profile::names_of(users)),
+        accounts: accounts_v1(users),
     })
 }
 
@@ -139,13 +146,16 @@ pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], names: &Names) -> 
 /// { "version": 1, "shard": 1, "id": 804707024897, "block": 49115419,
 ///   "block_time": "2026-10-19T00:00:03Z", "event": "merge", "type": "cast_add",
 ///   "fid": 978766, "hash": "0x…", "timestamp": "2026-10-19T00:00:02Z",
-///   "signer": "0x…" }
+///   "signer": "0x…", "text": "gm  and hi",
+///   "mentions": [{ "fid": 1236, "position": 3 }], "embeds": [ … ], "parent": null }
 /// ```
 ///
 /// `event` is `merge`, `prune` (dropped for storage) or `revoke` (its app
 /// key was removed), and `type` the message type: `cast_add`,
 /// `reaction_add`, `link_add`, `user_data_add`, …. `timestamp` is the time
 /// the message gives itself; `block_time` is when the shard merged it.
+/// Only a `cast_add` has `text`, `mentions`, `embeds` and `parent`, as in
+/// `feed` but with no usernames: `text` is without the mentioned names.
 /// The other events, after the same first five fields:
 ///
 /// ```json
@@ -173,6 +183,7 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
             hash,
             timestamp,
             signer,
+            cast,
         } => {
             let m = EventMessageV1 {
                 kind,
@@ -180,6 +191,7 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
                 hash: hash.to_string(),
                 timestamp: timestamp.to_string(),
                 signer: signer.to_string(),
+                cast: cast.as_deref().map(event_cast_v1),
             };
             match change {
                 Change::Merge => EventBodyV1::Merge(m),
@@ -197,20 +209,38 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
     }
 }
 
+fn event_cast_v1(c: &Cast) -> EventCastV1<'_> {
+    EventCastV1 {
+        text: &c.text,
+        mentions: c.mentions.iter().map(event_mention_v1).collect(),
+        embeds: c.embeds.iter().map(target_v1).collect(),
+        parent: c.parent.as_ref().map(target_v1),
+    }
+}
+
+fn event_mention_v1(m: &Mention) -> EventMentionV1 {
+    EventMentionV1 {
+        fid: m.fid,
+        position: m.position,
+    }
+}
+
 /// `selfcast replies <FID:HASH> --json`, version 1:
 ///
 /// ```json
-/// { "version": 1, "parent": { "fid": 37, "hash": "0x…" }, "casts": [ … ] }
+/// { "version": 1, "parent": { "fid": 37, "hash": "0x…" }, "casts": [ … ], "accounts": [ … ] }
 /// ```
 ///
 /// `parent` is the cast asked about. Each element of `casts` has the same
 /// shape as in `feed`, but oldest first: the newest `--limit` replies after
-/// any app filter, in the order they were posted.
-pub fn replies_json(parent: &CastRef, items: &[FeedItem], names: &Names) -> String {
+/// any app filter, in the order they were posted. `accounts` is as in
+/// `feed`.
+pub fn replies_json(parent: &CastRef, items: &[FeedItem], users: &Users) -> String {
     to_json(&RepliesV1 {
         version: 1,
         parent: parent_v1(parent),
-        casts: casts_v1(items, names),
+        casts: casts_v1(items, &profile::names_of(users)),
+        accounts: accounts_v1(users),
     })
 }
 
@@ -363,6 +393,7 @@ struct FeedV1<'a> {
     version: u32,
     fid: u64,
     casts: Vec<CastV1<'a>>,
+    accounts: Vec<AccountV1>,
 }
 
 #[derive(Serialize)]
@@ -370,6 +401,7 @@ struct CastsV1<'a> {
     version: u32,
     fids: &'a [u64],
     casts: Vec<CastV1<'a>>,
+    accounts: Vec<AccountV1>,
 }
 
 #[derive(Serialize)]
@@ -414,6 +446,22 @@ struct EventMessageV1<'a> {
     hash: String,
     timestamp: String,
     signer: String,
+    #[serde(flatten)]
+    cast: Option<EventCastV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct EventCastV1<'a> {
+    text: &'a str,
+    mentions: Vec<EventMentionV1>,
+    embeds: Vec<TargetV1<'a>>,
+    parent: Option<TargetV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct EventMentionV1 {
+    fid: u64,
+    position: u32,
 }
 
 #[derive(Serialize)]
@@ -448,6 +496,7 @@ struct ChannelV1<'a> {
     version: u32,
     channel: &'a str,
     casts: Vec<CastV1<'a>>,
+    accounts: Vec<AccountV1>,
 }
 
 #[derive(Serialize)]
@@ -455,6 +504,7 @@ struct RepliesV1<'a> {
     version: u32,
     parent: ParentV1,
     casts: Vec<CastV1<'a>>,
+    accounts: Vec<AccountV1>,
 }
 
 #[derive(Serialize)]

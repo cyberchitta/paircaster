@@ -10,7 +10,7 @@ use selfcast_core::feed::{AppFilter, FeedItem};
 use selfcast_core::follow::Follow;
 use selfcast_core::node::reads::MAX_ANCESTORS;
 use selfcast_core::output;
-use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, names_of};
+use selfcast_core::profile::{FOLLOWER_COUNT_CAP, Followers, Names, Profile, Users, names_of};
 use selfcast_core::reaction::CastReactions;
 use selfcast_core::thread::{ChainTop, Thread};
 use selfcast_core::{Error, Node};
@@ -160,11 +160,11 @@ pub async fn feed(node: &Node, args: &FeedArgs, json: bool) -> Result<(), Error>
     let items = node
         .feed(fid, f.limit, &f.apps.filter(), clock::now())
         .await?;
-    let names = node.mention_names(&items).await?;
+    let users = node.accounts_of(&items).await?;
     if json {
-        crate::out::line(output::feed_json(fid, &items, &names));
+        crate::out::line(output::feed_json(fid, &items, &users));
     } else {
-        items.iter().for_each(|i| print_item(i, &names));
+        print_items(&items, &users);
     }
     Ok(())
 }
@@ -175,11 +175,11 @@ pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Erro
     let items = node
         .newest_casts(fids.clone(), f.limit, &f.apps.filter(), clock::now())
         .await?;
-    let names = node.mention_names(&items).await?;
+    let users = node.accounts_of(&items).await?;
     if json {
-        crate::out::line(output::casts_json(&fids, &items, &names));
+        crate::out::line(output::casts_json(&fids, &items, &users));
     } else {
-        items.iter().for_each(|i| print_item(i, &names));
+        print_items(&items, &users);
     }
     Ok(())
 }
@@ -188,11 +188,11 @@ pub async fn channel(node: &Node, args: &ChannelArgs, json: bool) -> Result<(), 
     let items = node
         .channel(&args.channel, args.limit, &args.apps.filter(), clock::now())
         .await?;
-    let names = node.mention_names(&items).await?;
+    let users = node.accounts_of(&items).await?;
     if json {
-        crate::out::line(output::channel_json(&args.channel, &items, &names));
+        crate::out::line(output::channel_json(&args.channel, &items, &users));
     } else {
-        items.iter().for_each(|i| print_item(i, &names));
+        print_items(&items, &users);
     }
     Ok(())
 }
@@ -246,11 +246,11 @@ pub async fn replies(node: &Node, args: &RepliesArgs, json: bool) -> Result<(), 
     let items = node
         .newest_replies(&args.cast, args.limit, &args.apps.filter(), clock::now())
         .await?;
-    let names = node.mention_names(&items).await?;
+    let users = node.accounts_of(&items).await?;
     if json {
-        crate::out::line(output::replies_json(&args.cast, &items, &names));
+        crate::out::line(output::replies_json(&args.cast, &items, &users));
     } else {
-        items.iter().for_each(|i| print_item(i, &names));
+        print_items(&items, &users);
     }
     Ok(())
 }
@@ -304,13 +304,21 @@ fn followers_line(f: Followers) -> String {
     }
 }
 
+fn print_items(items: &[FeedItem], users: &Users) {
+    let names = names_of(users);
+    items.iter().for_each(|i| print_item(i, &names));
+}
+
 fn print_item(item: &FeedItem, names: &Names) {
     let c = &item.cast;
     let app = item
         .app_fid
         .map_or_else(|| "unknown app".to_owned(), |f| format!("app {f}"));
+    let who = names
+        .get(&c.id.fid)
+        .map_or_else(String::new, |n| format!("@{n}  "));
     crate::out::line(format_args!(
-        "{}  fid {}  {}  {app}",
+        "{}  {who}fid {}  {}  {app}",
         c.timestamp, c.id.fid, c.id.hash
     ));
     c.display_text(names)

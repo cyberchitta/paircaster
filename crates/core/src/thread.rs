@@ -55,12 +55,7 @@ impl Thread {
 
     /// Each author in the thread and each account its casts mention.
     pub fn account_fids(&self) -> BTreeSet<u64> {
-        self.items()
-            .flat_map(|i| {
-                let mentioned = i.cast.mentions.iter().map(|m| m.fid);
-                std::iter::once(i.cast.id.fid).chain(mentioned)
-            })
-            .collect()
+        feed::account_fids(self.items())
     }
 }
 

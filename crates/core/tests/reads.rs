@@ -699,6 +699,25 @@ fn an_events_page_reads_every_kind_of_event() {
         |b| matches!(b, EventBody::Message { change: Change::Merge, kind, .. } if kind == "cast_add"),
     );
     assert_eq!(casts, 799);
+    let cast_or_not = |b: &EventBody| match b {
+        EventBody::Message { kind, cast, .. } => (kind == "cast_add") == cast.is_some(),
+        _ => true,
+    };
+    assert_eq!(body(cast_or_not), 2_850 + 1_458 + 2 + 69 + 21);
+    let first = page.iter().find_map(|e| match e {
+        PageEvent::Event {
+            body: EventBody::Message { cast: Some(c), .. },
+            ..
+        } => Some(c),
+        _ => None,
+    });
+    assert_eq!(
+        first.map(|c| (c.id.fid, c.text.as_str())),
+        Some((
+            978_766,
+            "base chain is where agent innovation lives. $sln empowers nfts to become intelligent entities. #elizaos"
+        ))
+    );
 }
 
 #[test]

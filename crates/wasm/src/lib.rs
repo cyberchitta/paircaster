@@ -54,8 +54,8 @@ pub async fn feed(
     let items = node
         .feed(fid, limit_of(limit, MAX_CASTS)?, &apps, time(now)?)
         .await?;
-    let names = node.mention_names(&items).await?;
-    Ok(output::feed_json(fid, &items, &names))
+    let users = node.accounts_of(&items).await?;
+    Ok(output::feed_json(fid, &items, &users))
 }
 
 /// `selfcast casts <account>,… --limit <limit> [app filter] --json`.
@@ -75,8 +75,8 @@ pub async fn casts(
     let items = node
         .newest_casts(fids.clone(), limit_of(limit, MAX_CASTS)?, &apps, time(now)?)
         .await?;
-    let names = node.mention_names(&items).await?;
-    Ok(output::casts_json(&fids, &items, &names))
+    let users = node.accounts_of(&items).await?;
+    Ok(output::casts_json(&fids, &items, &users))
 }
 
 /// `selfcast channel <url> --limit <limit> [app filter] --json`.
@@ -95,8 +95,8 @@ pub async fn channel(
     let items = node
         .channel(&channel, limit_of(limit, MAX_CASTS)?, &apps, time(now)?)
         .await?;
-    let names = node.mention_names(&items).await?;
-    Ok(output::channel_json(&channel, &items, &names))
+    let users = node.accounts_of(&items).await?;
+    Ok(output::channel_json(&channel, &items, &users))
 }
 
 /// `selfcast addresses <account> --json`.
@@ -148,8 +148,8 @@ pub async fn replies(
     let items = node
         .newest_replies(&id, limit_of(limit, MAX_CASTS)?, &apps, time(now)?)
         .await?;
-    let names = node.mention_names(&items).await?;
-    Ok(output::replies_json(&id, &items, &names))
+    let users = node.accounts_of(&items).await?;
+    Ok(output::replies_json(&id, &items, &users))
 }
 
 /// `selfcast thread <cast> --limit <limit> --json`.

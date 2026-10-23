@@ -96,8 +96,9 @@ pub fn casts_in_channel(page: Value, channel: &ChannelUrl) -> Result<Page<Cast>,
 }
 
 /// A `GET /v1/events` page (snapchain v0.14.3 `src/network/http_server.rs`,
-/// `HubEvent` line 1986). Message bodies are not read past the fields the
-/// event list shows.
+/// `HubEvent` line 1986). A cast add is read in full, as `castsByFid` reads
+/// it; other message bodies are not read past the fields the event list
+/// shows.
 pub fn events(page: Value) -> Result<Vec<PageEvent>, Error> {
     #[derive(Deserialize)]
     struct Raw {
@@ -132,7 +133,7 @@ struct RawBlockConfirmed {
 
 #[derive(Deserialize)]
 struct RawMessageEvent {
-    message: RawEventMessage,
+    message: Value,
 }
 
 #[derive(Deserialize)]
@@ -221,16 +222,22 @@ fn event_body(raw: RawEvent) -> Result<EventBody, Error> {
 }
 
 fn message_event(body: RawMessageEvent, change: Change) -> Result<EventBody, Error> {
-    let m = body.message;
+    let m = RawEventMessage::deserialize(&body.message).map_err(|e| bad(&e.to_string()))?;
+    let kind = unprefixed(&m.data.kind, "MESSAGE_TYPE_")?;
+    let cast = match kind.as_str() {
+        "cast_add" => Some(Box::new(cast(&message_from_json(body.message)?)?)),
+        _ => None,
+    };
     Ok(EventBody::Message {
         change,
-        kind: unprefixed(&m.data.kind, "MESSAGE_TYPE_")?,
+        kind,
         fid: m.data.fid,
         hash: MessageHash::from_bytes(&hex_bytes(&m.hash)?)
             .ok_or_else(|| bad("hash is not 20 bytes"))?,
         timestamp: Timestamp::from_farcaster(m.data.timestamp),
         signer: SignerKey::from_bytes(&hex_bytes(&m.signer)?)
             .ok_or_else(|| bad("signer is not 32 bytes"))?,
+        cast,
     })
 }
 

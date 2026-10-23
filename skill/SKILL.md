@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -210,10 +210,12 @@ node has no registration for exits 1.
 
 The newest casts of one or more accounts, merged, newest first. Accounts
 are separate arguments or comma-separated. `fids` in the output lists each
-account's FID, in the order given, names already looked up.
+account's FID, in the order given, names already looked up. `accounts`
+holds each author and each mentioned account once, as in `thread`, so name
+the authors from it rather than running `profile` per FID.
 
 ```json
-{"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}]}
+{"version":1,"fids":[2,3],"casts":[{"hash":"0x0256ae66308d546514fa666cda44052abbfea066","fid":3,"timestamp":"2026-10-17T02:30:02Z","text":"","display_text":"","mentions":[],"embeds":[{"url":"https://imagedelivery.net/…/original"}],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152}],"accounts":[{"fid":3,"username":"dwr","display_name":"Dan Romero","pfp_url":"https://…/original"}]}
 ```
 
 Per cast:
@@ -248,8 +250,8 @@ quiet.
 ### `selfcast feed <account> --json`
 
 The same as `casts`, over every account `<account>` follows: what that account
-would see. The shape is `{"version":1,"fid":…,"casts":[…]}`, with casts as
-above. It reads each followed account, eight at a time, so an account
+would see. The shape is `{"version":1,"fid":…,"casts":[…],"accounts":[…]}`,
+with casts and accounts as above. It reads each followed account, eight at a time, so an account
 following thousands is slow. For a short named list, use `casts`.
 
 ### `selfcast channel <URL> --json`
@@ -260,7 +262,8 @@ there; the CLI cannot look a channel up by its name. Many are
 `https://warpcast.com/~/channel/<name>`, not all: a URL nobody posted to
 gives `"casts":[]` and exit 0, so do not tell the user a channel is quiet
 on a guessed URL. The shape is
-`{"version":1,"channel":"https://…","casts":[…]}`, with casts as above.
+`{"version":1,"channel":"https://…","casts":[…],"accounts":[…]}`, with casts
+and accounts as above.
 Replies in the channel are not included (their parent is a cast): use
 `replies` or `thread` on a cast. `--limit` (default 20, at most 1000) and
 the app filters work as for `casts`.
@@ -268,8 +271,9 @@ the app filters work as for `casts`.
 ### `selfcast events --json`
 
 What the node's shards merged, pruned and revoked, block by block: the
-network's recent activity, for counting. One JSON object per line, not
-one document; use `jq -s` to count. A message event:
+network's recent activity, for counting, and the only way to find casts by
+what they say. One JSON object per line, not one document; use `jq -s` to
+count. A message event:
 
 ```json
 {"version":1,"shard":2,"id":806368559105,"block":49216831,"block_time":"2026-10-23T03:00:03Z","event":"merge","type":"cast_add","fid":3356482,"hash":"0xe89cce326e9ceaed7cd01bd321e13cd3c87388fd","timestamp":"2026-10-23T03:00:03Z","signer":"0x33a5…a43e"}
@@ -286,6 +290,11 @@ shard merged it; `timestamp` is what the message claims. `--since` and
 `--until` take UTC, `2026-10-22` or `2026-10-22T06:00:00Z`, and select by
 `block_time`.
 
+A `cast_add` also carries the cast's `text`, `mentions` (`{fid, position}`),
+`embeds` and `parent`, as in `casts` but with no usernames: `text` is
+without the mentioned names, and there is no `display_text`. Name the
+casts you keep with `profile`, or show them with `thread`.
+
 The node keeps about three days of events, so this answers "this week"
 only for those days: say which days the count covers (the first line's
 `block_time`). One day is about 55,000 lines, read in a few seconds; three
@@ -298,11 +307,24 @@ selfcast events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(sel
 gave `{"casts":9421,"accounts":2427}`. Events carry no `app_fid`: the
 CLI does not say which app sent an event's message.
 
+To find casts on a subject, filter the `cast_add` merges on their text in
+the same pipe. Three days took under five seconds:
+
+```
+selfcast events --since 2026-10-20T11:04:33Z --json | jq -c 'select(.event == "merge" and .type == "cast_add" and (.text | test("singapor"; "i"))) | {fid, hash, text}'
+```
+
+gave 1,444 lines, most of them one templated vote post: group by text
+before reading them. It matches words, not meaning, and misses a cast that
+names the subject only in an image or a link. Do not fetch casts one by one
+from the node's HTTP API instead: it drops requests under load, and the
+text is already here.
+
 ### `selfcast replies <FID:HASH> --json`
 
 The direct replies to one cast, oldest first. The shape is
-`{"version":1,"parent":{"fid":…,"hash":"0x…"},"casts":[…]}`, with casts as
-above. Example, the replies from one app (here the test account's own key):
+`{"version":1,"parent":{"fid":…,"hash":"0x…"},"casts":[…],"accounts":[…]}`,
+with casts and accounts as above. Example, the replies from one app (here the test account's own key):
 
 ```json
 {"version":1,"parent":{"fid":37,"hash":"0xcd34bb7404d899df69fda5e8ca17d3f1aa1e9268"},"casts":[{"hash":"0xcaec87736a1eee7fcd0351cf0b1e9c4e4defa505","fid":3356360,"timestamp":"2026-10-22T06:51:30Z","text":"Two of these claims can be measured from a read node. …","display_text":"Two of these claims can be measured from a read node. …","mentions":[],"embeds":[],"parent":{"cast":{"fid":37,"hash":"0xcd34bb7404d899df69fda5e8ca17d3f1aa1e9268"}},"signer":"0xffac…212e","app_fid":3356360}]}
@@ -347,8 +369,9 @@ it once per cast. A cast the node does not hold exits 1.
 
 - No reactions in `casts`, `feed`, `replies` or `thread`: run `reactions`
   per cast. No reactions to a channel URL.
-- No search, and no channel by name, members or followers: `channel`
-  takes the URL.
+- No search command: `events` finds casts by their text, for the three
+  days or so it covers. No channel by name, members or followers:
+  `channel` takes the URL.
 - Nothing older than an account's newest 1000 messages, and `events` only
   for the last three days or so.
 

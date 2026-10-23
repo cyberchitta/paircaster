@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::event::{Event, EventWalk};
 use crate::feed::{self, AppFilter, FeedItem};
 use crate::follow::Follow;
-use crate::profile::{Names, Profile, Users, names_of};
+use crate::profile::{Profile, Users};
 use crate::proto::ReactionType;
 use crate::reaction::CastReactions;
 use crate::signer::Signer;
@@ -305,13 +305,10 @@ impl Node {
             .await
     }
 
-    /// The username of each account mentioned in `items` that has one.
-    pub async fn mention_names(&self, items: &[FeedItem]) -> Result<Names, Error> {
-        let fids = items
-            .iter()
-            .flat_map(|i| i.cast.mentions.iter().map(|m| m.fid))
-            .collect();
-        Ok(names_of(&self.user_data_of(fids).await?))
+    /// The user data of each author of `items` and each account they
+    /// mention.
+    pub async fn accounts_of(&self, items: &[FeedItem]) -> Result<Users, Error> {
+        self.user_data_of(feed::account_fids(items)).await
     }
 }
 

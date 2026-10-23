@@ -32,12 +32,28 @@ pub async fn run(node: &Node, args: &EventsArgs, json: bool) -> Result<(), Error
 fn print_event(e: &Event, json: bool) {
     match json {
         true => crate::out::line(output::event_json(e)),
-        false => crate::out::line(format_args!(
-            "{}  shard {}  {}",
-            e.block_time,
-            e.shard,
-            describe(&e.body)
-        )),
+        false => {
+            crate::out::line(format_args!(
+                "{}  shard {}  {}",
+                e.block_time,
+                e.shard,
+                describe(&e.body)
+            ));
+            print_text(&e.body);
+        }
+    }
+}
+
+/// A cast's text under its event, indented, as the cast reads give it but
+/// without the mentioned names, which the event does not look up.
+fn print_text(body: &EventBody) {
+    if let EventBody::Message {
+        cast: Some(cast), ..
+    } = body
+    {
+        cast.text
+            .lines()
+            .for_each(|l| crate::out::line(format_args!("    {l}")));
     }
 }
 

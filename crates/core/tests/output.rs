@@ -7,7 +7,7 @@ use selfcast_core::event::{Change, Event, EventBody};
 use selfcast_core::feed::FeedItem;
 use selfcast_core::follow::Follow;
 use selfcast_core::output;
-use selfcast_core::profile::{Followers, Names, Profile, UserDatum};
+use selfcast_core::profile::{Followers, Profile, UserDatum, Users};
 use selfcast_core::proto::{CastType, ReactionType, UserDataType};
 use selfcast_core::reaction::CastReactions;
 use selfcast_core::thread::{ChainTop, Thread};
@@ -33,9 +33,12 @@ fn item() -> FeedItem {
     }
 }
 
-fn names() -> Names {
-    [(9, "alice".to_owned())].into()
+/// The author, 2, has no username; the mentioned account, 9, is alice.
+fn users() -> Users {
+    [(2, Vec::new()), username(9, "alice")].into()
 }
+
+const ACCOUNTS: &str = r#""accounts":[{"fid":2,"username":null,"display_name":null,"pfp_url":null},{"fid":9,"username":"alice","display_name":null,"pfp_url":null}]"#;
 
 fn cast_json() -> String {
     let h = format!("0x{}", "ab".repeat(20));
@@ -56,14 +59,20 @@ fn username(fid: u64, name: &str) -> (u64, Vec<UserDatum>) {
 
 #[test]
 fn feed_json_is_version_1() {
-    let expected = format!(r#"{{"version":1,"fid":3,"casts":[{}]}}"#, cast_json());
-    assert_eq!(output::feed_json(3, &[item()], &names()), expected);
+    let expected = format!(
+        r#"{{"version":1,"fid":3,"casts":[{}],{ACCOUNTS}}}"#,
+        cast_json()
+    );
+    assert_eq!(output::feed_json(3, &[item()], &users()), expected);
 }
 
 #[test]
 fn casts_json_is_version_1() {
-    let expected = format!(r#"{{"version":1,"fids":[2,5],"casts":[{}]}}"#, cast_json());
-    assert_eq!(output::casts_json(&[2, 5], &[item()], &names()), expected);
+    let expected = format!(
+        r#"{{"version":1,"fids":[2,5],"casts":[{}],{ACCOUNTS}}}"#,
+        cast_json()
+    );
+    assert_eq!(output::casts_json(&[2, 5], &[item()], &users()), expected);
 }
 
 #[test]
@@ -73,11 +82,11 @@ fn replies_json_is_version_1() {
         hash: MessageHash::from_bytes(&[0xcd; 20]).expect("20 bytes"),
     };
     let expected = format!(
-        r#"{{"version":1,"parent":{{"fid":37,"hash":"0x{}"}},"casts":[{}]}}"#,
+        r#"{{"version":1,"parent":{{"fid":37,"hash":"0x{}"}},"casts":[{}],{ACCOUNTS}}}"#,
         "cd".repeat(20),
         cast_json()
     );
-    assert_eq!(output::replies_json(&parent, &[item()], &names()), expected);
+    assert_eq!(output::replies_json(&parent, &[item()], &users()), expected);
 }
 
 #[test]
@@ -167,18 +176,21 @@ fn event_lines_keep_their_shape() {
     let h = format!("0x{}", "ab".repeat(20));
     let signer = format!("0x{}", "01".repeat(32));
     let head = r#"{"version":1,"shard":1,"id":81922,"block":5,"block_time":"2021-01-01T00:00:10Z""#;
-    let message = |change| {
+    let message = |change, kind: &str, cast| {
         event(EventBody::Message {
             change,
-            kind: "cast_add".to_owned(),
+            kind: kind.to_owned(),
             fid: 2,
             hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
             timestamp: Timestamp::from_farcaster(9),
             signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
+            cast,
         })
     };
-    let tail = format!(
-        r#""type":"cast_add","fid":2,"hash":"{h}","timestamp":"2021-01-01T00:00:09Z","signer":"{signer}"}}"#
+    let fields =
+        format!(r#""fid":2,"hash":"{h}","timestamp":"2021-01-01T00:00:09Z","signer":"{signer}""#);
+    let cast = format!(
+        r#","text":"hi ","mentions":[{{"fid":9,"position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}}"#
     );
     [
         (Change::Merge, "merge"),
@@ -188,10 +200,14 @@ fn event_lines_keep_their_shape() {
     .iter()
     .for_each(|(c, name)| {
         assert_eq!(
-            output::event_json(&message(*c)),
-            format!(r#"{head},"event":"{name}",{tail}"#)
+            output::event_json(&message(*c, "cast_add", Some(Box::new(item().cast)))),
+            format!(r#"{head},"event":"{name}","type":"cast_add",{fields}{cast}}}"#)
         );
     });
+    assert_eq!(
+        output::event_json(&message(Change::Merge, "reaction_add", None)),
+        format!(r#"{head},"event":"merge","type":"reaction_add",{fields}}}"#)
+    );
     let others = [
         (
             EventBody::UsernameProof {

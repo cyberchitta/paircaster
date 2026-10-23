@@ -31,6 +31,17 @@ pub enum AppFilter {
     Not(BTreeSet<u64>),
 }
 
+/// Each author of `items` and each account their casts mention.
+pub fn account_fids<'a>(items: impl IntoIterator<Item = &'a FeedItem>) -> BTreeSet<u64> {
+    items
+        .into_iter()
+        .flat_map(|i| {
+            let mentioned = i.cast.mentions.iter().map(|m| m.fid);
+            std::iter::once(i.cast.id.fid).chain(mentioned)
+        })
+        .collect()
+}
+
 impl AppFilter {
     /// Whether a cast from `app_fid` (`None`: app unknown) is kept.
     ///

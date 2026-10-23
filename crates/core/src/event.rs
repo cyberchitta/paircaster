@@ -2,7 +2,7 @@
 //! the node records them. Pure; the node module fetches the pages.
 
 use crate::Error;
-use crate::cast::{MessageHash, SignerKey};
+use crate::cast::{Cast, MessageHash, SignerKey};
 use crate::time::Timestamp;
 
 /// Bits of an event id below the block height (snapchain v0.14.3
@@ -40,6 +40,8 @@ pub enum EventBody {
         /// The time the message gives itself, not when it was merged.
         timestamp: Timestamp,
         signer: SignerKey,
+        /// The cast, for a `cast_add`; `None` for every other kind.
+        cast: Option<Box<Cast>>,
     },
     UsernameProof {
         fid: u64,
