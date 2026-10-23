@@ -8,12 +8,12 @@ network, and `paircaster` reads and writes through your node.
 > **Read the code before you give it your recovery phrase.** As with any code
 > from the internet, review it yourself, or have someone you trust or an AI
 > agent review it, before `paircaster key add` asks for your phrase, and use a
-> test account either way. [Safety](https://selfcast.cyberchitta.cc/safety.html)
+> test account either way. [Safety](https://paircaster.cyberchitta.cc/safety.html)
 > lists the files that handle the phrase.
 
-- **Tutorial and quickstart:** [selfcast.cyberchitta.cc](https://selfcast.cyberchitta.cc/)
+- **Tutorial and quickstart:** [paircaster.cyberchitta.cc](https://paircaster.cyberchitta.cc/)
   (source: [`docs/index.md`](docs/index.md))
-- **Testing it for us:** [selfcast.cyberchitta.cc/testing.html](https://selfcast.cyberchitta.cc/testing.html)
+- **Testing it for us:** [paircaster.cyberchitta.cc/testing.html](https://paircaster.cyberchitta.cc/testing.html)
   (source: [`docs/testing.md`](docs/testing.md))
 - **Farcaster documentation we found wrong, and the fixes we sent upstream:**
   [`docs/upstream-fixes.md`](docs/upstream-fixes.md)

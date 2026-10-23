@@ -73,7 +73,7 @@ The agent can show you a thread instead of describing it: a page in your browser
 
 ### Build it
 
-The page is built into `paircaster` only with the `viewer` feature, which the quickstart's build leaves out: building the page needs tools the rest of `paircaster` does not. They are [Bun](https://bun.sh), the WebAssembly target, and `wasm-bindgen-cli` at the same version as the `wasm-bindgen` in `Cargo.lock`. From the clone, find that version:
+The page is built into `paircaster` only with the `viewer` feature, which the quickstart's build leaves out: building the page needs tools the rest of `paircaster` does not. They are [Bun](https://bun.sh), the WebAssembly target, and `wasm-bindgen-cli` at the same version as the `wasm-bindgen` in `Cargo.lock`. Install Bun with the command on its home page (on Linux it needs `unzip`), then open a new terminal so that `bun` is on your path. From the clone, find the `wasm-bindgen` version:
 
 ```run
 grep -A1 'name = "wasm-bindgen"' Cargo.lock
@@ -89,12 +89,12 @@ Then build, with that version in the second line:
 ```run
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
-cd viewer && bun install && bun build.ts && cd ..
+cd viewer && bun install --frozen-lockfile && bun build.ts && cd ..
 cargo install --path crates/cli --locked --features viewer
 ```
 
 ```output
-dist/: index.html 3419 bytes, viewer.js 1245675 (wasm 902684)
+dist/: index.html 3423 bytes, viewer.js 1243596 (wasm 901114)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output.

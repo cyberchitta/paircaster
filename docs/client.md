@@ -24,6 +24,8 @@ Syncing (Snapchain 0.14.3): 8h31m behind at most.
 
 Reads work the same way through the tunnel. If the node behind it does not answer, `node status --node` says it could not reach the node.
 
+The [viewer](agent.md#looking-at-a-thread-together) goes on your own machine too, beside your browser and your agent: the page in your browser reads the node itself, at `localhost:3381` through the same tunnel, and your agent talks to the page through a socket on the machine it runs on. [Build it](agent.md#build-it) there, in a clone made as in the [quickstart](index.md#1.-install-paircaster)'s step 1, then run `paircaster viewer serve` there while the tunnel is up. The server needs no viewer, and nothing about the viewer is installed on it. If your agent runs on the server instead, the viewer runs there with it, and your browser needs a second tunnel, to the port `viewer serve` prints, which changes on each run.
+
 ## Accounts and FIDs
 
 A Farcaster account is a number, its *FID*: the protocol knows accounts only by FID, and every message names its author by one. A username is a name an account claims, which your node can look up. Wherever `paircaster` takes an account, it takes either, and the examples here use usernames:

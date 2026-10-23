@@ -1,6 +1,6 @@
 ---
 name: paircaster
-description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
+description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers installing paircaster and its viewer from the clone and setting up the node (which steps are the user's), checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
 ---
 
 # paircaster
@@ -31,6 +31,66 @@ hosted service.
   node does not hold.
 - Never ask for, accept, or type a recovery phrase. Commands that need one
   read it from the terminal themselves, and the user types it.
+
+## Install
+
+When the user asks you to install Paircaster or set it up. Work in the
+clone: the directory with `Cargo.toml`, `crates/` and `skill/`. There is no
+release binary; `paircaster` is built from this source. Before each step,
+say what it installs and where.
+
+1. **Check what is there:** `git --version`, `cargo --version`,
+   `docker info` (the node runs in Docker, which must be running), and
+   `df -h ~` (the node needs about 800 GB free while the snapshot downloads
+   and unpacks). Report what is missing. Installing Rust
+   (rustup.rs) or Docker is the user's: give them the link, do not run an
+   installer for them.
+2. **Build `paircaster`**, with the viewer if the user wants to look at
+   threads with you (it needs three more tools), else without:
+
+   ```
+   cargo install --path crates/cli --locked
+   ```
+
+   With the viewer, instead:
+
+   ```
+   grep -A1 'name = "wasm-bindgen"' Cargo.lock    # its version, for the second line
+   rustup target add wasm32-unknown-unknown
+   cargo install wasm-bindgen-cli --version <that version> --locked
+   cd viewer && bun install --frozen-lockfile && bun build.ts && cd ..
+   cargo install --path crates/cli --locked --features viewer
+   ```
+
+   It needs Bun (`bun --version`). If it is missing, Bun's own installer is
+   `curl -fsSL https://bun.sh/install | bash`; it adds `~/.bun/bin` to the
+   user's shell profile, and on Linux it needs `unzip`. Ask before running
+   it, and then put `~/.bun/bin` on the path of your own shell, which the
+   profile does not reach. `bun build.ts` prints one line,
+   `dist/: index.html …`.
+3. **Check it:** `paircaster node status --json`. Before Snapchain is
+   installed, it gives `"phase":"not_started"` and `"disk":null`.
+4. **Snapchain is the user's to install.** Its installer asks two questions
+   at the terminal, which your shell cannot answer, and it starts a node.
+   Give the user these to run in their own terminal:
+
+   ```
+   mkdir -p ~/snapchain && echo SKIP_CRONTAB=true >> ~/snapchain/.env
+   curl -sSL https://raw.githubusercontent.com/farcasterxyz/snapchain/refs/heads/main/scripts/snapchain-bootstrap.sh | bash
+   cd ~/snapchain && ./snapchain.sh down
+   ```
+
+   The answers: yes to the first question (a read node earns no rewards);
+   leave the second, an operator FID, blank. The last line stops the node
+   the installer started, whose own snapshot download cannot resume after an
+   interruption.
+5. **The snapshot:** once the user says the node is stopped, start the
+   download with `paircaster node resume` (*Node*, below). It takes about
+   12 hours. When `node status` shows `node_stopped`, the user starts the
+   node with `cd ~/snapchain && ./snapchain.sh up`, and it catches up with
+   the network, which took a day or more on the test machine.
+
+To update later: `git pull` in the clone, then the same build again.
 
 ## Node
 
@@ -70,7 +130,7 @@ asked for that outcome ("resume it", "fix it").
 
 | `phase` | Fields | What it means, and what to offer |
 |---|---|---|
-| `not_started` | `running` | Nothing saved yet. `running: true`: a download has just started; check again shortly. `running: false`: offer to start it with `node resume`. |
+| `not_started` | `running` | Nothing saved yet. `running: true`: a download has just started; check again shortly. `running: false`: offer to start it with `node resume`, unless `disk` is `null`: then Snapchain is not installed in the install directory (*Install*, step 4, comes first), or it is installed elsewhere and needs `--dir`. |
 | `downloading` | `running`, `chunks_done`, `chunks_total`, `bytes_per_second`, `eta_seconds`, `seconds_since_write` | `running: false`: paused or interrupted; offer `node resume`. `running: true` with `seconds_since_write` over 90: waiting for the network; the download carries on when it returns. `bytes_per_second` and `eta_seconds` are `null` until a few chunks have finished, and while not running. While not running, `seconds_since_write` is only how long ago it stopped. |
 | `unpacking` | `running`, `shards_done`, `shards_total`, `seconds_since_write` | Local work after the download; it cannot be paused. `running: false`: interrupted; `node resume` finishes it, and the shard in progress starts over. |
 | `node_stopped` | (none) | The snapshot is in place but no node answers. The node is started with Snapchain's own script, `cd <dir> && ./snapchain.sh up`, which can take a minute to answer. |

@@ -13,7 +13,7 @@ fn main() {
         println!("cargo::rerun-if-changed={}", path.display());
         assert!(
             path.is_file(),
-            "the viewer feature needs {}: run `bun install && bun build.ts` in viewer/ first",
+            "the viewer feature needs {}: run `bun install --frozen-lockfile && bun build.ts` in viewer/ first",
             path.display()
         );
     }

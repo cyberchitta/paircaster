@@ -37,7 +37,17 @@ You need:
 - About 800 GB of free disk while the snapshot downloads and unpacks; the node then uses 557 GB and grows ([details](node.md#hardware-and-disk)).
 - Time: about 12 hours for the download and unpack, then the node's catch-up with the network, which took the test node a day or more.
 
-Each step below is explained in [Running the node](node.md).
+The easiest way is to let your AI agent install it. Clone the repository and start Claude Code in the clone:
+
+```run
+git clone https://github.com/cyberchitta/paircaster
+cd paircaster
+claude
+```
+
+Then ask it: “Install Paircaster here, with the viewer.” It loads Paircaster's [skill](agent.md#the-skill) from the clone, checks what your machine already has, and builds `paircaster` with the [viewer](agent.md#looking-at-a-thread-together). Snapchain's installer asks questions at the terminal, so the skill has the agent give you steps 2 and 4 below to run yourself, with the answers, and start step 3's download for you.
+
+The same steps by hand follow. Each is explained in [Running the node](node.md).
 
 ### 1. Install paircaster
 
@@ -184,14 +194,15 @@ Each idea is explained where the guide first uses it.
 
 ## Not tried yet
 
-- Linux, Intel Macs, and rented servers; the [renting](node.md#renting-a-server-instead) advice is untested.
-- A node on a real remote server, reached [through SSH](client.md#where-to-run-paircaster); a write or `key add` through a tunnel. The tunnel was tried only against a stand-in server on the same machine.
+- Linux beyond building `paircaster` and its viewer, Intel Macs, and rented servers; the [renting](node.md#renting-a-server-instead) advice is untested.
+- A node on a real remote server, reached [through SSH](client.md#where-to-run-paircaster); a write, `key add` or the viewer through a tunnel, and the viewer on the server with an agent there. The tunnel was tried only against a stand-in server on the same machine.
 - `key add` and `delete` through your own node. Three casts, a like and its undo, and a follow and its undo have gone through the test node; `key add` and the delete went through Farcaster's public node `crackle`.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text.
 - A cast sent with `--embed`.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
-- The viewer built on a machine that did not already have Bun, the `wasm32-unknown-unknown` target and `wasm-bindgen-cli`; the viewer in browsers other than Chrome.
+- The viewer in browsers other than Chrome.
+- The agent's install on a machine without a node or the viewer's tools: it has been run only where both were already there, so its hand-over of Snapchain's installer and the snapshot download has not been seen; and through Codex.
 - A node installed some other way than this guide's, apart from Farcaster's public node: reaching its API through a web proxy, and pointing `node status` at its install directory.
 
 ## Going further
