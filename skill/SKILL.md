@@ -413,8 +413,10 @@ something to the shell.
   they looked. Off by default: turn it on only when the user asks. Without
   it, or where a picture fails, the page shows initials. Shala's page
   policy refuses remote images, so in Shala there are none.
-- The page shows no images in casts. In Shala it opens no links: a link
-  shows its address.
+- Each card shows its likes and recasts once the page has read them,
+  current counts as `reactions` gives them.
+- The page shows no images in casts: an image is a link labelled
+  `image`. In Shala it opens no links: a link shows its address.
 
 ## Writes
 

@@ -21,6 +21,8 @@ const DEFAULT_NODE = "http://localhost:3381";
 const PROTOCOL = 1;
 // The most casts one moniker may name.
 const MAX_LISTED = 50;
+// How many casts' reactions are read at once.
+const COUNTING = 6;
 
 // The pair-ui host in a browser, a framing host such as Shala, or nothing: a
 // page opened as a plain file has no host.
@@ -38,6 +40,8 @@ type Shown =
   | { kind: "casts"; casts: Cast[]; accounts: Account[] };
 
 type View = { shown: Shown | null; error: string | null; loading: boolean };
+
+type Tally = { likes: number; recasts: number };
 
 // Where the page is, as the host keeps it across restarts. `at` and each of
 // `trail` are what `selfcast viewer open` takes: a cast for a whole thread,
@@ -63,6 +67,7 @@ function App() {
   const [view, setView] = useState<View>({ shown: null, error: null, loading: false });
   const [trail, setTrail] = useState<string[]>([]);
   const [marked, setMarked] = useState<string[]>([]);
+  const [tallies, setTallies] = useState<Map<string, Tally>>(new Map());
   const runtime = useRef<Selfcast | null>(null);
   const latest = useRef(0);
   const live = useRef<Live>({ node: DEFAULT_NODE, spot: null, shown: null, marked: [], trail: [], userSelected: null });
@@ -84,12 +89,28 @@ function App() {
       setView({ shown, error: null, loading: false });
       setTrail(place.trail);
       setMarked(marks);
+      setTallies(new Map());
       save(live.current);
+      countReactions(runtime.current, visible(shown), seq);
       return shown;
     } catch (e) {
       if (seq === latest.current) setView((v) => ({ ...v, loading: false }));
       throw e;
     }
+  };
+
+  // Fills in each shown cast's likes and recasts as they arrive, a few at a
+  // time, after the page is drawn; a later load stops it.
+  const countReactions = (rt: Selfcast, casts: Cast[], seq: number) => {
+    const queue = casts.map(refOf);
+    const worker = async () => {
+      for (let ref = queue.shift(); ref && seq === latest.current; ref = queue.shift()) {
+        const r = await rt.reactions(ref).catch(() => null);
+        const tally = r && { likes: r.likes.length, recasts: r.recasts.length };
+        if (tally && seq === latest.current) setTallies((t) => new Map(t).set(ref!, tally));
+      }
+    };
+    Array.from({ length: COUNTING }, worker);
   };
 
   // A new page opens at the first marked cast, else at the top.
@@ -144,7 +165,7 @@ function App() {
   if (!host) return <p class="note">Open this page with <code>selfcast viewer open</code>.</p>;
   const shown = view.shown;
   if (!shown) return <p class="note">{view.error ?? (view.loading ? "Reading the node…" : "No thread open yet.")}</p>;
-  const actions = { marked, onOpen: (ref: string) => go(ref), onSelect: choose };
+  const actions = { marked, tallies, onOpen: (ref: string) => go(ref), onSelect: choose };
   return (
     <main class={view.loading ? "loading" : ""}>
       {trail.length > 0 && (
@@ -292,6 +313,7 @@ function about(accounts: Account[], c: Cast): string {
 
 type Actions = {
   marked: string[];
+  tallies: Map<string, Tally>;
   onOpen(ref: string): void;
   onSelect(cast: Cast): void;
 };
@@ -351,7 +373,7 @@ type Role = "ancestor" | "focus" | "reply";
 
 type CardProps = { cast: Cast; role: Role; accounts: Map<number, Account>; now: number } & Actions;
 
-function CastCard({ cast, role, accounts, now, marked, onOpen, onSelect }: CardProps) {
+function CastCard({ cast, role, accounts, now, marked, tallies, onOpen, onSelect }: CardProps) {
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
   const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
@@ -372,6 +394,7 @@ function CastCard({ cast, role, accounts, now, marked, onOpen, onSelect }: CardP
         <Meta cast={cast} account={account} now={now} />
         <Text cast={cast} clamp={role !== "focus"} />
         <Embeds cast={cast} onOpen={onOpen} />
+        <Counts tally={tallies.get(ref)} />
       </div>
     </article>
   );
@@ -441,6 +464,17 @@ function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
   );
 }
 
+// Likes and recasts as the node holds them now; nothing until they are read.
+function Counts({ tally }: { tally: Tally | undefined }) {
+  if (!tally) return null;
+  return (
+    <footer class="tally">
+      <span title="likes">♥ {tally.likes}</span>
+      <span title="recasts">⇄ {tally.recasts}</span>
+    </footer>
+  );
+}
+
 function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
   if (cast.embeds.length === 0) return null;
   return (
@@ -448,7 +482,7 @@ function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
       {cast.embeds.map((e, i) =>
         "url" in e ? (
           <Link key={i} url={e.url} chip>
-            {hostOf(e.url)}
+            {isImage(e.url) ? "image" : hostOf(e.url)}
           </Link>
         ) : (
           <button key={i} class="chip" onClick={(ev) => (ev.stopPropagation(), onOpen(refOf(e.cast)))}>
@@ -474,6 +508,17 @@ function Link({ url, chip, children }: { url: string; chip?: boolean; children: 
       {children}
     </a>
   );
+}
+
+// The page shows no images in casts, so an image is a link labelled as one:
+// Farcaster's image host, or a link to an image file.
+function isImage(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.host === "imagedelivery.net" || /\.(png|jpe?g|gif|webp|avif)$/i.test(u.pathname);
+  } catch {
+    return false;
+  }
 }
 
 function hostOf(url: string): string {
