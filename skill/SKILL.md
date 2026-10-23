@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -171,6 +171,21 @@ counts every one, which is slow for a large account: for fid 3, 630,232
 followers took 7.6 seconds on 2026-10-21 (36 seconds on a first, cold
 read, 2026-10-20), and fid 37 on `crackle` did not finish in 120 seconds.
 Use it only when the user wants the exact number, once per account.
+
+### `selfcast followers <account> --json`, `selfcast following <account> --json`
+
+The accounts that follow `<account>`, or that it follows, newest follow
+first:
+
+```json
+{"version":1,"fid":2,"following":[{"fid":1099392,"timestamp":"2026-01-14T17:12:12Z"},{"fid":639226,"timestamp":"2026-01-09T10:22:44Z"}],"accounts":[{"fid":639226,"username":"iamtherealyakuza.eth","display_name":"Yakuza","pfp_url":"https://…/original"},{"fid":1099392,"username":"kajuthenut","display_name":"Kaju","pfp_url":"https://…/original"}]}
+```
+
+The list is `followers` or `following`, each `{fid, timestamp}` with
+`timestamp` when the follow was made. `accounts` is as in `thread`.
+`--limit` (default 100, at most 10,000) keeps the newest; `profile` gives
+the totals, so say when a list is not all of them. An account the node has
+no registration for exits 1.
 
 ### `selfcast casts <account>... --json`
 

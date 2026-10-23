@@ -1,12 +1,13 @@
 //! `selfcast profile`, `selfcast feed`, `selfcast casts`,
-//! `selfcast channel`, `selfcast replies`, `selfcast thread` and
-//! `selfcast reactions`. The reads and their `--json`
+//! `selfcast channel`, `selfcast followers`, `selfcast following`,
+//! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
 use selfcast_core::account::Account;
 use selfcast_core::cast::Reaction;
 use selfcast_core::cast::{CastRef, ChannelUrl};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
+use selfcast_core::follow::Follow;
 use selfcast_core::node::PageRequest;
 use selfcast_core::node::reads::MAX_ANCESTORS;
 use selfcast_core::output;
@@ -49,6 +50,17 @@ pub struct ChannelArgs {
     limit: u32,
     #[command(flatten)]
     apps: AppArgs,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct FollowsArgs {
+    /// The account, as a FID or a username.
+    #[arg(value_name = "ACCOUNT")]
+    account: Account,
+    /// How many to show, the newest follows first. `selfcast profile`
+    /// counts them all.
+    #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(1..=10_000))]
+    limit: u32,
 }
 
 #[derive(Debug, clap::Args)]
@@ -182,6 +194,31 @@ pub async fn channel(node: &Node, args: &ChannelArgs, json: bool) -> Result<(), 
         items.iter().for_each(|i| print_item(i, &names));
     }
     Ok(())
+}
+
+/// `selfcast followers` when `followers`, else `selfcast following`.
+pub async fn follows(
+    node: &Node,
+    args: &FollowsArgs,
+    followers: bool,
+    json: bool,
+) -> Result<(), Error> {
+    let fid = node.resolve(&args.account).await?;
+    let (follows, users) = node.follow_list(fid, followers, args.limit).await?;
+    if json {
+        crate::out::line(output::follows_json(fid, followers, &follows, &users));
+    } else {
+        let names = names_of(&users);
+        follows.iter().for_each(|f| print_follow(f, &names));
+    }
+    Ok(())
+}
+
+fn print_follow(f: &Follow, names: &Names) {
+    let name = names
+        .get(&f.fid)
+        .map_or_else(|| "(no username)".to_owned(), |n| format!("@{n}"));
+    crate::out::line(format_args!("{}  {name}  fid {}", f.timestamp, f.fid));
 }
 
 pub async fn replies(node: &Node, args: &RepliesArgs, json: bool) -> Result<(), Error> {

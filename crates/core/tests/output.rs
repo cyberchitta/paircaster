@@ -4,6 +4,7 @@
 use selfcast_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
 use selfcast_core::event::{Change, Event, EventBody};
 use selfcast_core::feed::FeedItem;
+use selfcast_core::follow::Follow;
 use selfcast_core::output;
 use selfcast_core::profile::{Followers, Names, Profile, UserDatum};
 use selfcast_core::proto::{CastType, ReactionType, UserDataType};
@@ -216,4 +217,22 @@ fn event_lines_keep_their_shape() {
     others.into_iter().for_each(|(body, rest)| {
         assert_eq!(output::event_json(&event(body)), format!("{head},{rest}"));
     });
+}
+
+#[test]
+fn follows_json_is_version_1() {
+    let follows = [Follow {
+        fid: 2,
+        timestamp: Timestamp::from_farcaster(0),
+    }];
+    let users = [username(2, "v")].into();
+    let tail = r#"[{"fid":2,"timestamp":"2021-01-01T00:00:00Z"}],"accounts":[{"fid":2,"username":"v","display_name":null,"pfp_url":null}]}"#;
+    assert_eq!(
+        output::follows_json(3, true, &follows, &users),
+        format!(r#"{{"version":1,"fid":3,"followers":{tail}"#)
+    );
+    assert_eq!(
+        output::follows_json(3, false, &follows, &users),
+        format!(r#"{{"version":1,"fid":3,"following":{tail}"#)
+    );
 }

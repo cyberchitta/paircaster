@@ -44,6 +44,20 @@ dwr  fid 3
 
 The name, bio and username are the account's own *user data* messages (`/v1/userDataByFid`). The username, `dwr`, is an *fname*: one of those messages, not part of the account itself. A follow is a *link* message from one account to another: `following` counts the account's own (`/v1/linksByFid`), `followers` counts the ones aimed at it (`/v1/linksByTargetFid`). The node keeps no follower total, so `selfcast` reads followers 1000 at a time and stops at 10,000. `selfcast profile 3 --all-followers` reads every one: 630,232 for this account, in 7.6 seconds, or 36 the first time, before the node had them cached.
 
+`selfcast following` and `selfcast followers` list them, the newest follow first, with when each was made:
+
+```run
+selfcast following dwr --limit 3
+```
+
+```output
+2026-10-15T19:15:46Z  @balajis.eth  fid 37
+2026-02-19T01:52:45Z  @aviationdoctor.eth  fid 7237
+2026-02-19T01:49:39Z  @king  fid 6596
+```
+
+`--limit` is 100 by default and at most 10,000. Each shard answers with its own newest followers, in time order, so the newest 10,000 of dwr's 630,232 take one request (and one more per account for its name): here they reach back to 2026-02-03.
+
 A username is looked up on your node, which holds a signed *username proof* for each name it knows: the name, the FID it belongs to and what kind of name it is. Usernames come in three kinds: fnames like `v`, ENS names like `vitalik.eth`, and basenames like `jesse.base.eth`.
 
 ```run

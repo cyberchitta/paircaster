@@ -8,6 +8,7 @@ use selfcast_core::account::Username;
 use selfcast_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use selfcast_core::event::{self, Change, EventBody, EventWalk, PageEvent};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
+use selfcast_core::follow::{self, Follow};
 use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
 use selfcast_core::proto::ReactionType;
@@ -770,4 +771,42 @@ fn an_event_outside_its_block_is_refused() {
         .expect("a merge");
     merge["blockNumber"] = 1.into();
     assert!(parse::events(page).is_err());
+}
+
+fn newest_followers_page(n: u32) -> Vec<Follow> {
+    let file = fixture(&format!("linksByTargetFid-follow-3-newest-{n}.json"));
+    parse::follower_links(file, 3)
+        .expect("followers parse")
+        .items
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_small_page_holds_the_newest_followers() {
+    let small = newest_followers_page(50);
+    assert_eq!(small.len(), 100, "50 from each of two shards");
+    let newest = follow::newest(small, 50);
+    assert!(newest.is_sorted_by_key(|f| std::cmp::Reverse(f.timestamp)));
+    assert_eq!(newest, follow::newest(newest_followers_page(1000), 50));
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn follows_keep_when_they_were_made() {
+    let raw = fixture("linksByFid-follow-3.json");
+    let times: Vec<u32> = raw["messages"]
+        .as_array()
+        .expect("messages")
+        .iter()
+        .map(|m| m["data"]["timestamp"].as_u64().expect("timestamp") as u32)
+        .collect();
+    let follows = parse::follow_links(raw).expect("follows parse").items;
+    let parsed: Vec<Timestamp> = follows.iter().map(|f| f.timestamp).collect();
+    assert_eq!(
+        parsed,
+        times
+            .into_iter()
+            .map(Timestamp::from_farcaster)
+            .collect::<Vec<_>>()
+    );
 }

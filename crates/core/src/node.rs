@@ -13,6 +13,7 @@ use crate::cast::{Cast, CastRef, ChannelUrl, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
 use crate::event::{PageEvent, first_event_of};
+use crate::follow::{self, Follow};
 use crate::profile::{FollowerTally, Followers, UserDatum};
 use crate::proto::ReactionType;
 use crate::signer::Signer;
@@ -284,6 +285,35 @@ impl Node {
                 .await?,
             fid,
         )
+    }
+
+    /// The newest `limit` accounts `fid` follows, newest first, with when
+    /// it followed each. An account's follows are on its own shard, read
+    /// newest first.
+    pub async fn newest_follows(&self, fid: u64, limit: u32) -> Result<Vec<Follow>, Error> {
+        let query = [
+            fid_param(fid),
+            ("link_type", "follow".to_owned()),
+            ("page_size", limit.to_string()),
+            ("reverse", "true".to_owned()),
+        ];
+        let page = parse::follow_links(self.get("v1/linksByFid", &query).await?)?;
+        Ok(follow::newest(page.items, limit as usize))
+    }
+
+    /// The newest `limit` accounts that follow `fid`, newest first, with
+    /// when each followed. Each shard answers with its own newest `limit`,
+    /// in time order (observed on our node), so one request holds the
+    /// newest `limit` of all.
+    pub async fn newest_followers(&self, fid: u64, limit: u32) -> Result<Vec<Follow>, Error> {
+        let query = [
+            ("target_fid", fid.to_string()),
+            ("link_type", "follow".to_owned()),
+            ("page_size", limit.to_string()),
+            ("reverse", "true".to_owned()),
+        ];
+        let page = parse::follower_links(self.get("v1/linksByTargetFid", &query).await?, fid)?;
+        Ok(follow::newest(page.items, limit as usize))
     }
 
     /// How many accounts follow `fid`, counted up to `cap` (all of them

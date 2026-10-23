@@ -59,6 +59,10 @@ enum Command {
     Casts(reads::CastsArgs),
     /// Show the newest casts posted in a channel, newest first.
     Channel(reads::ChannelArgs),
+    /// Show the accounts that follow an account, newest follow first.
+    Followers(reads::FollowsArgs),
+    /// Show the accounts an account follows, newest follow first.
+    Following(reads::FollowsArgs),
     /// Show the replies to a cast, oldest first.
     Replies(reads::RepliesArgs),
     /// Show a cast with the casts it replies to, root first, and its replies.
@@ -158,6 +162,12 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
         Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
         Command::Channel(args) => reads::channel(&Node::new(node)?, &args, cli.json).await?,
+        Command::Followers(args) => {
+            reads::follows(&Node::new(node)?, &args, true, cli.json).await?
+        }
+        Command::Following(args) => {
+            reads::follows(&Node::new(node)?, &args, false, cli.json).await?
+        }
         Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
         Command::Thread(args) => reads::thread(&Node::new(node)?, &args, cli.json).await?,
         Command::Reactions(args) => reads::reactions(&Node::new(node)?, &args, cli.json).await?,

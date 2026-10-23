@@ -15,6 +15,7 @@ use crate::account::Username;
 use crate::cast::{Cast, CastRef, ChannelUrl, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
 use crate::event::{Change, EventBody, PageEvent};
+use crate::follow::Follow;
 use crate::profile::UserDatum;
 use crate::proto::json::message_from_json;
 use crate::proto::{
@@ -265,28 +266,58 @@ pub fn user_data(page: Value) -> Result<Page<UserDatum>, Error> {
 
 /// A `linksByFid?link_type=follow` page, as the FIDs followed.
 pub fn follows(page: Value) -> Result<Page<u64>, Error> {
-    messages(page)?.try_filter_map(|m| match data_and_body(&m)?.1 {
-        Body::Link(link) if link.r#type == "follow" => match link.target {
-            Some(LinkTarget::Fid(fid)) => Ok(Some(fid)),
-            None => Err(bad("follow without a target")),
-        },
-        _ => Err(bad("non-follow message in a page of follows")),
+    fids(follow_links(page)?)
+}
+
+/// A `linksByFid?link_type=follow` page, as the accounts followed and when.
+pub fn follow_links(page: Value) -> Result<Page<Follow>, Error> {
+    messages(page)?.try_filter_map(|m| {
+        let (data, body) = data_and_body(&m)?;
+        match body {
+            Body::Link(link) if link.r#type == "follow" => match link.target {
+                Some(LinkTarget::Fid(fid)) => Ok(Some(follow(fid, data.timestamp))),
+                None => Err(bad("follow without a target")),
+            },
+            _ => Err(bad("non-follow message in a page of follows")),
+        }
     })
 }
 
 /// A `linksByTargetFid?link_type=follow` page, as the FIDs following
 /// `target`.
 pub fn followers(page: Value, target: u64) -> Result<Page<u64>, Error> {
+    fids(follower_links(page, target)?)
+}
+
+/// A `linksByTargetFid?link_type=follow` page, as the accounts following
+/// `target` and when they followed.
+pub fn follower_links(page: Value, target: u64) -> Result<Page<Follow>, Error> {
     messages(page)?.try_filter_map(|m| {
         let (data, body) = data_and_body(&m)?;
         match body {
             Body::Link(link) if link.r#type == "follow" => match link.target {
-                Some(LinkTarget::Fid(fid)) if fid == target => Ok(Some(data.fid)),
+                Some(LinkTarget::Fid(fid)) if fid == target => {
+                    Ok(Some(follow(data.fid, data.timestamp)))
+                }
                 Some(LinkTarget::Fid(_)) => Err(bad("follower of another account")),
                 None => Err(bad("follow without a target")),
             },
             _ => Err(bad("non-follow message in a page of followers")),
         }
+    })
+}
+
+fn follow(fid: u64, timestamp: u32) -> Follow {
+    Follow {
+        fid,
+        timestamp: Timestamp::from_farcaster(timestamp),
+    }
+}
+
+fn fids(page: Page<Follow>) -> Result<Page<u64>, Error> {
+    Ok(Page {
+        items: page.items.iter().map(|f| f.fid).collect(),
+        next_page_token: page.next_page_token,
     })
 }
 

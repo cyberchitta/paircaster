@@ -12,6 +12,7 @@ use crate::account::Account;
 use crate::cast::{Cast, CastRef, ChannelUrl};
 use crate::error::Error;
 use crate::feed::FeedItem;
+use crate::follow::Follow;
 use crate::profile::{Names, Users, names_of};
 use crate::proto::ReactionType;
 use crate::reaction::CastReactions;
@@ -92,6 +93,28 @@ impl Node {
             .signers_of(casts.iter().map(|c| c.id.fid).collect())
             .await?;
         Ok((casts, signers))
+    }
+
+    /// The newest `limit` accounts `fid` follows (`followers` false) or
+    /// that follow it (`true`), and their user data. An account the node
+    /// has no registration for is an error.
+    pub async fn follow_list(
+        &self,
+        fid: u64,
+        followers: bool,
+        limit: u32,
+    ) -> Result<(Vec<Follow>, Users), Error> {
+        if !self.is_registered(fid).await? {
+            return Err(Error::NotRegistered(fid));
+        }
+        let follows = match followers {
+            true => self.newest_followers(fid, limit).await?,
+            false => self.newest_follows(fid, limit).await?,
+        };
+        let users = self
+            .user_data_of(follows.iter().map(|f| f.fid).collect())
+            .await?;
+        Ok((follows, users))
     }
 
     /// The app keys of each of `fids`.

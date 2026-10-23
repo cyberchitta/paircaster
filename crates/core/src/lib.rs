@@ -7,6 +7,7 @@ pub mod custody;
 pub mod error;
 pub mod event;
 pub mod feed;
+pub mod follow;
 pub mod key_add;
 pub mod message;
 pub mod node;

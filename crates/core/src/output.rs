@@ -8,6 +8,7 @@ use serde::Serialize;
 use crate::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use crate::event::{Change, Event, EventBody};
 use crate::feed::FeedItem;
+use crate::follow::Follow;
 use crate::profile::{self, Names, Profile, Users};
 use crate::reaction::CastReactions;
 use crate::thread::{ChainTop, Thread};
@@ -244,6 +245,42 @@ pub fn thread_json(t: &Thread, users: &Users) -> String {
     })
 }
 
+/// `selfcast followers <account> --json` and `selfcast following <account>
+/// --json`, version 1:
+///
+/// ```json
+/// {
+///   "version": 1,
+///   "fid": 3,
+///   "followers": [ { "fid": 2, "timestamp": "2026-10-22T06:51:30Z" } ],
+///   "accounts": [ { "fid": 2, "username": "v", "display_name": "Varun", "pfp_url": "https://…" } ]
+/// }
+/// ```
+///
+/// The list is `followers` or `following`: the newest follows first, each
+/// with when it was made. `accounts` is as in `thread`, for everyone listed.
+pub fn follows_json(fid: u64, followers: bool, follows: &[Follow], users: &Users) -> String {
+    let list = follows.iter().map(follow_v1).collect();
+    let (followers, following) = match followers {
+        true => (Some(list), None),
+        false => (None, Some(list)),
+    };
+    to_json(&FollowsV1 {
+        version: 1,
+        fid,
+        followers,
+        following,
+        accounts: accounts_v1(users),
+    })
+}
+
+fn follow_v1(f: &Follow) -> AccountAtV1 {
+    AccountAtV1 {
+        fid: f.fid,
+        timestamp: f.timestamp.to_string(),
+    }
+}
+
 /// `selfcast reactions <FID:HASH> --json`, version 1:
 ///
 /// ```json
@@ -263,8 +300,8 @@ pub fn reactions_json(cast: &CastRef, r: &CastReactions, users: &Users) -> Strin
     to_json(&ReactionsV1 {
         version: 1,
         cast: parent_v1(cast),
-        likes: r.likes.iter().map(reaction_v1).collect(),
-        recasts: r.recasts.iter().map(reaction_v1).collect(),
+        likes: r.likes.iter().map(account_at_v1).collect(),
+        recasts: r.recasts.iter().map(account_at_v1).collect(),
         accounts: accounts_v1(users),
     })
 }
@@ -346,6 +383,17 @@ struct EventMessageV1<'a> {
 }
 
 #[derive(Serialize)]
+struct FollowsV1 {
+    version: u32,
+    fid: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    followers: Option<Vec<AccountAtV1>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    following: Option<Vec<AccountAtV1>>,
+    accounts: Vec<AccountV1>,
+}
+
+#[derive(Serialize)]
 struct ChannelV1<'a> {
     version: u32,
     channel: &'a str,
@@ -379,13 +427,13 @@ struct ThreadV1<'a> {
 struct ReactionsV1 {
     version: u32,
     cast: ParentV1,
-    likes: Vec<ReactionV1>,
-    recasts: Vec<ReactionV1>,
+    likes: Vec<AccountAtV1>,
+    recasts: Vec<AccountAtV1>,
     accounts: Vec<AccountV1>,
 }
 
 #[derive(Serialize)]
-struct ReactionV1 {
+struct AccountAtV1 {
     fid: u64,
     timestamp: String,
 }
@@ -461,8 +509,8 @@ fn accounts_v1(users: &Users) -> Vec<AccountV1> {
         .collect()
 }
 
-fn reaction_v1(r: &Reaction) -> ReactionV1 {
-    ReactionV1 {
+fn account_at_v1(r: &Reaction) -> AccountAtV1 {
+    AccountAtV1 {
         fid: r.fid,
         timestamp: r.timestamp.to_string(),
     }
