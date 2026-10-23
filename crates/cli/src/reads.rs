@@ -1,10 +1,11 @@
 //! `selfcast profile`, `selfcast feed`, `selfcast casts`,
-//! `selfcast replies`, `selfcast thread` and `selfcast reactions`. The reads and their `--json`
+//! `selfcast channel`, `selfcast replies`, `selfcast thread` and
+//! `selfcast reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
 use selfcast_core::account::Account;
-use selfcast_core::cast::CastRef;
 use selfcast_core::cast::Reaction;
+use selfcast_core::cast::{CastRef, ChannelUrl};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::PageRequest;
 use selfcast_core::node::reads::MAX_ANCESTORS;
@@ -33,6 +34,21 @@ pub struct CastsArgs {
     accounts: Vec<Account>,
     #[command(flatten)]
     filter: CastFilter,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ChannelArgs {
+    /// The channel, as the URL its casts reply to, for example
+    /// https://warpcast.com/~/channel/fc-updates. A cast in it shows the URL as
+    /// its parent.
+    #[arg(value_name = "URL")]
+    channel: ChannelUrl,
+    /// How many casts to show. Filtering by app looks only at the
+    /// channel's newest LIMIT casts, so it can show fewer.
+    #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=1000))]
+    limit: u32,
+    #[command(flatten)]
+    apps: AppArgs,
 }
 
 #[derive(Debug, clap::Args)]
@@ -145,6 +161,23 @@ pub async fn casts(node: &Node, args: &CastsArgs, json: bool) -> Result<(), Erro
     let names = node.mention_names(&items).await?;
     if json {
         crate::out::line(output::casts_json(&fids, &items, &names));
+    } else {
+        items.iter().for_each(|i| print_item(i, &names));
+    }
+    Ok(())
+}
+
+pub async fn channel(node: &Node, args: &ChannelArgs, json: bool) -> Result<(), Error> {
+    let page = PageRequest {
+        page_size: Some(args.limit),
+        page_token: None,
+    };
+    let (casts, signers) = node.channel_casts(&args.channel, &page).await?;
+    let limit = args.limit as usize;
+    let items = feed::assemble(casts, &signers, &args.apps.filter(), clock::now(), limit);
+    let names = node.mention_names(&items).await?;
+    if json {
+        crate::out::line(output::channel_json(&args.channel, &items, &names));
     } else {
         items.iter().for_each(|i| print_item(i, &names));
     }

@@ -5,7 +5,7 @@
 
 use serde::Serialize;
 
-use crate::cast::{Cast, CastRef, Reaction, Target};
+use crate::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use crate::feed::FeedItem;
 use crate::profile::{self, Names, Profile, Users};
 use crate::reaction::CastReactions;
@@ -113,6 +113,23 @@ pub fn casts_json(fids: &[u64], items: &[FeedItem], names: &Names) -> String {
     })
 }
 
+/// `selfcast channel <URL> --json`, version 1:
+///
+/// ```json
+/// { "version": 1, "channel": "https://warpcast.com/~/channel/fc-updates", "casts": [ … ] }
+/// ```
+///
+/// `channel` is the URL asked for. Each element of `casts` has the same
+/// shape as in `feed`, newest first, after any app filter; replies to them
+/// are not included.
+pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], names: &Names) -> String {
+    to_json(&ChannelV1 {
+        version: 1,
+        channel: channel.as_str(),
+        casts: casts_v1(items, names),
+    })
+}
+
 /// `selfcast replies <FID:HASH> --json`, version 1:
 ///
 /// ```json
@@ -216,6 +233,13 @@ struct FeedV1<'a> {
 struct CastsV1<'a> {
     version: u32,
     fids: &'a [u64],
+    casts: Vec<CastV1<'a>>,
+}
+
+#[derive(Serialize)]
+struct ChannelV1<'a> {
+    version: u32,
+    channel: &'a str,
     casts: Vec<CastV1<'a>>,
 }
 

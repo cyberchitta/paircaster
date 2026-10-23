@@ -36,6 +36,45 @@ pub enum ParseRefError {
     BadHash,
     #[error("a cast is FID:HASH, for example 3:0x0123…")]
     BadCastRef,
+    #[error("a channel is the URL its casts reply to, 1 to 256 bytes")]
+    BadChannelUrl,
+}
+
+/// A channel, as the URL its casts name as their parent, for example
+/// `https://warpcast.com/~/channel/fc-updates`. Snapchain checks only the length
+/// of a parent URL, 1 to 256 bytes (v0.14.3 `src/core/validations/mod.rs`,
+/// `validate_url`), so any such text is one; whether anyone posted there
+/// is the node's to say.
+///
+/// ```
+/// use selfcast_core::cast::ChannelUrl;
+/// assert!("https://warpcast.com/~/channel/fc-updates".parse::<ChannelUrl>().is_ok());
+/// assert!("".parse::<ChannelUrl>().is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelUrl(String);
+
+impl ChannelUrl {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for ChannelUrl {
+    type Err = ParseRefError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match (1..=256).contains(&s.len()) {
+            true => Ok(Self(s.to_owned())),
+            false => Err(ParseRefError::BadChannelUrl),
+        }
+    }
+}
+
+impl fmt::Display for ChannelUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
 }
 
 /// `0x` and 40 hex digits, as [`Display`](fmt::Display) writes it.

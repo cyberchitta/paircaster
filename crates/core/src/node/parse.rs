@@ -12,7 +12,7 @@ use serde_json::Value;
 use super::{Page, ShardSync, Submitted, SyncState, node_error, unexpected};
 use crate::Error;
 use crate::account::Username;
-use crate::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
+use crate::cast::{Cast, CastRef, ChannelUrl, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
 use crate::profile::UserDatum;
 use crate::proto::json::message_from_json;
@@ -80,6 +80,16 @@ pub fn casts(page: Value) -> Result<Page<Cast>, Error> {
         MessageType::CastRemove => Ok(None),
         other => Err(bad(&format!("{other:?} in a page of casts"))),
     })
+}
+
+/// A `castsByParent` page for `channel`: every cast in it is posted there.
+pub fn casts_in_channel(page: Value, channel: &ChannelUrl) -> Result<Page<Cast>, Error> {
+    let page = casts(page)?;
+    let parent = Some(Target::Url(channel.as_str().to_owned()));
+    match page.items.iter().all(|c| c.parent == parent) {
+        true => Ok(page),
+        false => Err(bad("cast with another parent in a page for a channel")),
+    }
 }
 
 /// A `castById` response.

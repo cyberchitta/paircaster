@@ -9,7 +9,7 @@ use futures_util::{StreamExt, TryStreamExt, future, stream};
 
 use super::{Node, PageRequest};
 use crate::account::Account;
-use crate::cast::{Cast, CastRef};
+use crate::cast::{Cast, CastRef, ChannelUrl};
 use crate::error::Error;
 use crate::feed::FeedItem;
 use crate::profile::{Names, Users, names_of};
@@ -78,6 +78,20 @@ impl Node {
         .await?;
         let (casts, signers): (Vec<_>, Vec<_>) = fetched.into_iter().unzip();
         Ok((casts.concat(), signers.concat()))
+    }
+
+    /// The newest casts posted in `channel`, `page`'s size from each shard,
+    /// and their authors' app keys.
+    pub async fn channel_casts(
+        &self,
+        channel: &ChannelUrl,
+        page: &PageRequest,
+    ) -> Result<(Vec<Cast>, Vec<Signer>), Error> {
+        let casts = self.casts_in_channel(channel, page).await?.items;
+        let signers = self
+            .signers_of(casts.iter().map(|c| c.id.fid).collect())
+            .await?;
+        Ok((casts, signers))
     }
 
     /// The app keys of each of `fids`.

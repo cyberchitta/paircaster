@@ -1,6 +1,6 @@
 ---
 name: selfcast
-description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles, feeds, accounts' casts, threads and a cast's likes and recasts from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
+description: Use the selfcast CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), feeds, accounts' casts, a channel's casts, threads and a cast's likes and recasts from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `selfcast` command.
 ---
 
 # selfcast
@@ -218,6 +218,19 @@ would see. The shape is `{"version":1,"fid":…,"casts":[…]}`, with casts as
 above. It reads each followed account, eight at a time, so an account
 following thousands is slow. For a short named list, use `casts`.
 
+### `selfcast channel <URL> --json`
+
+The newest casts posted in a channel, newest first. A channel is the URL
+its casts name as `parent` (`{"url": …}`), so take it from a cast posted
+there; the CLI cannot look a channel up by its name. Many are
+`https://warpcast.com/~/channel/<name>`, not all: a URL nobody posted to
+gives `"casts":[]` and exit 0, so do not tell the user a channel is quiet
+on a guessed URL. The shape is
+`{"version":1,"channel":"https://…","casts":[…]}`, with casts as above.
+Replies in the channel are not included (their parent is a cast): use
+`replies` or `thread` on a cast. `--limit` (default 20, at most 1000) and
+the app filters work as for `casts`.
+
 ### `selfcast replies <FID:HASH> --json`
 
 The direct replies to one cast, oldest first. The shape is
@@ -267,7 +280,8 @@ it once per cast. A cast the node does not hold exits 1.
 
 - No reactions in `casts`, `feed`, `replies` or `thread`: run `reactions`
   per cast. No reactions to a channel URL.
-- No search and no channels.
+- No search, and no channel by name, members or followers: `channel`
+  takes the URL.
 - Nothing older than an account's newest 1000 messages.
 
 ### Examples

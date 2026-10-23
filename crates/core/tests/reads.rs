@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use common::{fixture, fixture_messages};
 use selfcast_core::Error;
 use selfcast_core::account::Username;
-use selfcast_core::cast::{Cast, CastRef, Reaction, Target};
+use selfcast_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
 use selfcast_core::feed::{self, AppFilter, FeedItem};
 use selfcast_core::node::{self, ShardSync, SyncState, parse};
 use selfcast_core::profile::{FollowerTally, Followers, Profile};
@@ -621,4 +621,53 @@ fn a_name_the_node_lacks_is_its_not_found_reply() {
         };
         assert!(parse::is_not_found(&e), "{f}");
     });
+}
+
+fn popup_ama() -> ChannelUrl {
+    "https://warpcast.com/~/channel/popup-ama"
+        .parse()
+        .expect("a channel URL")
+}
+
+fn channel_page(name: &str) -> Vec<Cast> {
+    let file = fixture(&format!("castsByParent-url-popup-ama-{name}.json"));
+    parse::casts_in_channel(file, &popup_ama())
+        .expect("channel parses")
+        .items
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_small_page_holds_the_channels_newest_casts() {
+    let newest = |casts: Vec<Cast>| {
+        feed::assemble(
+            casts,
+            &[],
+            &AppFilter::Any,
+            Timestamp::from_unix(1_800_000_000),
+            10,
+        )
+        .into_iter()
+        .map(|i| i.cast.id.hash)
+        .collect::<Vec<_>>()
+    };
+    let small = channel_page("p10");
+    assert_eq!(small.len(), 20, "10 from each of two shards");
+    assert_eq!(newest(small), newest(channel_page("all")));
+}
+
+#[test]
+#[ignore = "needs SELFCAST_FIXTURES"]
+fn a_page_for_another_channel_is_refused() {
+    let file = fixture("castsByParent-url-popup-ama-p10.json");
+    let other: ChannelUrl = "https://warpcast.com/~/channel/popup".parse().expect("URL");
+    assert!(parse::casts_in_channel(file, &other).is_err());
+}
+
+#[test]
+fn a_channel_url_is_1_to_256_bytes() {
+    assert!("x".parse::<ChannelUrl>().is_ok());
+    assert!("x".repeat(256).parse::<ChannelUrl>().is_ok());
+    assert!("x".repeat(257).parse::<ChannelUrl>().is_err());
+    assert!("".parse::<ChannelUrl>().is_err());
 }

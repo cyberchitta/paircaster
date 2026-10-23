@@ -151,6 +151,32 @@ selfcast feed 2 --limit 5
 
 The same as `casts`, over every account FID 2 follows: what that account would see. It reads the follow list, then each followed account's casts, eight accounts at a time. Casts dated in the future are left out.
 
+## Channels
+
+A channel is not an account or a kind of message. A cast posted in a channel names a URL as its parent where a reply names a cast. `selfcast channel` reads the casts whose parent is that URL, newest first (`/v1/castsByParent` with `url`):
+
+```run
+selfcast channel https://warpcast.com/~/channel/fc-updates --limit 3 --json | jq -c '.casts[] | {fid, timestamp, app_fid, text: .text[:60]}'
+```
+
+```output
+{"fid":191,"timestamp":"2026-08-27T00:30:19Z","app_fid":9152,"text":"This one has been a long time in the making. Both web & mobi"}
+{"fid":194,"timestamp":"2026-08-17T18:14:41Z","app_fid":9152,"text":"Update on Farcaster, Clanker and Neynar \n\nWe’ve started a pr"}
+{"fid":1,"timestamp":"2026-08-14T20:00:45Z","app_fid":9152,"text":"FIP Explainer: Onchain Config Registry for Snapchain #277\n\nt"}
+```
+
+The node keeps no list of channel names, so `selfcast` takes the URL, not a name like `/fc-updates`. (Snapchain v0.14.3 has channel messages and a channel registry, but on mainnet they are not switched on.) Many channels are `https://warpcast.com/~/channel/<name>`, but casts on our node also name parents like `https://farcaster.group/berlin`, `chain://eip155:1/erc721:0x…` and `eip155:8453/erc20:0x…`. A URL nobody posted to gives no casts, not an error. To find a channel's URL, read it off a cast posted there:
+
+```run
+selfcast casts 3 --limit 200 --json | jq -c '[.casts[].parent.url // empty] | unique'
+```
+
+```output
+["https://warpcast.com/~/channel/moz"]
+```
+
+Replies in a channel name the cast they reply to, not the channel, so `channel` does not list them: `replies` and `thread` do. Each shard answers with its own newest casts, so one request for `--limit` from each shard holds the channel's newest `--limit`. `--include-app` and `--exclude-app` work as for `casts`.
+
 ## Replies
 
 ```run

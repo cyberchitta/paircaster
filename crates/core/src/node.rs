@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::account::Username;
 use crate::build::SignedMessage;
-use crate::cast::{Cast, CastRef, MessageHash, Reaction};
+use crate::cast::{Cast, CastRef, ChannelUrl, MessageHash, Reaction};
 use crate::custody::EthAddress;
 use crate::error::{Error, NodeErrorBody};
 use crate::profile::{FollowerTally, Followers, UserDatum};
@@ -162,6 +162,23 @@ impl Node {
             page,
         );
         parse::casts(self.get("v1/castsByParent", &query).await?)
+    }
+
+    /// `GET /v1/castsByParent` by URL, newest first: the casts posted in
+    /// `channel`, not the replies to them (a reply's parent is a cast).
+    /// Each shard answers with its own newest, so a page holds up to
+    /// `page_size` times the shard count, and the newest `page_size` of it
+    /// are the channel's newest.
+    pub async fn casts_in_channel(
+        &self,
+        channel: &ChannelUrl,
+        page: &PageRequest,
+    ) -> Result<Page<Cast>, Error> {
+        let query = with_page(
+            &[("url", channel.to_string()), ("reverse", "true".to_owned())],
+            page,
+        );
+        parse::casts_in_channel(self.get("v1/castsByParent", &query).await?, channel)
     }
 
     /// Every reply to `parent`, each once: pages are read until one brings
