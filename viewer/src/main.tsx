@@ -164,7 +164,15 @@ function App() {
 
   if (!host) return <p class="note">Open this page with <code>selfcast viewer open</code>.</p>;
   const shown = view.shown;
-  if (!shown) return <p class="note">{view.error ?? (view.loading ? "Reading the node…" : "No thread open yet.")}</p>;
+  if (!shown) {
+    if (view.error || view.loading) return <p class="note">{view.error ?? "Reading the node…"}</p>;
+    return (
+      <p class="note">
+        <strong>Nothing open yet.</strong> Ask your agent to show you a conversation, for example “show me the
+        replies to dwr's latest cast”. Click any cast and your agent can see which one you mean.
+      </p>
+    );
+  }
   const actions = { marked, tallies, onOpen: (ref: string) => go(ref), onSelect: choose };
   return (
     <main class={view.loading ? "loading" : ""}>
