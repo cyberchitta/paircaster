@@ -25,16 +25,17 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 - **You see what is signed, and every write is read back.** Before a write, `selfcast` shows the message it is about to sign, written from the signed message itself. After sending, it reads the message back from the node before it calls it sent. So far that text has been approved through an agent's dry run, not yet typed at the prompt ([Writing](client.md#writing:-casts,-reactions,-follows)).
 - **Your AI agent uses the same commands.** A skill tells an agent to run `selfcast`, to stay read-only until you enable writes, and to show you `selfcast`'s own text before each one. Those are instructions, not a lock: an agent with a shell on your machine can send anything the app key allows ([Your AI agent](agent.md)).
 - **A thread you and your agent look at together.** You start a page in your browser, and your agent puts threads on it. You follow its replies and click the cast you mean, and the agent reads what you chose. The page reads your node itself. It needs `selfcast` built with the `viewer` feature, which the quickstart's build leaves out ([building it](agent.md#build-it)).
-- **Farcaster from the command line.** Read profiles, casts and a feed; cast and delete, like and unlike, follow and unfollow. Each cast shows the app that posted it, so you can keep or drop casts by app ([Filtering by client](client.md#filtering-by-client)). Search reaches back about three days: `selfcast events` lists the network's recent messages with each cast's text ([Events](client.md#events)). Nothing older than an account's newest 1000 messages can be read.
+- **Farcaster from the command line.** Read profiles, casts and a feed; cast and delete, like and unlike, follow and unfollow. Each cast shows the app that posted it, so you can keep or drop casts by app ([Filtering by client](client.md#filtering-by-client)). There is no search command: `selfcast events` lists the network's last three days or so of messages, each cast with its text, for you to filter with `jq` or `grep` ([Events](client.md#events)). Nothing older than an account's newest 1000 messages can be read.
 
 ## Quickstart
 
 You need:
 
-- `git` and a [Rust toolchain](https://rustup.rs). There is no release binary yet, so step 1 builds `selfcast` from source.
+- `git`, `curl` and a [Rust toolchain](https://rustup.rs). There is no release binary yet, so step 1 builds `selfcast` from source.
 - Docker, running. Snapchain's script runs the node in a container.
+- 16 GB of RAM and 4 vCPUs, Snapchain's stated minimum.
 - About 800 GB of free disk while the snapshot downloads and unpacks; the node then uses 557 GB and grows ([details](node.md#hardware-and-disk)).
-- Time: about 12 hours for the download and unpack, then the node's catch-up with the network, which takes hours more.
+- Time: about 12 hours for the download and unpack, then the node's catch-up with the network, which took the test node a day or more.
 
 Each step below is explained in [Running the node](node.md).
 
@@ -177,8 +178,8 @@ Each idea is explained where the guide first uses it.
 3. [Giving your AI agent Farcaster](agent.md)
 4. [What you can do with it](uses.md)
 5. [Safety](safety.md)
-6. [Checking a voucher](voucher.md)
-7. [Testing Selfcast on a clean machine](testing.md)
+6. [Testing Selfcast on a clean machine](testing.md)
+7. [Checking a voucher](voucher.md)
 8. [Contributions upstream](upstream.md)
 
 ## Not tried yet
@@ -191,7 +192,7 @@ Each idea is explained where the guide first uses it.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
 - The viewer built on a machine that did not already have Bun, the `wasm32-unknown-unknown` target and `wasm-bindgen-cli`; the viewer in browsers other than Chrome.
-- A node set up by another guide, other than Farcaster's public node: its address behind a web proxy, or its install directory for `node status`.
+- A node installed some other way than this guide's, apart from Farcaster's public node: reaching its API through a web proxy, and pointing `node status` at its install directory.
 
 ## Going further
 

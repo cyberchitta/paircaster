@@ -56,7 +56,7 @@ selfcast following dwr --limit 3
 2026-02-19T01:49:39Z  @king  fid 6596
 ```
 
-`--limit` is 100 by default and at most 10,000. Each shard answers with its own newest followers, in time order, so the newest 10,000 of dwr's 630,232 take one request (and one more per account for its name): here they reach back to 2026-02-03.
+`--limit` is 100 by default and at most 10,000. Each shard answers with its own newest followers, in time order, so the newest 10,000 of dwr's more than 600,000 take one request (and one more per account for its name): here they reach back to 2026-02-03.
 
 A username is looked up on your node, which holds a signed *username proof* for each name it knows: the name, the FID it belongs to and what kind of name it is. Usernames come in three kinds: fnames like `v`, ENS names like `vitalik.eth`, and basenames like `jesse.base.eth`.
 
@@ -287,7 +287,7 @@ These pages repeat as the replies' do, and are read the same way.
 
 ## Events
 
-Each shard records what it did, block by block: every message it stored (a *merge*), every message it dropped because the account was over its storage (a *prune*) or because its app key was removed (a *revoke*), and each username proof and on-chain event (registrations, app keys, storage rent). `selfcast events` lists them (`/v1/events`):
+Each shard records what it did, block by block: every message it stored (a *merge*), every message it dropped because the account was over its storage (a *prune*) or because it no longer holds (a *revoke*: a username that moved to another account, or a primary address the account stopped verifying; removing an app key revokes nothing), and each username proof and on-chain event (registrations, app keys, storage rent). `selfcast events` lists them (`/v1/events`):
 
 ```run
 selfcast events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z

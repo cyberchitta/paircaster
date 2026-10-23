@@ -2,7 +2,7 @@
 title: What you can do with it
 ---
 
-Each example below ran against the test node, by then within a few minutes of the network. The agent answers are Claude Code's, started in the repository with the [skill](agent.md), and are shown as it wrote them.
+Each example below ran against the test node, by then within a few minutes of the network. The agent answers are Claude Code's, started in the repository with the [skill](agent.md), and are shown as it wrote them. The two `claude -p` commands now allow only `selfcast`'s read commands; their answers were captured when they allowed every `selfcast` command, writes included.
 
 <note>
 
@@ -12,7 +12,7 @@ An agent's model runs on its provider's servers, so whatever the agent reads goe
 
 ## Count what you like
 
-Your node has no API key to meter and no rate limit, so a question that pages through hundreds of thousands of messages is just a slow command. Every follower of `dwr`, counted one by one, in 26 seconds:
+Your node has no API key to meter and no rate limit, so a question that pages through hundreds of thousands of messages is just a slow command. Every follower of `dwr`, counted one by one, in 26 seconds the first time (5 to 8 once the node has them cached):
 
 ```run
 selfcast profile dwr --all-followers --json | jq .followers
@@ -52,7 +52,7 @@ All four are `dwr`'s: `v` has not cast since May. The skill's [worked example](h
 ## Ask your agent about an account
 
 ```run
-claude -p "How was dwr's week on Farcaster?" --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
+claude -p "How was dwr's week on Farcaster?" --allowedTools "Bash(selfcast info:*)" "Bash(selfcast node status:*)" "Bash(selfcast profile:*)" "Bash(selfcast casts:*)" "Bash(selfcast feed:*)" "Bash(selfcast channel:*)" "Bash(selfcast addresses:*)" "Bash(selfcast followers:*)" "Bash(selfcast following:*)" "Bash(selfcast replies:*)" "Bash(selfcast thread:*)" "Bash(selfcast reactions:*)" "Bash(selfcast events:*)" "Bash(jq:*)"
 ```
 
 ```output
@@ -83,7 +83,7 @@ It checked the node before answering, said the follower count it gave was a floo
 ## A digest of a feed
 
 ```run
-claude -p "Give me a short digest of what the accounts dwr follows posted in the last 24 hours." --allowedTools "Bash(selfcast:*)" "Bash(jq:*)"
+claude -p "Give me a short digest of what the accounts dwr follows posted in the last 24 hours." --allowedTools "Bash(selfcast info:*)" "Bash(selfcast node status:*)" "Bash(selfcast profile:*)" "Bash(selfcast casts:*)" "Bash(selfcast feed:*)" "Bash(selfcast channel:*)" "Bash(selfcast addresses:*)" "Bash(selfcast followers:*)" "Bash(selfcast following:*)" "Bash(selfcast replies:*)" "Bash(selfcast thread:*)" "Bash(selfcast reactions:*)" "Bash(selfcast events:*)" "Bash(jq:*)"
 ```
 
 Its first and last lines; between them it summed up 140 casts by account and topic, naming who said what:

@@ -9,7 +9,7 @@ Before you start: a node that `selfcast node status` reports ready, and `selfcas
 
 ## The skill
 
-The repository's `skill/` directory is an agent skill: instructions an AI agent loads before it runs `selfcast`. The agent runs the same commands you do, with `--json`, and has the same limits: search reaches back about three days, through `selfcast events`, and nothing older than an account's newest 1000 messages can be read.
+The [repository](https://github.com/cyberchitta/selfcast)'s `skill/` directory is an agent skill: instructions an AI agent loads before it runs `selfcast`. The agent runs the same commands you do, with `--json`, and has the same limits: no search command, only the last three days or so of the network's messages from `selfcast events` to filter, and nothing older than an account's newest 1000 messages.
 
 Claude Code finds the skill in the clone. From the directory you cloned into:
 
@@ -174,7 +174,7 @@ result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"cast":"4163:0x
 
 <limit>
 
-The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` is always yours. Without `--images` it loads nothing but from your node, and shows initials; the screenshots above were taken with it. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
+The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` is always yours. Without `--images` it loads nothing but from your node, and shows initials; the screenshots above were taken with `--images`. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
 
 </limit>
 

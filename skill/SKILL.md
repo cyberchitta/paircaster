@@ -283,8 +283,10 @@ count. A message event:
 ```
 
 `event` is `merge` (stored), `prune` (dropped: the account was over its
-storage), `revoke` (dropped: its app key was removed), `username_proof`
-(`type` `fname`, `ens_l1`, …, with `fid` and `name`), `onchain` (`type`
+storage), `revoke` (dropped: a username that moved to another account,
+or a primary address no longer verified; removing an app key revokes
+nothing), `username_proof` (`type` `fname`, `ens_l1`, …, with `fid` and
+`name`), `onchain` (`type`
 `id_register`, `signer`, `storage_rent`, …, with `fid`) or `other` (`type`
 is the node's name for it). Message `type`s include `cast_add`,
 `cast_remove`, `reaction_add`, `link_add` (a follow), `link_remove`,
