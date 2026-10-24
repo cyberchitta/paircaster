@@ -1,6 +1,6 @@
 //! `paircaster profile`, `paircaster feed`, `paircaster casts`,
 //! `paircaster addresses`, `paircaster channel`, `paircaster followers`, `paircaster following`,
-//! `paircaster replies`, `paircaster thread` and `paircaster reactions`. The reads and their `--json`
+//! `paircaster replies`, `paircaster thread`, `paircaster show` and `paircaster reactions`. The reads and their `--json`
 //! shapes live in the core (`node::reads`, `output`), shared with the viewer.
 
 use paircaster_core::account::Account;
@@ -91,6 +91,13 @@ pub struct ThreadArgs {
     /// How many replies to show: the newest LIMIT, oldest first.
     #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u32).range(1..=1000))]
     limit: u32,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ShowArgs {
+    /// The cast to show, as FID:HASH.
+    #[arg(value_name = "FID:HASH")]
+    cast: CastRef,
 }
 
 #[derive(Debug, clap::Args)]
@@ -262,6 +269,16 @@ pub async fn thread(node: &Node, args: &ThreadArgs, json: bool) -> Result<(), Er
         crate::out::line(output::thread_json(&thread, &users));
     } else {
         print_thread(&thread, &names_of(&users));
+    }
+    Ok(())
+}
+
+pub async fn show(node: &Node, args: &ShowArgs, json: bool) -> Result<(), Error> {
+    let (item, users) = node.cast(&args.cast).await?;
+    if json {
+        crate::out::line(output::cast_json(&item, &users));
+    } else {
+        print_item(&item, &names_of(&users));
     }
     Ok(())
 }

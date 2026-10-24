@@ -412,6 +412,16 @@ fn cast_by_id_matches_the_same_cast_in_casts_by_fid() {
 }
 
 #[test]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
+fn a_cast_by_id_is_attributed_to_its_app_as_in_a_feed() {
+    let cast = parse::cast_by_id(fixture("castById-3.json")).expect("cast parses");
+    let item = FeedItem::attributed(cast, &signers_of(3));
+    let listed = feed::assemble(casts_of(3), &signers_of(3), &AppFilter::Any, NOW, 1);
+    assert_eq!(item, listed[0]);
+    assert!(item.app_fid.is_some(), "the fixture's cast names its app");
+}
+
+#[test]
 fn a_cast_missing_its_timestamp_is_an_error() {
     let page = serde_json::json!({
         "messages": [{

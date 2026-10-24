@@ -19,6 +19,7 @@ import type {
   Profile,
   Reactions,
   Replies,
+  Show,
 } from "./reads";
 import { versioned } from "./reads";
 import { type Thread, asThread } from "./thread";
@@ -51,6 +52,9 @@ export type Paircaster = {
   replies(cast: string, options?: CastOptions): Promise<Replies>;
   // `paircaster thread <fid:hash>`; limit 1–1000, default 100.
   thread(cast: string, options?: { limit?: number }): Promise<Thread>;
+  // `paircaster show <fid:hash>`: one cast. A cast the node does not hold
+  // rejects.
+  show(cast: string): Promise<Show>;
   // `paircaster reactions <fid:hash>`.
   reactions(cast: string): Promise<Reactions>;
   // `paircaster events`, one event at a time, read a page of up to 10000
@@ -93,6 +97,7 @@ export function makeRuntime(node: string): Paircaster {
     replies: async (cast, o = {}) =>
       versioned(await wasm.replies(node, cast, o.limit ?? 100, ...apps(o), now()), "replies"),
     thread: async (cast, o = {}) => asThread(JSON.parse(await wasm.thread(node, cast, o.limit ?? 100, now()))),
+    show: async (cast) => versioned(await wasm.show(node, cast), "show"),
     reactions: async (cast) => versioned(await wasm.reactions(node, cast), "reactions"),
     events: (o = {}) => events(node, o),
   };

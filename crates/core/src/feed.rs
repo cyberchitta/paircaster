@@ -19,6 +19,16 @@ pub struct FeedItem {
     pub app_fid: Option<u64>,
 }
 
+impl FeedItem {
+    /// `cast` with the app whose key among `signers` signed it.
+    pub fn attributed(cast: Cast, signers: &[Signer]) -> Self {
+        FeedItem {
+            app_fid: app_of(&cast, signers),
+            cast,
+        }
+    }
+}
+
 /// Which apps' casts a feed keeps, by the app's FID.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppFilter {
@@ -80,10 +90,7 @@ pub fn assemble(
     casts.sort_by_key(|c| Reverse((c.timestamp, c.id.hash)));
     casts
         .into_iter()
-        .map(|cast| FeedItem {
-            app_fid: app_of(&cast, signers),
-            cast,
-        })
+        .map(|cast| FeedItem::attributed(cast, signers))
         .filter(|item| apps.admits(item.app_fid))
         .take(limit)
         .collect()

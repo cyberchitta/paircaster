@@ -25,6 +25,8 @@ export type Feed = { version: 1; fid: number; casts: Cast[]; accounts: Account[]
 export type Casts = { version: 1; fids: number[]; casts: Cast[]; accounts: Account[] };
 export type Channel = { version: 1; channel: string; casts: Cast[]; accounts: Account[] };
 export type Replies = { version: 1; parent: Ref; casts: Cast[]; accounts: Account[] };
+// One cast by its ID, without the casts around it.
+export type Show = { version: 1; cast: Cast; accounts: Account[] };
 
 // An account and when it followed, liked or recast.
 export type AccountAt = { fid: number; timestamp: string };

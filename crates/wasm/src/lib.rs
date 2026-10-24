@@ -162,6 +162,15 @@ pub async fn thread(node: String, cast: String, limit: u32, now: f64) -> Result<
     Ok(output::thread_json(&thread, &users))
 }
 
+/// `paircaster show <cast> --json`.
+#[wasm_bindgen]
+pub async fn show(node: String, cast: String) -> Result<String, JsError> {
+    let node = Node::new(&node)?;
+    let id: CastRef = cast.parse()?;
+    let (item, users) = node.cast(&id).await?;
+    Ok(output::cast_json(&item, &users))
+}
+
 /// `paircaster reactions <cast> --json`.
 #[wasm_bindgen]
 pub async fn reactions(node: String, cast: String) -> Result<String, JsError> {

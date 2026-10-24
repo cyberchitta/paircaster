@@ -69,6 +69,8 @@ enum Command {
     Replies(reads::RepliesArgs),
     /// Show a cast with the casts it replies to, root first, and its replies.
     Thread(reads::ThreadArgs),
+    /// Show one cast, without the casts around it.
+    Show(reads::ShowArgs),
     /// Show who liked and who recast a cast, oldest first.
     Reactions(reads::ReactionsArgs),
     /// List what the node's shards merged, pruned and revoked, block by
@@ -182,6 +184,7 @@ async fn dispatch(
         Command::Following(args) => reads::follows(conn, &args, false, json).await?,
         Command::Replies(args) => reads::replies(conn, &args, json).await?,
         Command::Thread(args) => reads::thread(conn, &args, json).await?,
+        Command::Show(args) => reads::show(conn, &args, json).await?,
         Command::Reactions(args) => reads::reactions(conn, &args, json).await?,
         Command::Events(args) => events::run(conn, &args, json).await?,
         Command::Cast(args) => send(conn, args.into_parts(), json).await?,

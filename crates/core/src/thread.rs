@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use crate::cast::{Cast, CastRef};
 use crate::feed::{self, AppFilter, FeedItem};
-use crate::signer::{Signer, app_of};
+use crate::signer::Signer;
 use crate::time::Timestamp;
 
 /// A cast with the casts it replies to and its direct replies, each with the
@@ -31,10 +31,7 @@ impl Thread {
         now: Timestamp,
         limit: usize,
     ) -> Self {
-        let item = |cast: Cast| FeedItem {
-            app_fid: app_of(&cast, signers),
-            cast,
-        };
+        let item = |cast: Cast| FeedItem::attributed(cast, signers);
         let mut replies = feed::assemble(replies, signers, &AppFilter::Any, now, limit);
         replies.reverse();
         Thread {

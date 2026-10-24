@@ -1,6 +1,6 @@
 ---
 name: paircaster
-description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers installing paircaster and its viewer from the clone and setting up the node (which steps are the user's), checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, ranking casts by likes, and finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
+description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers installing paircaster and its viewer from the clone and setting up the node (which steps are the user's), checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, single casts by ID, a cast's likes and recasts, and the network's recent events (for counting, ranking casts by likes, and finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
 ---
 
 # paircaster
@@ -473,6 +473,23 @@ cast that replies to no cast, `{"missing":{"fid","hash"}}` at a parent this
 node does not hold, `{"cut":{"fid","hash"}}` after 50 casts, naming the next
 one up (run `thread` on it for more). `--limit` caps the replies as in
 `replies`. A cast the node does not hold exits 1.
+
+### `paircaster show <FID:HASH> --json`
+
+One cast by its ID, alone: for a cast named in another result (a quoted
+cast in `embeds`, a `parent`, a `target` in `events`) when you need its
+text and author but not its conversation. The shape is
+`{"version":1,"cast":{…},"accounts":[…]}`, with the cast as above and
+`accounts` as in `thread`, for its author and the accounts it mentions:
+
+```json
+{"version":1,"cast":{"hash":"0x597007de6219f87fdf71ad5769db542c8f2d1dde","fid":3,"timestamp":"2026-10-16T00:23:07Z","text":"Client wishlist\n\n1. Restrict notifications to mutuals only\n\n…","display_text":"Client wishlist\n\n1. Restrict notifications to mutuals only\n\n…","mentions":[],"embeds":[],"parent":null,"signer":"0xc887f5bf385a4718eaee166481f1832198938cf33e98a82dc81a0b4b81ffe33d","app_fid":9152},"accounts":[{"fid":3,"username":"dwr","display_name":"Dan Romero","pfp_url":"https://…/original"}]}
+```
+
+(Text shortened.) It reads no casts above or below: `thread` does. A cast
+the node does not hold exits 1 (`node returned HTTP 400: Failed to get
+cast: … "cast not found"`). `paircaster cast` is the write that posts a
+cast; this read is `show`.
 
 ### `paircaster reactions <FID:HASH> --json`
 

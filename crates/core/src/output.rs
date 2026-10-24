@@ -308,6 +308,24 @@ pub fn thread_json(t: &Thread, users: &Users) -> String {
     })
 }
 
+/// `paircaster show <FID:HASH> --json`, version 1: one cast by its ID.
+///
+/// ```json
+/// { "version": 1, "cast": { … }, "accounts": [ … ] }
+/// ```
+///
+/// `cast` has the shape it has in `feed`. `accounts` is as in `thread`, for
+/// its author and each account it mentions. The casts it replies to and its
+/// replies are not read: `thread` reads those.
+pub fn cast_json(item: &FeedItem, users: &Users) -> String {
+    let names = profile::names_of(users);
+    to_json(&OneCastV1 {
+        version: 1,
+        cast: cast_v1(&item.cast, item.app_fid, &names),
+        accounts: accounts_v1(users),
+    })
+}
+
 /// `paircaster followers <account> --json` and `paircaster following <account>
 /// --json`, version 1:
 ///
@@ -566,6 +584,13 @@ struct ThreadV1<'a> {
     ancestors: Vec<CastV1<'a>>,
     cast: CastV1<'a>,
     replies: Vec<CastV1<'a>>,
+    accounts: Vec<AccountV1>,
+}
+
+#[derive(Serialize)]
+struct OneCastV1<'a> {
+    version: u32,
+    cast: CastV1<'a>,
     accounts: Vec<AccountV1>,
 }
 

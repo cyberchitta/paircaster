@@ -116,6 +116,12 @@ fn thread_json_is_version_1() {
 }
 
 #[test]
+fn cast_json_is_version_1() {
+    let expected = format!(r#"{{"version":1,"cast":{},{ACCOUNTS}}}"#, cast_json());
+    assert_eq!(output::cast_json(&item(), &users()), expected);
+}
+
+#[test]
 fn reactions_json_is_version_1() {
     let cast = CastRef {
         fid: 37,

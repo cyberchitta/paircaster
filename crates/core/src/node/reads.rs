@@ -170,6 +170,17 @@ impl Node {
         }
     }
 
+    /// The cast `id`, with the app it was posted from, and the user data
+    /// of its author and the accounts it mentions. A cast the node does not
+    /// hold is an error.
+    pub async fn cast(&self, id: &CastRef) -> Result<(FeedItem, Users), Error> {
+        let cast = self.cast_by_id(id.fid, &id.hash).await?;
+        let signers = self.signers_by_fid(id.fid).await?;
+        let item = FeedItem::attributed(cast, &signers);
+        let users = self.accounts_of(std::slice::from_ref(&item)).await?;
+        Ok((item, users))
+    }
+
     /// The thread around `id`, with the newest `limit` replies, and the user
     /// data of everyone in it.
     pub async fn thread(
