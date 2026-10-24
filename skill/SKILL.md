@@ -22,6 +22,11 @@ hosted service.
   subcommand, a missing or invalid argument), it prints `error: …` and a
   usage hint and exits 2: fix the command rather than reporting a failure.
   Report the error text as it is.
+- A read that meets a message holding a value this `paircaster` does not
+  know (a newer Snapchain may add one) leaves it out and prints
+  `note: left out N message(s) …` on stderr, exiting 0. Tell the user the
+  answer may be incomplete and that a newer `paircaster` may read the rest.
+  In `events`, such a message keeps its line but has no content fields.
 - `--node <url>` picks the node; without it, the node on this machine
   (`http://localhost:3381`). Leave it out unless the user names a node, and
   when they do, put it in every command, so the node a command uses is

@@ -7,6 +7,11 @@ use crate::account::Username;
 pub enum Error {
     #[error("malformed response from node: {0}")]
     Malformed(String),
+    /// A value this version of Paircaster does not know, such as a message
+    /// type a newer Snapchain added. Reads of a page skip the message it is
+    /// in; a read of that one message fails with it.
+    #[error("the node sent {0}, which this version of paircaster does not read")]
+    Unknown(String),
     #[error("invalid node URL {url:?}: {reason}")]
     BadNodeUrl { url: String, reason: String },
     #[error("could not reach node: {0}")]

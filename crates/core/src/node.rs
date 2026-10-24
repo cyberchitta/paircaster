@@ -2,6 +2,8 @@ pub mod parse;
 pub mod reads;
 
 use std::hash::Hash;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use reqwest::{Client, Url};
 use serde_json::Value;
@@ -33,6 +35,9 @@ const REPEATING_PAGE_SIZE: u32 = 1000;
 pub struct Page<T> {
     pub items: Vec<T>,
     pub next_page_token: Option<String>,
+    /// Messages left out because they hold a value this version of
+    /// Paircaster does not know ([`Error::Unknown`]).
+    pub skipped: usize,
 }
 
 /// Where a paged read starts and how much it returns.
@@ -115,6 +120,7 @@ pub fn route_fid(fid: u64, count: u32) -> Option<u32> {
 pub struct Node {
     base: Url,
     http: Client,
+    skipped: Arc<AtomicUsize>,
 }
 
 impl Node {
@@ -129,7 +135,21 @@ impl Node {
         Ok(Self {
             base,
             http: Client::new(),
+            skipped: Arc::default(),
         })
+    }
+
+    /// How many messages this connection's reads have left out because
+    /// they hold a value this version of Paircaster does not know.
+    pub fn skipped(&self) -> usize {
+        self.skipped.load(Ordering::Relaxed)
+    }
+
+    fn counted<T>(&self, page: Result<Page<T>, Error>) -> Result<Page<T>, Error> {
+        if let Ok(p) = &page {
+            self.skipped.fetch_add(p.skipped, Ordering::Relaxed);
+        }
+        page
     }
 
     /// `GET /v1/info`: node version and per-shard sync state.
@@ -145,7 +165,7 @@ impl Node {
     /// `GET /v1/castsByFid`, newest first.
     pub async fn casts_by_fid(&self, fid: u64, page: &PageRequest) -> Result<Page<Cast>, Error> {
         let query = with_page(&[fid_param(fid), ("reverse", "true".to_owned())], page);
-        parse::casts(self.get("v1/castsByFid", &query).await?)
+        self.counted(parse::casts(self.get("v1/castsByFid", &query).await?))
     }
 
     /// `GET /v1/castById`.
@@ -165,7 +185,7 @@ impl Node {
             &[fid_param(parent.fid), ("hash", parent.hash.to_string())],
             page,
         );
-        parse::casts(self.get("v1/castsByParent", &query).await?)
+        self.counted(parse::casts(self.get("v1/castsByParent", &query).await?))
     }
 
     /// `GET /v1/castsByParent` by URL, newest first: the casts posted in
@@ -182,7 +202,10 @@ impl Node {
             &[("url", channel.to_string()), ("reverse", "true".to_owned())],
             page,
         );
-        parse::casts_in_channel(self.get("v1/castsByParent", &query).await?, channel)
+        self.counted(parse::casts_in_channel(
+            self.get("v1/castsByParent", &query).await?,
+            channel,
+        ))
     }
 
     /// Every reply to `parent`, each once: pages are read until one brings
@@ -211,7 +234,11 @@ impl Node {
             ],
             page,
         );
-        parse::reactions_to_cast(self.get("v1/reactionsByCast", &query).await?, cast, kind)
+        self.counted(parse::reactions_to_cast(
+            self.get("v1/reactionsByCast", &query).await?,
+            cast,
+            kind,
+        ))
     }
 
     /// Every `kind` reaction to `cast`, one per account.
@@ -257,7 +284,9 @@ impl Node {
     pub async fn user_data_by_fid(&self, fid: u64) -> Result<Vec<UserDatum>, Error> {
         self.all_pages(|page| async move {
             let query = with_page(&[fid_param(fid)], &page);
-            parse::user_data(self.get("v1/userDataByFid", &query).await?)
+            self.counted(parse::user_data(
+                self.get("v1/userDataByFid", &query).await?,
+            ))
         })
         .await
     }
@@ -265,7 +294,7 @@ impl Node {
     /// `GET /v1/linksByFid?link_type=follow`: the FIDs an account follows.
     pub async fn follows_by_fid(&self, fid: u64, page: &PageRequest) -> Result<Page<u64>, Error> {
         let query = with_page(&[fid_param(fid), ("link_type", "follow".to_owned())], page);
-        parse::follows(self.get("v1/linksByFid", &query).await?)
+        self.counted(parse::follows(self.get("v1/linksByFid", &query).await?))
     }
 
     /// Every FID an account follows, across all pages.
@@ -281,11 +310,11 @@ impl Node {
             ("target_fid", fid.to_string()),
             ("link_type", "follow".to_owned()),
         ];
-        parse::followers(
+        self.counted(parse::followers(
             self.get("v1/linksByTargetFid", &with_page(&params, page))
                 .await?,
             fid,
-        )
+        ))
     }
 
     /// The newest `limit` accounts `fid` follows, newest first, with when
@@ -298,7 +327,9 @@ impl Node {
             ("page_size", limit.to_string()),
             ("reverse", "true".to_owned()),
         ];
-        let page = parse::follow_links(self.get("v1/linksByFid", &query).await?)?;
+        let page = self.counted(parse::follow_links(
+            self.get("v1/linksByFid", &query).await?,
+        ))?;
         Ok(follow::newest(page.items, limit as usize))
     }
 
@@ -313,7 +344,10 @@ impl Node {
             ("page_size", limit.to_string()),
             ("reverse", "true".to_owned()),
         ];
-        let page = parse::follower_links(self.get("v1/linksByTargetFid", &query).await?, fid)?;
+        let page = self.counted(parse::follower_links(
+            self.get("v1/linksByTargetFid", &query).await?,
+            fid,
+        ))?;
         Ok(follow::newest(page.items, limit as usize))
     }
 
@@ -349,7 +383,9 @@ impl Node {
             ],
             page,
         );
-        parse::reactions(self.get("v1/reactionsByFid", &query).await?)
+        self.counted(parse::reactions(
+            self.get("v1/reactionsByFid", &query).await?,
+        ))
     }
 
     /// `GET /v1/signersByFid`, every page: an account's app keys.

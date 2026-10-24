@@ -41,7 +41,8 @@ pub enum EventBody {
         /// The time the message gives itself, not when it was merged.
         timestamp: Timestamp,
         signer: SignerKey,
-        /// What the message says, for the kinds read; `None` for the rest.
+        /// What the message says, for the kinds read; `None` for the rest,
+        /// and for one holding a value this version does not know.
         content: Option<Content>,
     },
     UsernameProof {

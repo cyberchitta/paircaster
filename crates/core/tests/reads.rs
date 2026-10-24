@@ -919,3 +919,49 @@ fn a_verification_of_an_unknown_protocol_is_refused() {
     page["messages"][0]["data"]["verificationAddAddressBody"]["protocol"] = "PROTOCOL_X".into();
     assert!(parse::verifications(page).is_err());
 }
+
+fn link_message(message_type: &str, target_fid: u64) -> serde_json::Value {
+    serde_json::json!({
+        "data": {
+            "type": message_type,
+            "fid": 3,
+            "timestamp": 1,
+            "network": "FARCASTER_NETWORK_MAINNET",
+            "linkBody": { "type": "follow", "displayTimestamp": null, "targetFid": target_fid }
+        },
+        "hash": "0x00",
+        "hashScheme": "HASH_SCHEME_BLAKE3",
+        "signature": "",
+        "signatureScheme": "SIGNATURE_SCHEME_ED25519",
+        "signer": "0x00"
+    })
+}
+
+#[test]
+fn a_page_skips_and_counts_a_message_with_a_value_it_does_not_know() {
+    let page = serde_json::json!({
+        "messages": [
+            link_message("MESSAGE_TYPE_LINK_ADD", 2),
+            link_message("MESSAGE_TYPE_LINK_COMPACT_STATE", 4),
+            link_message("MESSAGE_TYPE_LINK_ADD", 5),
+        ],
+        "nextPageToken": ""
+    });
+    let follows = parse::follows(page).expect("the known messages read");
+    assert_eq!(follows.items, [2, 5]);
+    assert_eq!(follows.skipped, 1);
+}
+
+#[test]
+fn a_page_with_a_malformed_message_is_still_an_error() {
+    let mut broken = link_message("MESSAGE_TYPE_LINK_ADD", 4);
+    broken["data"]
+        .as_object_mut()
+        .expect("data is an object")
+        .remove("fid");
+    let page = serde_json::json!({
+        "messages": [link_message("MESSAGE_TYPE_LINK_ADD", 2), broken],
+        "nextPageToken": ""
+    });
+    assert!(matches!(parse::follows(page), Err(Error::Malformed(_))));
+}

@@ -155,41 +155,47 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> Result<(), CliError> {
     let named = cli.node.as_deref();
     let node = named.unwrap_or(DEFAULT_NODE);
-    match cli.command {
-        Command::Info => print(&Node::new(node)?.info().await?, cli.json),
+    let conn = Node::new(node)?;
+    let result = dispatch(&conn, named, cli.command, cli.json).await;
+    note_skipped(&conn);
+    result
+}
+
+async fn dispatch(
+    conn: &Node,
+    named: Option<&str>,
+    command: Command,
+    json: bool,
+) -> Result<(), CliError> {
+    let node = named.unwrap_or(DEFAULT_NODE);
+    match command {
+        Command::Info => print(&conn.info().await?, json),
         Command::Profile {
             account,
             all_followers,
-        } => reads::profile(&Node::new(node)?, &account, all_followers, cli.json).await?,
-        Command::Feed(args) => reads::feed(&Node::new(node)?, &args, cli.json).await?,
-        Command::Casts(args) => reads::casts(&Node::new(node)?, &args, cli.json).await?,
-        Command::Channel(args) => reads::channel(&Node::new(node)?, &args, cli.json).await?,
-        Command::Addresses(args) => reads::addresses(&Node::new(node)?, &args, cli.json).await?,
-        Command::Followers(args) => {
-            reads::follows(&Node::new(node)?, &args, true, cli.json).await?
-        }
-        Command::Following(args) => {
-            reads::follows(&Node::new(node)?, &args, false, cli.json).await?
-        }
-        Command::Replies(args) => reads::replies(&Node::new(node)?, &args, cli.json).await?,
-        Command::Thread(args) => reads::thread(&Node::new(node)?, &args, cli.json).await?,
-        Command::Reactions(args) => reads::reactions(&Node::new(node)?, &args, cli.json).await?,
-        Command::Events(args) => events::run(&Node::new(node)?, &args, cli.json).await?,
-        Command::Cast(args) => send(node, args.into_parts(), cli.json).await?,
-        Command::Delete(args) => send(node, args.into_parts(), cli.json).await?,
-        Command::React(args) => send(node, args.into_parts(false), cli.json).await?,
-        Command::Unreact(args) => send(node, args.into_parts(true), cli.json).await?,
-        Command::Follow(args) => follow(node, args, false, cli.json).await?,
-        Command::Unfollow(args) => follow(node, args, true, cli.json).await?,
-        Command::Resend => write::resend(&Node::new(node)?, cli.json).await?,
-        Command::Viewer(command) => {
-            Node::new(node)?;
-            viewer::run(&command, node).await?
-        }
-        Command::Key(KeyCommand::Add) => key_add::run(&Node::new(node)?, cli.json).await?,
+        } => reads::profile(conn, &account, all_followers, json).await?,
+        Command::Feed(args) => reads::feed(conn, &args, json).await?,
+        Command::Casts(args) => reads::casts(conn, &args, json).await?,
+        Command::Channel(args) => reads::channel(conn, &args, json).await?,
+        Command::Addresses(args) => reads::addresses(conn, &args, json).await?,
+        Command::Followers(args) => reads::follows(conn, &args, true, json).await?,
+        Command::Following(args) => reads::follows(conn, &args, false, json).await?,
+        Command::Replies(args) => reads::replies(conn, &args, json).await?,
+        Command::Thread(args) => reads::thread(conn, &args, json).await?,
+        Command::Reactions(args) => reads::reactions(conn, &args, json).await?,
+        Command::Events(args) => events::run(conn, &args, json).await?,
+        Command::Cast(args) => send(conn, args.into_parts(), json).await?,
+        Command::Delete(args) => send(conn, args.into_parts(), json).await?,
+        Command::React(args) => send(conn, args.into_parts(false), json).await?,
+        Command::Unreact(args) => send(conn, args.into_parts(true), json).await?,
+        Command::Follow(args) => follow(conn, args, false, json).await?,
+        Command::Unfollow(args) => follow(conn, args, true, json).await?,
+        Command::Resend => write::resend(conn, json).await?,
+        Command::Viewer(command) => viewer::run(&command, node).await?,
+        Command::Key(KeyCommand::Add) => key_add::run(conn, json).await?,
         Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
         Command::Node(NodeCommand::Status(args)) => {
-            status::run(status::target(named, DEFAULT_NODE), args, cli.json).await?
+            status::run(status::target(named, DEFAULT_NODE), args, json).await?
         }
         Command::Node(NodeCommand::Pause(args)) => control::pause(args).await?,
         Command::Node(NodeCommand::Resume(args)) => control::resume(args).await?,
@@ -197,23 +203,33 @@ async fn run(cli: Cli) -> Result<(), CliError> {
     Ok(())
 }
 
+/// One line on stderr when a read left messages out, so the answer is
+/// not taken as complete.
+fn note_skipped(node: &Node) {
+    match node.skipped() {
+        0 => {}
+        n => eprintln!(
+            "note: left out {n} message(s) holding a value this version of paircaster does not read; a newer paircaster may read them"
+        ),
+    }
+}
+
 async fn send(
-    node: &str,
+    node: &Node,
     (action, flags): (paircaster_core::build::Action, write::WriteFlags),
     json: bool,
 ) -> Result<(), CliError> {
-    write::send(&Node::new(node)?, action, flags, json).await
+    write::send(node, action, flags, json).await
 }
 
 async fn follow(
-    node: &str,
+    node: &Node,
     args: write::FollowArgs,
     undo: bool,
     json: bool,
 ) -> Result<(), CliError> {
-    let node = Node::new(node)?;
-    let (action, flags) = args.into_parts(&node, undo).await?;
-    write::send(&node, action, flags, json).await
+    let (action, flags) = args.into_parts(node, undo).await?;
+    write::send(node, action, flags, json).await
 }
 
 fn print(value: &serde_json::Value, json: bool) {

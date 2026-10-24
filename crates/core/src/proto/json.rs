@@ -5,9 +5,12 @@
 //! from line 2377). Byte fields come in two encodings there: the envelope's
 //! `hash` and `signer` and every `CastId.hash` are `0x` hex, while
 //! `signature` and `castRemoveBody.targetHash` are standard base64.
-//! Unknown fields are allowed, since the format will grow.
+//! Unknown fields are allowed, since the format will grow. Enum values are
+//! read as text first, so a value a newer node adds is an
+//! [`Error::Unknown`], not a malformed response.
 
 use base64::prelude::*;
+use serde::de::DeserializeOwned;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
 
@@ -34,10 +37,10 @@ struct JsonMessage {
     data: JsonData,
     #[serde(deserialize_with = "hex_bytes")]
     hash: Vec<u8>,
-    hash_scheme: HashScheme,
+    hash_scheme: String,
     #[serde(deserialize_with = "base64_bytes")]
     signature: Vec<u8>,
-    signature_scheme: SignatureScheme,
+    signature_scheme: String,
     #[serde(deserialize_with = "hex_bytes")]
     signer: Vec<u8>,
 }
@@ -46,10 +49,10 @@ struct JsonMessage {
 #[serde(rename_all = "camelCase")]
 struct JsonData {
     #[serde(rename = "type")]
-    message_type: MessageType,
+    message_type: String,
     fid: u64,
     timestamp: u32,
-    network: FarcasterNetwork,
+    network: String,
     cast_add_body: Option<JsonCastAdd>,
     cast_remove_body: Option<JsonCastRemove>,
     reaction_body: Option<JsonReaction>,
@@ -68,7 +71,7 @@ struct JsonCastAdd {
     embeds: Vec<JsonEmbed>,
     mentions_positions: Vec<u32>,
     #[serde(rename = "type")]
-    cast_type: CastType,
+    cast_type: String,
 }
 
 #[derive(Deserialize)]
@@ -96,7 +99,7 @@ struct JsonEmbed {
 #[serde(rename_all = "camelCase")]
 struct JsonReaction {
     #[serde(rename = "type")]
-    reaction_type: ReactionType,
+    reaction_type: String,
     target_cast_id: Option<JsonCastId>,
     target_url: Option<String>,
 }
@@ -113,7 +116,7 @@ struct JsonLink {
 #[derive(Deserialize)]
 struct JsonUserData {
     #[serde(rename = "type")]
-    user_data_type: UserDataType,
+    user_data_type: String,
     value: String,
 }
 
@@ -121,12 +124,13 @@ impl TryFrom<JsonMessage> for Message {
     type Error = Error;
 
     fn try_from(json: JsonMessage) -> Result<Self, Error> {
+        let data = json.data.try_into()?;
         Ok(Message {
-            data: Some(json.data.try_into()?),
+            data: Some(data),
             hash: json.hash,
-            hash_scheme: json.hash_scheme.into(),
+            hash_scheme: known::<HashScheme>(&json.hash_scheme)?.into(),
             signature: json.signature,
-            signature_scheme: json.signature_scheme.into(),
+            signature_scheme: known::<SignatureScheme>(&json.signature_scheme)?.into(),
             signer: json.signer,
             data_bytes: None,
         })
@@ -137,19 +141,19 @@ impl TryFrom<JsonData> for MessageData {
     type Error = Error;
 
     fn try_from(json: JsonData) -> Result<Self, Error> {
-        let body = body_for(&json)?;
+        let message_type = known::<MessageType>(&json.message_type)?;
+        let body = body_for(&json, message_type)?;
         Ok(MessageData {
-            r#type: json.message_type.into(),
+            r#type: message_type.into(),
             fid: json.fid,
             timestamp: json.timestamp,
-            network: json.network.into(),
+            network: known::<FarcasterNetwork>(&json.network)?.into(),
             body: Some(body),
         })
     }
 }
 
-fn body_for(json: &JsonData) -> Result<Body, Error> {
-    let message_type = json.message_type;
+fn body_for(json: &JsonData, message_type: MessageType) -> Result<Body, Error> {
     let present = [
         json.cast_add_body.is_some(),
         json.cast_remove_body.is_some(),
@@ -184,7 +188,7 @@ fn body_for(json: &JsonData) -> Result<Body, Error> {
             .user_data_body
             .as_ref()
             .map(user_data)
-            .ok_or_else(missing),
+            .ok_or_else(missing)?,
         MessageType::KeyAdd => Err(bad("KEY_ADD messages are not read")),
         MessageType::None => Err(bad("message type is NONE")),
     }
@@ -205,7 +209,7 @@ fn cast_add(json: &JsonCastAdd) -> Result<Body, Error> {
         text: json.text.clone(),
         mentions_positions: json.mentions_positions.clone(),
         embeds,
-        r#type: json.cast_type.into(),
+        r#type: known::<CastType>(&json.cast_type)?.into(),
     }))
 }
 
@@ -237,7 +241,7 @@ fn reaction(json: &JsonReaction) -> Result<Body, Error> {
         }
     };
     Ok(Body::Reaction(ReactionBody {
-        r#type: json.reaction_type.into(),
+        r#type: known::<ReactionType>(&json.reaction_type)?.into(),
         target: Some(target),
     }))
 }
@@ -250,11 +254,11 @@ fn link(json: &JsonLink) -> Body {
     })
 }
 
-fn user_data(json: &JsonUserData) -> Body {
-    Body::UserData(UserDataBody {
-        r#type: json.user_data_type.into(),
+fn user_data(json: &JsonUserData) -> Result<Body, Error> {
+    Ok(Body::UserData(UserDataBody {
+        r#type: known::<UserDataType>(&json.user_data_type)?.into(),
         value: json.value.clone(),
-    })
+    }))
 }
 
 fn cast_id(json: &JsonCastId) -> CastId {
@@ -262,6 +266,13 @@ fn cast_id(json: &JsonCastId) -> CastId {
         fid: json.fid,
         hash: json.hash.clone(),
     }
+}
+
+/// One of the node's enum values, by its name: `CAST_TYPE_CAST` and the like.
+/// A name not in the enum is [`Error::Unknown`].
+fn known<T: DeserializeOwned>(name: &str) -> Result<T, Error> {
+    serde_json::from_value(serde_json::Value::String(name.to_owned()))
+        .map_err(|_| Error::Unknown(format!("the value {name}")))
 }
 
 fn bad(reason: &str) -> Error {

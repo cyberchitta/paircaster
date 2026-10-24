@@ -226,7 +226,11 @@ fn message_event(body: RawMessageEvent, change: Change) -> Result<EventBody, Err
     let kind = unprefixed(&m.data.kind, "MESSAGE_TYPE_")?;
     let content = match kind.as_str() {
         "cast_add" | "reaction_add" | "reaction_remove" | "link_add" | "link_remove" => {
-            Some(content(&message_from_json(body.message)?)?)
+            match message_from_json(body.message).and_then(|m| content(&m)) {
+                Ok(c) => Some(c),
+                Err(Error::Unknown(_)) => None,
+                Err(e) => return Err(e),
+            }
         }
         _ => None,
     };
@@ -406,6 +410,7 @@ fn fids(page: Page<Follow>) -> Result<Page<u64>, Error> {
     Ok(Page {
         items: page.items.iter().map(|f| f.fid).collect(),
         next_page_token: page.next_page_token,
+        skipped: page.skipped,
     })
 }
 
@@ -619,6 +624,7 @@ impl<T> Page<T> {
         Page {
             items,
             next_page_token: next_page_token.filter(|t| !t.is_empty()),
+            skipped: 0,
         }
     }
 }
@@ -636,18 +642,30 @@ impl Page<Message> {
         Ok(Page {
             items,
             next_page_token: self.next_page_token,
+            skipped: self.skipped,
         })
     }
 }
 
+/// A page of messages. One holding a value this version does not know is
+/// left out and counted in `skipped`; any other fault fails the page.
 fn messages(page: Value) -> Result<Page<Message>, Error> {
     let raw: RawPage = from_value(page)?;
-    let items = raw
+    let parsed: Vec<Option<Message>> = raw
         .messages
         .into_iter()
-        .map(message_from_json)
+        .map(|m| match message_from_json(m) {
+            Ok(m) => Ok(Some(m)),
+            Err(Error::Unknown(_)) => Ok(None),
+            Err(e) => Err(e),
+        })
         .collect::<Result<_, _>>()?;
-    Ok(Page::new(items, raw.next_page_token))
+    let skipped = parsed.iter().filter(|m| m.is_none()).count();
+    let items = parsed.into_iter().flatten().collect();
+    Ok(Page {
+        skipped,
+        ..Page::new(items, raw.next_page_token)
+    })
 }
 
 fn cast(m: &Message) -> Result<Cast, Error> {

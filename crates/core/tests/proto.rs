@@ -1,6 +1,7 @@
 mod common;
 
 use common::fixture_messages;
+use paircaster_core::Error;
 use paircaster_core::message::verify;
 use paircaster_core::proto::json::message_from_json;
 use paircaster_core::proto::{CastAddBody, CastType, MessageData};
@@ -145,4 +146,27 @@ fn hex_without_0x_is_an_error() {
     });
     let err = message_from_json(json).unwrap_err().to_string();
     assert!(err.contains("0x"), "{err}");
+}
+
+#[test]
+fn a_value_this_version_does_not_know_is_unknown_not_malformed() {
+    let json = serde_json::json!({
+        "data": {
+            "type": "MESSAGE_TYPE_LINK_ADD",
+            "fid": 3,
+            "timestamp": 1,
+            "network": "FARCASTER_NETWORK_FUTURE",
+            "linkBody": { "type": "follow", "displayTimestamp": null, "targetFid": 2 }
+        },
+        "hash": "0x00",
+        "hashScheme": "HASH_SCHEME_BLAKE3",
+        "signature": "",
+        "signatureScheme": "SIGNATURE_SCHEME_ED25519",
+        "signer": "0x00"
+    });
+    let err = message_from_json(json).expect_err("an unknown network");
+    assert!(
+        matches!(&err, Error::Unknown(v) if v.contains("FARCASTER_NETWORK_FUTURE")),
+        "{err}"
+    );
 }
