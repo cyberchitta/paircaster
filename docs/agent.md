@@ -156,11 +156,11 @@ It read the replies with `paircaster replies --json`, and the replies to four of
 paircaster viewer open 'paircaster://paircaster/thread/3:0x597007de6219f87fdf71ad5769db542c8f2d1dde?only=3:0x660b6bf526a5d977b2cabcfebbfb350f700ec21f,10695:0x01e2c6a1839d389c824ad1550f3b6c2c817abb99,516505:0x0896e38bb856e0859090c4e0a39f7941cc3ceea5,3036:0x459499297ad8d9be01ca88a4c1124e05766d38d4,8332:0x9263e9b11e1c8cfb2a946299098caeb61b229dd0,4167:0x67b18976a4cb53aeb36687f4813b7bbcf5184df1&caption=6%20of%2016%20replies%20worth%20reading%2C%20best%20first#cast=3:0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6'
 ```
 
-The other ten fold into one line below them, which opens with a click. `#cast=` marks Dan Romero's answer to one of the six, which the page draws nested under it. The reply names each cast by its author and a few of its words, so you can find it on the page, and says why it chose it:
+The other ten fold into one line below them, which opens with a click. `#cast=` marks Dan Romero's answer to one of the six, which the page draws nested under it. The reply names each cast by its author and a few of its words, so you can find it on the page, and says why it chose it (the caption sits above the cast, scrolled out of this shot):
 
 <showcase type="image" src="images/viewer-replies.webp" frame="1600x1005" alt="The agent's reply in a terminal on the left, listing six replies with a reason for each; on the right, the client wishlist in the browser under the heading 6 of 16 replies: Dan Romero's own continuation of the list with two replies nested under it, then jdl's 'sounds difficult to scale' with Dan's marked answer 'I just want it for me.' nested beneath, each card showing its reply, like and recast counts." caption="Six of the wishlist's 16 replies, in the agent's order, with replies to them nested underneath." />
 
-Each card shows its replies, likes and recasts once the page has read them. Replies nest under the reply they answer, three levels deep (two in a narrow pane); a quoted cast shows as a small card; resting the pointer on an author shows their bio and follow counts.
+Each card shows its replies, likes and recasts once the page has read them. Replies nest under the reply they answer, three levels deep (two in a narrow pane), and a deeper reply ends in "Continue this thread"; long runs of replies fold into one line you open with a click; a quoted cast shows as a small card; resting the pointer on an author shows their bio and follow counts.
 
 ### You point, the agent reads
 
@@ -178,13 +178,13 @@ message: the thread of 4163:0x45563785c747be1f0c407defdae26e3b5d4f596b by @kmacb
 result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"caption":null,"cast":"4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","continued":[],"depth":3,"folded":[],"node":"http://localhost:3381","selected":null,"user_marked":null,"user_selected":"paircaster://paircaster/thread/4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","view":"thread"}
 ```
 
-`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, `selected` lists the casts marked on the page (none here), `folded` the casts still folded, and `caption` the agent's caption (none on this view). It answered:
+`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, `selected` lists the casts marked on the page (none here), `folded` the casts still folded, and `caption` the agent's caption (none on this view). `continued` lists replies that end in "Continue this thread", and `depth` is how many levels of replies the page nests (3, or 2 in a narrow pane); `only` appears when the agent picked the replies. It answered:
 
 <showcase type="image" src="images/viewer-pointing.webp" frame="1600x1005" alt="The agent's answer in a terminal on the left: Paircaster cannot change what the node stores, but can filter what it reads by the app that signed each cast. On the right, the browser shows Dan Romero's Snapchain node wishlist with KMac's reply under it, opened by the click." caption="The reply you clicked, and the agent's answer about it." />
 
 ### Several at once
 
-Back on the node wishlist, hold <kbd>Cmd</kbd> (<kbd>Ctrl</kbd> elsewhere) and click two of trish's replies, "I might like this except I can't" and "So very banned": each is marked, and the page stays where it is. <kbd>Shift</kbd>-click marks every cast between the last one you pointed at and this one. Then:
+Press Back to return to the node wishlist, then hold <kbd>Cmd</kbd> (<kbd>Ctrl</kbd> elsewhere) and click two of trish's replies, "I might like this except I can't" and "So very banned": each is marked, and the page stays where it is. <kbd>Shift</kbd>-click marks every cast between the last one you pointed at and this one. Then:
 
 > What do the ones I marked have in common?
 
@@ -202,7 +202,7 @@ It read both casts with `paircaster show`, the thread of the second, and the pro
 
 The agent can also put up an account: `paircaster viewer open 'paircaster://paircaster/profile/3'` shows Dan Romero's picture, bio and follow counts, and his 25 latest casts. With `--images`, an image in a cast is drawn in its card:
 
-<showcase type="image" src="images/viewer-profile.webp" frame="1600x1005" alt="On the right, Dan Romero's profile in the browser: his picture, name, handle and FID, bio, 79 following and 10K+ followers, then his latest casts: a landscape photo drawn in its card with 24 replies, 222 likes and 27 recasts; 'Neat' quoting balajis's cast about the Farcaster prize as a small card; and a cast headed 'replying to @jdl: sounds difficult to scale'." caption="An account's profile, with an image, a quoted cast and a reply's context drawn in the cards." />
+<showcase type="image" src="images/viewer-profile.webp" frame="800x1172" alt="Dan Romero's profile in the browser: his picture, name, handle and FID, bio, 79 following and 10K+ followers, then his latest casts: a landscape photo drawn in its card with 24 replies, 222 likes and 27 recasts; 'Neat' quoting balajis's cast about the Farcaster prize as a small card; and a cast headed 'replying to @jdl: sounds difficult to scale'." caption="An account's profile, with an image, a quoted cast and a reply's context drawn in the cards." />
 
 <limit>
 

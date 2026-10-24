@@ -2,11 +2,17 @@
 title: Testing Paircaster on a clean machine
 ---
 
+<note>
+
+The tester call closed at 2026-10-24 00:00 UTC. This page records the terms it ran under.
+
+</note>
+
 This is for someone who will follow the Paircaster guide from start to finish and report what happened. It is not a request for a good review. A run that fails is a useful result if your report says where it failed and what you saw.
 
 ## Before you start
 
-- **A clean machine** (macOS or Linux) that has not had Paircaster or Snapchain on it. Paircaster has so far run only on one Apple Silicon Mac, so Linux and Intel are untried. A new cloud server is fine; see [Renting a server](node.md#renting-a-server-instead).
+- **A clean machine** (macOS or Linux) that has not had Paircaster or Snapchain on it. Paircaster has so far run only on one Apple Silicon Mac: Linux beyond building `paircaster`, and Intel Macs, are untried. A new cloud server is fine; see [Renting a server](node.md#renting-a-server-instead).
 - **Docker, a Rust toolchain, `git`, `curl` and `jq`,** installed yourself; the guide does not cover installing them. The quickstart builds `paircaster` from source and runs Snapchain in Docker; `jq` is used in a few examples.
 - **A GitHub account,** to open your report as an issue.
 - **Memory, disk and time.** 16 GB of RAM, 4 vCPUs, and about 800 GB of free disk while the snapshot downloads and unpacks; the node then uses 557 GB and grows ([Hardware and disk](node.md#hardware-and-disk)). The download and unpack took about 12 hours on the test machine; after that the node has to catch up with the network, and we give no time for that because the one estimate we had did not hold ([Why sync is slow](node.md#why-sync-is-slow)).
@@ -91,3 +97,5 @@ A report counts if its issue is opened and its reply posted before 2026-10-24 00
 So a Part 1 report that passes counts once Part 2 is added to it, by the same time. A vouch on its own does not count. Nor does a failure an earlier issue already reported: we close that issue as a duplicate, linking the first. Issues are ordered by when they were opened. Within those conditions, a critical report counts the same as praise, and vouching changes nothing.
 
 If you vouch, please mention in the cast that you may get a share if we win.
+
+Next: [Checking a voucher](voucher.md)

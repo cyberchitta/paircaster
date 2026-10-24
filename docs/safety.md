@@ -18,4 +18,4 @@ Your recovery phrase controls your account and everything in it.
 
 ---
 
-Next: [Checking a voucher](voucher.md)
+Next: [Testing Paircaster on a clean machine](testing.md)

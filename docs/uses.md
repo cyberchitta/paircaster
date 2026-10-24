@@ -52,7 +52,7 @@ All four are `dwr`'s: `v` has not cast since May. The skill's [worked example](h
 ## Ask your agent about an account
 
 ```run
-claude -p "How was dwr's week on Farcaster?" --allowedTools "Bash(paircaster info:*)" "Bash(paircaster node status:*)" "Bash(paircaster profile:*)" "Bash(paircaster casts:*)" "Bash(paircaster feed:*)" "Bash(paircaster channel:*)" "Bash(paircaster addresses:*)" "Bash(paircaster followers:*)" "Bash(paircaster following:*)" "Bash(paircaster replies:*)" "Bash(paircaster thread:*)" "Bash(paircaster reactions:*)" "Bash(paircaster events:*)" "Bash(jq:*)"
+claude -p "How was dwr's week on Farcaster?" --allowedTools "Bash(paircaster info:*)" "Bash(paircaster node status:*)" "Bash(paircaster profile:*)" "Bash(paircaster casts:*)" "Bash(paircaster feed:*)" "Bash(paircaster channel:*)" "Bash(paircaster addresses:*)" "Bash(paircaster followers:*)" "Bash(paircaster following:*)" "Bash(paircaster replies:*)" "Bash(paircaster thread:*)" "Bash(paircaster show:*)" "Bash(paircaster reactions:*)" "Bash(paircaster events:*)" "Bash(jq:*)"
 ```
 
 ```output
@@ -83,7 +83,7 @@ It checked the node before answering, said the follower count it gave was a floo
 ## A digest of a feed
 
 ```run
-claude -p "Give me a short digest of what the accounts dwr follows posted in the last 24 hours." --allowedTools "Bash(paircaster info:*)" "Bash(paircaster node status:*)" "Bash(paircaster profile:*)" "Bash(paircaster casts:*)" "Bash(paircaster feed:*)" "Bash(paircaster channel:*)" "Bash(paircaster addresses:*)" "Bash(paircaster followers:*)" "Bash(paircaster following:*)" "Bash(paircaster replies:*)" "Bash(paircaster thread:*)" "Bash(paircaster reactions:*)" "Bash(paircaster events:*)" "Bash(jq:*)"
+claude -p "Give me a short digest of what the accounts dwr follows posted in the last 24 hours." --allowedTools "Bash(paircaster info:*)" "Bash(paircaster node status:*)" "Bash(paircaster profile:*)" "Bash(paircaster casts:*)" "Bash(paircaster feed:*)" "Bash(paircaster channel:*)" "Bash(paircaster addresses:*)" "Bash(paircaster followers:*)" "Bash(paircaster following:*)" "Bash(paircaster replies:*)" "Bash(paircaster thread:*)" "Bash(paircaster show:*)" "Bash(paircaster reactions:*)" "Bash(paircaster events:*)" "Bash(jq:*)"
 ```
 
 Its first and last lines; between them it summed up 140 casts by account and topic, naming who said what:

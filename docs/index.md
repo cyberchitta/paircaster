@@ -7,7 +7,7 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 
 - **A node.** Snapchain, the software Farcaster's nodes run, set up on your machine by Snapchain's own installer and run in Docker. It starts from a snapshot of the network: about 800 GB and 12 hours of download, then a day or more catching up. Snapchain's own download starts over after a network drop, so `paircaster` does it instead, pausing and resuming where it stopped, and tells you how far the node has got ([Running the node](node.md)).
 - **A command-line client, `paircaster`.** It reads profiles, casts, threads, follows and the network's recent messages from your node, and casts, reacts and follows through it ([Using the client](client.md)). You run it, and so does your agent, following instructions in the repository (a *skill*, [Your AI agent](agent.md)).
-- **A viewer.** An interactive page in your browser that shows threads the way a Farcaster app does, reading your node itself. It reads only; posting is the command line's. You and your agent both use it: the agent puts threads on it with `paircaster viewer`, you follow the replies and click the cast you mean, and the agent asks the page which one you chose. It is an option of `paircaster`, built with extra tools ([Looking at a thread together](agent.md#looking-at-a-thread-together)).
+- **A viewer.** An interactive page in your browser that shows threads, an account's profile, or a list of casts the agent picked, the way a Farcaster app does, reading your node itself. It reads only; posting is the command line's. You and your agent both use it: the agent puts threads on it with `paircaster viewer`, you follow the replies and click the cast you mean, and the agent asks the page which one you chose. It is an option of `paircaster`, built with extra tools ([Looking at a thread together](agent.md#looking-at-a-thread-together)).
 
 <showcase type="diagram" src="diagrams/structure.svg" alt="On your machine, you and your agent run paircaster, which reads and writes through your Snapchain node over HTTP. You also look at threads in the viewer page in your browser, which reads the node itself; paircaster puts threads on the page with viewer open and reads back what you chose with viewer state. The node exchanges messages with other Snapchain nodes and the validators by gossip on UDP port 3382." />
 
@@ -25,7 +25,7 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 
 ## What you get
 
-- **No API keys, no hosted service.** Reads go to your own node and pass through no one else's server. What you read goes further only where you send it: to your agent's model provider, and, with the viewer's `--images`, to the hosts of profile pictures.
+- **No API keys, no hosted service.** Reads go to your own node and pass through no one else's server. What you read goes further only where you send it: to your agent's model provider, and, with the viewer's `--images`, to the hosts of profile pictures and of images in casts.
 - **Your recovery phrase stays in your terminal.** `paircaster key add` reads it from the terminal only, uses it once to add an app key, and writes only the app key to disk ([Safety](safety.md)).
 - **You see what is signed, and every write is read back.** Before a write, `paircaster` shows the message it is about to sign, written from the signed message itself, and after sending it reads the message back from your node ([Writing](client.md#writing:-casts,-reactions,-follows)).
 - **Your agent is read-only until you enable writes.** The skill says so, and has the agent show you `paircaster`'s own text before each write. Those are instructions, not a lock: an agent with a shell on your machine can send anything the app key allows ([Your AI agent](agent.md)).
@@ -199,6 +199,8 @@ Each idea is explained where the guide first uses it.
 - **Your node's API.** Everything `paircaster` reads is plain HTTP on `localhost:3381`, as the `curl` in [Casts, and what a message is](client.md#casts,-and-what-a-message-is) shows. Paging uses `reverse=true` (not `1`) and `pageToken`. To build your own interface, read the API directly or run `paircaster` with `--json`, whose output carries a version number.
 - **Validators.** Your read node does not need to run one: it syncs from the network and forwards your writes to them.
 - **Upstream.** Snapchain's documentation is at [snapchain.farcaster.xyz](https://snapchain.farcaster.xyz), its code at [github.com/farcasterxyz/snapchain](https://github.com/farcasterxyz/snapchain), and the protocol at [github.com/farcasterxyz/protocol](https://github.com/farcasterxyz/protocol). Where the documentation and what we saw disagree, the repository's `docs/upstream-fixes.md` lists it; what we have filed is on [Contributions upstream](upstream.md).
+
+Next: [Running the node](node.md)
 
 ---
 
