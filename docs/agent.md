@@ -190,7 +190,7 @@ The agent can also put up an account: `paircaster viewer open 'paircaster://pair
 
 <limit>
 
-The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` and `user_marked` are always yours. Without `--images` it loads nothing but from your node, and shows initials, and an image in a cast stays a link. With it, each profile picture and each image in a cast loads from the server its account or cast chose, which learns your address and when you looked. `viewer open` and `viewer state` fail when no page is open, and say so.
+The page cannot tell whether you are looking at it. Without `--images` it loads only from your node; with it, each picture's host learns your address and when you looked.
 
 </limit>
 
