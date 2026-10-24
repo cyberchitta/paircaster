@@ -211,3 +211,43 @@ h2.replies {
   .cast.nested { gap: 8px; }
   .continue { padding-left: 6px; }
 }
+
+/* The author card, over the page beside the author it describes; author.ts
+   places it inside the pane. Information only: nothing in it to press. */
+.face { display: block; }
+.meta .name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.hovercard {
+  position: fixed;
+  z-index: 10;
+  width: min(300px, calc(100vw - 16px));
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.14);
+  font-size: 14px;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hovercard { box-shadow: 0 4px 18px rgb(0 0 0 / 0.5); }
+}
+:root[data-theme="dark"] .hovercard { box-shadow: 0 4px 18px rgb(0 0 0 / 0.5); }
+.hovercard .who { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.hovercard .avatar { flex: none; width: 48px; height: 48px; font-size: 19px; }
+.hovercard .names { min-width: 0; }
+.hovercard .name, .hovercard .handle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hovercard .name { font-size: 15px; }
+.hovercard .handle { color: var(--dim); font-size: 13px; }
+.hovercard .bio {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.hovercard .follows { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 8px 0 0; color: var(--dim); }
+.hovercard .follows strong { color: var(--fg); font-weight: 650; }
+.hovercard .reading { letter-spacing: 0.1em; }

@@ -1,11 +1,13 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
+import { type Profiles, profileJob, wanted } from "./author";
 import { BRANCH_READ, type Branch, branchOf, seedOf } from "./branch";
 import type { Tally } from "./card";
 import { type Context, wantedOf } from "./context";
 import { DEPTH, type FoldKey, NARROW_DEPTH, type Nest } from "./fold";
 import { host } from "./host";
+import { Hover } from "./hover";
 import { type Spot, atOf, monikerOf, parseAt } from "./moniker";
 import { makeRuntime, type Paircaster } from "./runtime";
 import { type Shown, contextsOf, onScreen, reach, read, visible } from "./shown";
@@ -28,8 +30,11 @@ const project = host?.project ?? "";
 type View = { shown: Shown | null; error: string | null; loading: boolean };
 
 // One read the page makes after it draws: a cast's likes, recasts and
-// replies, or a context cast (one it quotes or replies to).
-type Job = { read: "counts" | "show"; ref: string };
+// replies, or a context cast (one it quotes or replies to); or, when the
+// owner rests on an author, that account's profile.
+type Job = { read: "counts" | "show"; ref: string } | { read: "profile"; fid: number };
+
+const jobKey = (j: Job) => (j.read === "profile" ? profileJob(j.fid) : `${j.read} ${j.ref}`);
 
 function App() {
   const [view, setView] = useState<View>({ shown: null, error: null, loading: false });
@@ -45,6 +50,10 @@ function App() {
   // the node does not hold.
   const [fetched, setFetched] = useState<Map<string, Context | null>>(new Map());
   const fetchedRef = useRef(fetched);
+  // The profiles read for the author card, kept like `branches`; `null` for
+  // one the node refused.
+  const [profiles, setProfiles] = useState<Profiles>(new Map());
+  const profilesRef = useRef(profiles);
   // The jobs this view has asked for (`read ref`), and those still to do.
   const asked = useRef(new Set<string>());
   const queue = useRef<Job[]>([]);
@@ -75,6 +84,7 @@ function App() {
       runtime.current = makeRuntime(place.node);
       keepBranches(new Map());
       keepFetched(new Map());
+      keepProfiles(new Map());
     }
     setView((v) => ({ ...v, loading: true }));
     try {
@@ -126,6 +136,11 @@ function App() {
     setFetched(next);
   };
 
+  const keepProfiles = (next: Profiles) => {
+    profilesRef.current = next;
+    setProfiles(next);
+  };
+
   // Fills in each drawn cast's likes, recasts and replies as they arrive, a
   // few casts at a time, after the page is drawn; a later load stops it. A
   // cast's replies are read once per node, its reactions once per view.
@@ -142,9 +157,38 @@ function App() {
         .filter((r) => !held.has(r))
         .map((ref) => ({ read: "show" as const, ref })),
     ]);
-    const fresh = jobs.filter((j) => !asked.current.has(`${j.read} ${j.ref}`));
-    fresh.forEach((j) => asked.current.add(`${j.read} ${j.ref}`));
+    const fresh = jobs.filter((j) => !asked.current.has(jobKey(j)));
+    fresh.forEach((j) => asked.current.add(jobKey(j)));
     queue.current.push(...fresh);
+    pump(rt, seq);
+  };
+
+  // The owner rests on an author: their profile is read next, ahead of the
+  // counts still queued, once per node.
+  const want = (fid: number) => {
+    const rt = runtime.current;
+    if (!rt || !wanted(profilesRef.current, asked.current, fid)) return;
+    const job: Job = { read: "profile", fid };
+    asked.current.add(jobKey(job));
+    queue.current.unshift(job);
+    pump(rt, latest.current);
+  };
+
+  // Starts readers on the queue, up to COUNTING of them for this load.
+  const pump = (rt: Paircaster, seq: number) => {
+    if (workers.current.seq !== seq) return;
+    const worker = async () => {
+      while (seq === latest.current) {
+        const job = queue.current.shift();
+        if (!job) break;
+        await run(rt, seq, job);
+      }
+      if (workers.current.seq === seq) workers.current.n--;
+    };
+    for (; workers.current.n < COUNTING && queue.current.length > 0; workers.current.n++) worker();
+  };
+
+  const run = (rt: Paircaster, seq: number, job: Job): Promise<unknown> => {
     const replies = async (ref: string) => {
       if (branchRef.current.has(ref)) return;
       const r = await rt.replies(ref, { limit: BRANCH_READ }).catch(() => null);
@@ -162,15 +206,14 @@ function App() {
       const context = r && { cast: r.cast, account: r.accounts.find((a) => a.fid === r.cast.fid) };
       if (seq === latest.current) keepFetched(new Map(fetchedRef.current).set(ref, context));
     };
-    const worker = async () => {
-      while (seq === latest.current) {
-        const job = queue.current.shift();
-        if (!job) break;
-        await (job.read === "show" ? show(job.ref) : Promise.all([reactions(job.ref), replies(job.ref)]));
-      }
-      if (workers.current.seq === seq) workers.current.n--;
+    // A profile the node refuses leaves the card with what the page holds.
+    const profile = async (fid: number) => {
+      if (profilesRef.current.has(fid)) return;
+      const r = await rt.profile(fid).catch(() => null);
+      if (seq === latest.current) keepProfiles(new Map(profilesRef.current).set(fid, r));
     };
-    for (; workers.current.n < COUNTING && queue.current.length > 0; workers.current.n++) worker();
+    if (job.read === "profile") return profile(job.fid);
+    return job.read === "show" ? show(job.ref) : Promise.all([reactions(job.ref), replies(job.ref)]);
   };
 
   // Whatever is drawn, at a load, an opened fold or a branch read, is counted.
@@ -250,26 +293,28 @@ function App() {
   const contexts = contextsOf(shown, nest, fetched);
   const actions = { marked, tallies, branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose };
   return (
-    <main class={view.loading ? "loading" : ""}>
-      {trail.length > 0 && (
-        <button class="back" onClick={() => go(trail[trail.length - 1], true)}>
-          ← Back
-        </button>
-      )}
-      {view.error && <p class="error">{view.error}</p>}
-      {shown.kind === "thread" ? (
-        <ThreadView
-          thread={shown.thread}
-          only={shown.only}
-          opened={opened}
-          depth={depth}
-          onUnfold={unfold}
-          {...actions}
-        />
-      ) : (
-        <ListView casts={shown.casts} accounts={shown.accounts} {...actions} />
-      )}
-    </main>
+    <Hover profiles={profiles} want={want}>
+      <main class={view.loading ? "loading" : ""}>
+        {trail.length > 0 && (
+          <button class="back" onClick={() => go(trail[trail.length - 1], true)}>
+            ← Back
+          </button>
+        )}
+        {view.error && <p class="error">{view.error}</p>}
+        {shown.kind === "thread" ? (
+          <ThreadView
+            thread={shown.thread}
+            only={shown.only}
+            opened={opened}
+            depth={depth}
+            onUnfold={unfold}
+            {...actions}
+          />
+        ) : (
+          <ListView casts={shown.casts} accounts={shown.accounts} {...actions} />
+        )}
+      </main>
+    </Hover>
   );
 }
 

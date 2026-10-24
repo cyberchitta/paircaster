@@ -633,6 +633,14 @@ something to the shell.
   the node no longer holds shows as a `quoted cast` chip, or as "replying
   to a cast that's gone". The page reads these just after it draws;
   `viewer state` does not list them.
+- **Resting the pointer on an author shows who they are**: their picture,
+  name, handle, bio, and following and follower counts as `profile` gives
+  them ("10K+" where counting stopped at 10,000). Tabbing to a name, or to
+  a quoted cast, shows it too. The page reads the profile after a short
+  pause, once per account for each node, so a large account's card fills
+  in a second or so later; where the read fails, the card shows the name
+  and handle only. It is not a selection: `viewer state` does not report
+  it, and a click on the author still does what a click on the cast does.
 - The page shows no images in casts: an image is a link labelled
   `image`. In Shala it opens no links: a link shows its address.
 

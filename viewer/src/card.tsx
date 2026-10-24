@@ -5,6 +5,7 @@ import { useState } from "preact/hooks";
 import { type Branch, repliesLabel } from "./branch";
 import { type Context, type Contexts, PARENT_EXCERPT, QUOTE_EXCERPT, authorOf, excerpt, parentOf } from "./context";
 import { host } from "./host";
+import { useAuthor } from "./hover";
 import { type Account, type Cast, ago, appName, hue, initials, refOf, segments } from "./thread";
 
 export type Tally = { likes: number; recasts: number };
@@ -54,7 +55,7 @@ export function CastCard(props: CardProps) {
       onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && click()}
     >
       <div class="rail">
-        <Avatar account={account} fid={cast.fid} />
+        <Face account={account} fid={cast.fid} />
         {(role === "ancestor" || parent) && <div class="line" />}
       </div>
       <div class="body">
@@ -65,6 +66,33 @@ export function CastCard(props: CardProps) {
         <Counts tally={tallies.get(ref)} branch={branches.get(ref)} />
       </div>
     </article>
+  );
+}
+
+// The author's picture beside a cast; resting on it shows the author card.
+function Face({ account, fid }: { account: Account | undefined; fid: number }) {
+  return (
+    <span class="face" {...useAuthor(fid, account)}>
+      <Avatar account={account} fid={fid} />
+    </span>
+  );
+}
+
+// The author's name and handle; resting on either, or tabbing to the name,
+// shows the author card.
+function Author({ fid, account }: { fid: number; account: Account | undefined }) {
+  const hover = useAuthor(fid, account);
+  return (
+    <>
+      <span class="name" tabIndex={0} {...hover}>
+        {account?.display_name ?? account?.username ?? `fid ${fid}`}
+      </span>
+      {account?.username && (
+        <span class="handle" {...hover}>
+          @{account.username}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -88,8 +116,7 @@ function Meta({ cast, account, now }: { cast: Cast; account: Account | undefined
   const full = new Date(cast.timestamp).toLocaleString();
   return (
     <header class="meta">
-      <span class="name">{account?.display_name ?? account?.username ?? `fid ${cast.fid}`}</span>
-      {account?.username && <span class="handle">@{account.username}</span>}
+      <Author fid={cast.fid} account={account} />
       <span class="dim">·</span>
       <time dateTime={cast.timestamp} title={full}>
         {ago(cast.timestamp, now)}
@@ -196,13 +223,28 @@ function Quote({ fid, target, context, now, onOpen }: {
       </button>
     );
   }
+  return <QuoteCard context={context} now={now} open={open} />;
+}
+
+// A quote is one button, so its author is not a stop of its own: the pointer
+// resting on the author, or keyboard focus on the quote, shows the card.
+function QuoteCard({ context, now, open }: { context: Context; now: number; open(e: Event): void }) {
   const { cast, account } = context;
+  const hover = useAuthor(cast.fid, account);
   return (
-    <button class="quote" onClick={open} title="open the quoted cast">
+    <button class="quote" onClick={open} title="open the quoted cast" onFocus={hover.onFocus} onBlur={hover.onBlur}>
       <span class="meta">
-        <Avatar account={account} fid={cast.fid} />
-        <span class="name">{account?.display_name ?? account?.username ?? `fid ${cast.fid}`}</span>
-        {account?.username && <span class="handle">@{account.username}</span>}
+        <span class="face" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
+          <Avatar account={account} fid={cast.fid} />
+        </span>
+        <span class="name" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
+          {account?.display_name ?? account?.username ?? `fid ${cast.fid}`}
+        </span>
+        {account?.username && (
+          <span class="handle" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
+            @{account.username}
+          </span>
+        )}
         <span class="dim">·</span>
         <time dateTime={cast.timestamp}>{ago(cast.timestamp, now)}</time>
       </span>
