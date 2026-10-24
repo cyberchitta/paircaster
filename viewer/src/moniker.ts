@@ -6,15 +6,19 @@ export const MAX_LISTED = 50;
 
 const SCHEME = "paircaster";
 const CAST = /^\d+:0x[0-9a-f]{40}$/i;
+const FID = /^[1-9]\d{0,15}$/;
 
 // What a moniker names, after `paircaster://<project>/`: `thread/<cast>`, with
 // `?only=<reply>,…` to show only those replies, in that order; or
 // `casts/<cast>,…`, casts from anywhere, in that order. Either may end
-// `#cast=<cast>,…` to mark casts it shows. Any may carry
-// `?caption=<text>`, URL-encoded: a line the agent shows above the view.
-export type Spot = ({ kind: "thread"; cast: string; only: string[] | null } | { kind: "casts"; casts: string[] }) & {
-  caption?: string;
-};
+// `profile/<fid>`, an account and its latest casts. Any may end
+// `#cast=<cast>,…` to mark casts it shows, and carry `?caption=<text>`,
+// URL-encoded: a line the agent shows above the view.
+export type Spot = (
+  | { kind: "thread"; cast: string; only: string[] | null }
+  | { kind: "casts"; casts: string[] }
+  | { kind: "profile"; fid: number }
+) & { caption?: string };
 
 // The longest caption, in characters.
 export const MAX_CAPTION = 200;
@@ -29,7 +33,10 @@ export function monikerOf(project: string, spot: Spot): string {
   return `${baseOf(project)}${pathOf(spot)}${query.length > 0 ? `?${query.join("&")}` : ""}`;
 }
 
-const pathOf = (spot: Spot) => (spot.kind === "casts" ? `casts/${spot.casts.join(",")}` : `thread/${spot.cast}`);
+function pathOf(spot: Spot): string {
+  if (spot.kind === "casts") return `casts/${spot.casts.join(",")}`;
+  return spot.kind === "profile" ? `profile/${spot.fid}` : `thread/${spot.cast}`;
+}
 
 // The view `spot` with `marks` marked, as `#cast=` names them; null for none.
 export const markedOf = (project: string, spot: Spot, marks: string[]): string | null =>
@@ -50,13 +57,17 @@ export function parseAt(project: string, at: string): { spot: Spot; marks: strin
   const params = paramsOf(query, at);
   const caption = params.has("caption") ? captionOf(params.get("caption")!, at) : undefined;
   const captioned = caption === undefined ? {} : { caption };
-  if (path.startsWith("casts/")) {
+  if (path.startsWith("casts/") || path.startsWith("profile/")) {
     const other = [...params.keys()].find((k) => k !== "caption");
-    if (other !== undefined) throw new Error(`a list of casts takes no ?${other}=: ${at}`);
-    return { spot: { kind: "casts", casts: list(path.slice(6), at), ...captioned }, marks };
+    const what = path.startsWith("casts/") ? "a list of casts" : "a profile";
+    if (other !== undefined) throw new Error(`${what} takes no ?${other}=: ${at}`);
+    if (path.startsWith("casts/")) return { spot: { kind: "casts", casts: list(path.slice(6), at), ...captioned }, marks };
+    const fid = path.slice(8);
+    if (!FID.test(fid)) throw new Error(`not a FID: "${fid}" in ${at}`);
+    return { spot: { kind: "profile", fid: Number(fid), ...captioned }, marks };
   }
   const cast = path.startsWith("thread/") ? path.slice(7) : "";
-  if (!CAST.test(cast)) throw new Error(`not a thread or a list of casts: ${at}`);
+  if (!CAST.test(cast)) throw new Error(`not a thread, a list of casts or a profile: ${at}`);
   const other = [...params.keys()].find((k) => k !== "caption" && k !== "only");
   if (other !== undefined) throw new Error(`a thread takes ?only= and ?caption=, not ?${other}=: ${at}`);
   const only = params.has("only") ? list(params.get("only")!, at) : null;

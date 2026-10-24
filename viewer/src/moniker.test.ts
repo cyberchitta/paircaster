@@ -32,7 +32,10 @@ describe("parseAt", () => {
     expect(() => parseAt(project, `${base}casts/${a}?only=${b}`)).toThrow("a list of casts takes no ?only=");
     expect(() => parseAt(project, `${base}thread/${a}?only=3:0xabc`)).toThrow('not a cast (FID:HASH): "3:0xabc"');
     expect(() => parseAt(project, `${base}thread/${a}#pick=${b}`)).toThrow("expected cast=<cast>,…");
-    expect(() => parseAt(project, `${base}profile/3`)).toThrow("not a thread or a list of casts");
+    expect(() => parseAt(project, `${base}people/3`)).toThrow("not a thread, a list of casts or a profile");
+    expect(() => parseAt(project, `${base}profile/dwr`)).toThrow('not a FID: "dwr"');
+    expect(() => parseAt(project, `${base}profile/0`)).toThrow('not a FID: "0"');
+    expect(() => parseAt(project, `${base}profile/3?only=${a}`)).toThrow("a profile takes no ?only=");
     const many = Array.from({ length: MAX_LISTED + 1 }, () => a).join(",");
     expect(() => parseAt(project, `${base}casts/${many}`)).toThrow(`more than ${MAX_LISTED} casts`);
   });
@@ -44,6 +47,8 @@ describe("monikerOf", () => {
     { kind: "thread", cast: a, only: [c, b] },
     { kind: "casts", casts: [b, a, c] },
     { kind: "thread", cast: a, only: [b], caption: "ranked by likes & recasts, #1 first?" },
+    { kind: "profile", fid: 3 },
+    { kind: "profile", fid: 3356360, caption: "who replied most" },
     { kind: "casts", casts: [a], caption: "casts saying \"snapchain\" — 100% of them" },
   ];
 

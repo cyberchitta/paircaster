@@ -555,6 +555,7 @@ A moniker names one view of the page, as one token. Each `<cast>` is a
 | `paircaster://paircaster/thread/<cast>` | the cast's thread, as `open <cast>` does |
 | `paircaster://paircaster/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and those of its direct replies first, in the order given; the other replies fold below them into one line ("+12 other replies") the user can open |
 | `paircaster://paircaster/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
+| `paircaster://paircaster/profile/<fid>` | the account: picture, name, handle, bio, following and follower counts as `profile` gives them, then its 25 latest casts, as `casts <fid> --limit 25` reads them, drawn as a list (each reply names the cast it replies to); each opens its thread when clicked. A FID only: look a username up with `profile <name> --json` first |
 
 Any of them may also take `?caption=<text>` (with `?only=`, join the two
 with `&`): a line the page shows above the view, as plain text. Say in it
@@ -594,7 +595,7 @@ something to the shell.
   with `#cast=<FID:HASH>` for a cast selected in it. What `viewer open`
   shows never changes it, so the rest of the state says what is on screen
   (`view` is `thread`, with `cast` and `only` when filtered, or `casts`,
-  with `casts`; `selected` lists the marked casts or is `null`; `back` holds
+  with `casts`, or `profile`, with `fid` and the `casts` it shows; `selected` lists the marked casts or is `null`; `back` holds
   what Back returns to, each as `open` takes it; `folded` lists the casts
   on the page the user has not opened, and `continued` and `depth` say how
   replies nest, below), and `user_selected` what
@@ -639,7 +640,7 @@ something to the shell.
   cast (`#cast=`) to be sure the user sees it; a reply that is not picked
   may be marked. `folded` in `viewer state` lists the casts still folded,
   nested ones included, each `FID:HASH` (`[]` once each run is open, and
-  always for `casts`). `continued` lists the replies that end in "Continue
+  always for `casts` and `profile`). `continued` lists the replies that end in "Continue
   this thread" (`[]` for `casts`), and `depth`, in a thread, how many
   levels of replies the page nests now (3, or 2 in a narrow pane). Nested
   replies arrive a level at a time just after an `open`, so `folded` and
@@ -660,7 +661,8 @@ something to the shell.
   pause, once per account for each node, so a large account's card fills
   in a second or so later; where the read fails, the card shows the name
   and handle only. It is not a selection: `viewer state` does not report
-  it, and a click on the author still does what a click on the cast does.
+  it, and a click on the author still does what a click on the cast does:
+  the user cannot open a profile view from a card; you open it.
 - The page shows no images in casts: an image is a link labelled
   `image`. In Shala it opens no links: a link shows its address.
 

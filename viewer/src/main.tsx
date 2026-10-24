@@ -15,6 +15,7 @@ import { type Shown, contextsOf, onScreen, reach, read, visible } from "./shown"
 import { type Kept, type Live, type Place, isKept, placeOf, reveal, tell } from "./state";
 import { type Cast, refOf } from "./thread";
 import { ListView } from "./views/list";
+import { ProfileView } from "./views/profile";
 import { ThreadView } from "./views/thread";
 
 // The node the CLI reads when --node is not given.
@@ -95,9 +96,10 @@ function App() {
     setView((v) => ({ ...v, loading: true }));
     try {
       const rt = runtime.current;
-      const shown = await read(rt, spot);
+      const known = spot.kind === "profile" ? profilesRef.current.get(spot.fid) : undefined;
+      const shown = await read(rt, spot, known ?? undefined);
       const strays = marks.filter((m) => !visible(shown).some((c) => refOf(c) === m));
-      if (strays.length > 0 && shown.kind === "casts") {
+      if (strays.length > 0 && shown.kind !== "thread") {
         throw new Error(`${strays[0]} is not on the page ${place.at} shows`);
       }
       // A marked reply nested deeper is reached by reading the way down to it.
@@ -126,6 +128,8 @@ function App() {
         if (seed) seeds.set(refOf(shown.thread.cast), seed);
       }
       keepBranches(seeds);
+      // The profile read is the author card's too.
+      if (shown.kind === "profile") keepProfiles(new Map(profilesRef.current).set(shown.profile.fid, shown.profile));
       save(live.current);
       return shown;
     } catch (e) {
@@ -161,7 +165,7 @@ function App() {
     const held = contextsOf(shown, nest, fetchedRef.current);
     const jobs: Job[] = casts.flatMap((c) => [
       { read: "counts" as const, ref: refOf(c) },
-      ...wantedOf([c], shown.kind === "casts")
+      ...wantedOf([c], shown.kind !== "thread")
         .filter((r) => !held.has(r))
         .map((ref) => ({ read: "show" as const, ref })),
     ]);
@@ -353,6 +357,8 @@ function App() {
             onUnfold={unfold}
             {...actions}
           />
+        ) : shown.kind === "profile" ? (
+          <ProfileView profile={shown.profile} casts={shown.casts} accounts={shown.accounts} {...actions} />
         ) : (
           <ListView casts={shown.casts} accounts={shown.accounts} {...actions} />
         )}

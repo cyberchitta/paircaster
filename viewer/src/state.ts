@@ -4,6 +4,7 @@
 import type { Answer } from "pair-ui/page";
 import type { Nest } from "./fold";
 import { type Spot, baseOf, parseAt } from "./moniker";
+import type { Profile } from "./reads";
 import { type Shown, accountsOf, count, onScreen } from "./shown";
 import { type Account, type Cast, refOf } from "./thread";
 
@@ -53,6 +54,10 @@ export async function reveal(
     (marked.length > 0 ? `, ${marked.join(", ")} selected` : "") +
     (spot.caption !== undefined ? `, captioned ${JSON.stringify(spot.caption)}` : "");
   if (shown.kind === "casts") return { ok: true, message: `${count(shown.casts.length, "cast")}${marks}, from ${node}` };
+  if (shown.kind === "profile") {
+    const what = `profile of ${nameOf(shown.profile)}, ${count(shown.casts.length, "latest cast")}`;
+    return { ok: true, message: `${what}${marks}, from ${node}` };
+  }
   const { thread, only } = shown;
   const what = `thread of ${refOf(thread.cast)}${only ? `, ${only.length} of its replies` : ""}${marks}`;
   const counts = `${count(thread.ancestors.length, "cast")} above, ${count(thread.replies.length, "reply", "replies")}, from ${node}`;
@@ -88,6 +93,9 @@ export const isKept = (v: unknown): v is Kept =>
   (v.user_selected === null || typeof v.user_selected === "string") &&
   (v.user_marked === undefined || v.user_marked === null || typeof v.user_marked === "string");
 
+// An account as a line names it.
+const nameOf = (p: Profile) => (p.username ? `@${p.username} (fid ${p.fid})` : `fid ${p.fid}`);
+
 // One line naming a cast, for the owner and the agent.
 function about(accounts: Account[], c: Cast | undefined, ref: string): string {
   if (!c) return ref;
@@ -121,6 +129,13 @@ export function describe(
     const casts = shown.casts.map(refOf);
     const state = { view: "casts", casts, selected, back, folded, continued };
     return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, state];
+  }
+  if (shown.kind === "profile") {
+    const casts = shown.casts.map(refOf);
+    const fid = shown.profile.fid;
+    const state = { view: "profile", fid, casts, selected, back, folded, continued };
+    const latest = casts.length > 0 ? `: ${named(casts)}` : "";
+    return [`the profile of ${nameOf(shown.profile)}, ${count(casts.length, "latest cast")}${latest}${marks}`, state];
   }
   const { thread, only } = shown;
   const cast = refOf(thread.cast);

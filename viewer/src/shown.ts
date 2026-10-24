@@ -4,14 +4,21 @@ import { BRANCH_READ, type Branch, branchOf } from "./branch";
 import { type Context, type Contexts, heldOf, parentsOf } from "./context";
 import { type Nest, continuedOf, drawnOf, foldedOf, layout } from "./fold";
 import type { Spot } from "./moniker";
+import type { Profile } from "./reads";
 import type { Paircaster } from "./runtime";
 import { type Account, type Cast, type Thread, refOf } from "./thread";
 
 // What a spot read from the node. A list keeps each cast's parent (`null`
-// where the node does not hold it), which its read walked up to anyway.
+// where the node does not hold it), which its read walked up to anyway. A
+// profile is the account and its latest casts, a list too, whose parents the
+// page reads after it draws.
 export type Shown =
   | { kind: "thread"; thread: Thread; only: string[] | null }
-  | { kind: "casts"; casts: Cast[]; accounts: Account[]; parents: Map<string, Context | null> };
+  | { kind: "casts"; casts: Cast[]; accounts: Account[]; parents: Map<string, Context | null> }
+  | { kind: "profile"; profile: Profile; casts: Cast[]; accounts: Account[] };
+
+// How many of an account's casts its profile shows.
+export const PROFILE_CASTS = 25;
 
 // A cast's thread, with any failure naming the cast, so a refused list says
 // which of its casts the node could not give.
@@ -21,7 +28,15 @@ function threadOf(runtime: Paircaster, cast: string, options?: { limit?: number 
   });
 }
 
-export async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
+// `known` is the account's profile when the page holds it already.
+export async function read(runtime: Paircaster, spot: Spot, known?: Profile): Promise<Shown> {
+  if (spot.kind === "profile") {
+    const [profile, { casts, accounts }] = await Promise.all([
+      known ?? runtime.profile(spot.fid),
+      runtime.casts(spot.fid, { limit: PROFILE_CASTS }),
+    ]);
+    return { kind: "profile", profile, casts, accounts };
+  }
   if (spot.kind === "casts") {
     const threads = await Promise.all(spot.casts.map((c) => threadOf(runtime, c, { limit: 1 })));
     const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
@@ -38,7 +53,7 @@ export async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
 // picks in their order and then the other replies. Nested replies are not
 // among them: the page reads those after it draws.
 export function visible(shown: Shown): Cast[] {
-  if (shown.kind === "casts") return shown.casts;
+  if (shown.kind !== "thread") return shown.casts;
   const { ancestors, cast, replies } = shown.thread;
   const only = shown.only;
   if (!only) return [...ancestors, cast, ...replies];
@@ -50,7 +65,7 @@ export function visible(shown: Shown): Cast[] {
 // in their own thread, given the folds the owner opened, the casts marked
 // and the replies read. A list folds and nests nothing.
 export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: string[], nest: Nest) {
-  if (shown.kind === "casts") return { drawn: shown.casts, folded: [], continued: [] };
+  if (shown.kind !== "thread") return { drawn: shown.casts, folded: [], continued: [] };
   const { thread, only } = shown;
   const l = layout(thread, only, opened, marked, nest);
   const drawn = [...drawnOf({ ...l, replies: [] }), thread.cast, ...drawnOf({ ...l, above: [] })];

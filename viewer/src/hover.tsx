@@ -12,8 +12,8 @@
 import { type ComponentChildren, createContext } from "preact";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { CLOSE_DELAY, HOVER_DELAY, type Profiles, type Rect, countLabel, place, shownAccount } from "./author";
-import { Avatar } from "./card";
+import { CLOSE_DELAY, HOVER_DELAY, type Profiles, type Rect, place } from "./author";
+import { ProfileHead } from "./head";
 import type { Account } from "./thread";
 
 type Hovered = { fid: number; account: Account | undefined; el: Element; anchor: Rect };
@@ -113,7 +113,6 @@ function Card({ hovered, profile, hub }: { hovered: Hovered; profile: ReturnType
   const { fid, anchor } = hovered;
   const box = useRef<HTMLDivElement>(null);
   const [spot, setSpot] = useState<{ top: number; left: number } | null>(null);
-  const account = shownAccount(fid, hovered.account, profile);
   // Placed once drawn, when its size is known, and again as the profile
   // fills it in.
   useLayoutEffect(() => {
@@ -122,7 +121,6 @@ function Card({ hovered, profile, hub }: { hovered: Hovered; profile: ReturnType
     const pane = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
     setSpot(place(anchor, { width: el.offsetWidth, height: el.offsetHeight }, pane));
   }, [anchor, profile]);
-  const name = account.display_name ?? account.username ?? `fid ${fid}`;
   return (
     <div
       ref={box}
@@ -132,34 +130,7 @@ function Card({ hovered, profile, hub }: { hovered: Hovered; profile: ReturnType
       onPointerEnter={() => hub.stay()}
       onPointerLeave={() => hub.leave()}
     >
-      <div class="who">
-        <Avatar account={account} fid={fid} />
-        <div class="names">
-          <div class="name">{name}</div>
-          <div class="handle">
-            {account.username && `@${account.username} · `}fid {fid}
-          </div>
-        </div>
-      </div>
-      {profile?.bio && <p class="bio">{profile.bio}</p>}
-      {profile ? (
-        <p class="follows">
-          <span>
-            <strong>{countLabel(profile.following)}</strong> following
-          </span>
-          <span
-            title={
-              profile.followers_exact
-                ? undefined
-                : `at least ${profile.followers.toLocaleString("en-US")}: the page stops counting there`
-            }
-          >
-            <strong>{countLabel(profile.followers, profile.followers_exact)}</strong> followers
-          </span>
-        </p>
-      ) : (
-        profile === undefined && <p class="follows reading">…</p>
-      )}
+      <ProfileHead fid={fid} account={hovered.account} profile={profile} />
     </div>
   );
 }

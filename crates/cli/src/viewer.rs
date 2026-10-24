@@ -262,6 +262,8 @@ mod tests {
         let shown = |s: &str| s.parse::<Shown>().map(|m| m.0.to_string());
         let filtered = "paircaster://paircaster/thread/37:0xcd34bb74e0a1f0c4f2d6e3b9a8c7d6e5f4a3b2c1?only=1:0x2";
         assert_eq!(shown(filtered).expect("paircaster's own"), filtered);
+        let profile = "paircaster://paircaster/profile/3356360";
+        assert_eq!(shown(profile).expect("a profile"), profile);
         let captioned = "paircaster://paircaster/casts/1:0x2?caption=most%20liked%2C%20%22first%22";
         assert_eq!(
             shown(captioned).expect("a caption passes as it is"),
