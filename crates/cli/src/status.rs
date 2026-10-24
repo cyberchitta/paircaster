@@ -369,11 +369,7 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path, installed: bool) -> Strin
             node_version,
             shards,
         } => {
-            let furthest = shards.iter().map(|s| s.seconds_behind).max().unwrap_or(0);
-            let head = format!(
-                "Syncing (Snapchain {node_version}): {} behind at most.",
-                duration(furthest)
-            );
+            let head = syncing_head(node_version, shards);
             format!("{head}\n{}", shard_lines(shards))
         }
         Phase::Ready {
@@ -399,6 +395,31 @@ fn download_tail(rate: Option<u64>, eta: Option<u64>, since_write: Option<u64>) 
             duration(e)
         ),
         (Some(_), _, _) => "Running; too few chunks finished yet to measure speed.".to_owned(),
+    }
+}
+
+/// How far behind the shards that hold accounts are. Shard 0 holds the
+/// blocks and no account's casts, reactions, follows or profile, which the
+/// node serves from shards 1 and up (snapchain v0.14.3
+/// `src/network/server.rs`, `get_stores_for`), so its lag is left out
+/// unless it is the only one.
+fn syncing_head(node_version: &str, shards: &[ShardV1]) -> String {
+    let behind = |block_shard: bool| {
+        shards
+            .iter()
+            .filter(|s| (s.id == 0) == block_shard)
+            .map(|s| s.seconds_behind)
+            .max()
+    };
+    match (behind(false), behind(true)) {
+        (Some(accounts), Some(blocks)) if accounts <= READY_WITHIN_SECS => format!(
+            "Syncing (Snapchain {node_version}): the shards that hold accounts are within a minute of their newest block; shard 0, which holds the blocks, is {} behind.",
+            duration(blocks)
+        ),
+        (accounts, blocks) => format!(
+            "Syncing (Snapchain {node_version}): {} behind at most.",
+            duration(accounts.or(blocks).unwrap_or(0))
+        ),
     }
 }
 
@@ -434,8 +455,8 @@ mod tests {
     use paircaster_core::node::{ShardSync, SyncState};
 
     use super::{
-        Chunk, Observed, Phase, Target, bytes_per_second, denied, duration, eta_seconds, is_low,
-        not_started, on_disk, synced, target,
+        Chunk, Observed, Phase, ShardV1, Target, bytes_per_second, denied, duration, eta_seconds,
+        is_low, not_started, on_disk, synced, syncing_head, target,
     };
 
     const MB: u64 = 1_000_000;
@@ -518,6 +539,38 @@ mod tests {
         assert!(matches!(synced(state(&[1, 60, 0])), Phase::Ready { .. }));
         assert!(matches!(synced(state(&[1, 61, 0])), Phase::Syncing { .. }));
         assert!(matches!(synced(state(&[])), Phase::Syncing { .. }));
+    }
+
+    fn head(behind: &[u64]) -> String {
+        let shards: Vec<ShardV1> = (0..)
+            .zip(behind)
+            .map(|(id, &seconds_behind)| ShardV1 {
+                id,
+                height: 1,
+                seconds_behind,
+            })
+            .collect();
+        syncing_head("0.14.3", &shards)
+    }
+
+    #[test]
+    fn the_lag_quoted_leaves_out_the_block_shard() {
+        assert_eq!(
+            head(&[85_740, 3, 50]),
+            "Syncing (Snapchain 0.14.3): the shards that hold accounts are within a minute of their newest block; shard 0, which holds the blocks, is 23h49m behind."
+        );
+        assert_eq!(
+            head(&[169_620, 7_200, 3]),
+            "Syncing (Snapchain 0.14.3): 2h00m behind at most."
+        );
+        assert_eq!(
+            head(&[85_740, 150_900, 169_620]),
+            "Syncing (Snapchain 0.14.3): 47h07m behind at most."
+        );
+        assert_eq!(
+            head(&[200]),
+            "Syncing (Snapchain 0.14.3): 3m behind at most."
+        );
     }
 
     #[test]

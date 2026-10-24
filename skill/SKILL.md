@@ -166,7 +166,7 @@ asked for that outcome ("resume it", "fix it").
 | `downloading` | `running`, `chunks_done`, `chunks_total`, `bytes_per_second`, `eta_seconds`, `seconds_since_write` | `running: false`: paused or interrupted; offer `node resume`. `running: true` with `seconds_since_write` over 90: waiting for the network; the download carries on when it returns. `bytes_per_second` and `eta_seconds` are `null` until a few chunks have finished, and while not running. While not running, `seconds_since_write` is only how long ago it stopped. |
 | `unpacking` | `running`, `shards_done`, `shards_total`, `seconds_since_write` | Local work after the download; it cannot be paused. `running: false`: interrupted; `node resume` finishes it, and the shard in progress starts over. |
 | `node_stopped` | (none) | The snapshot is in place but no node answers. The node is started with Snapchain's own script, `cd <dir> && ./snapchain.sh up`, which can take a minute to answer. |
-| `syncing` | `node_version`, `shards` | The node is running and catching up. Each shard has `id`, `height` and `seconds_behind`. |
+| `syncing` | `node_version`, `shards` | The node is running and catching up. Each shard has `id`, `height` and `seconds_behind`. Shard 0 holds the blocks, not accounts' messages: when it is the only one behind, reads are as current as on a ready node. |
 | `ready` | `node_version`, `shards` | Every shard is within 60 seconds of its newest block. |
 
 `disk` is `{ "free_bytes", "total_bytes", "low" }` for the filesystem
@@ -247,9 +247,12 @@ node catching up:
 {"version":1,"phase":"syncing","node_version":"0.14.3","shards":[{"id":0,"height":48401912,"seconds_behind":80369},{"id":1,"height":49013085,"seconds_behind":145673},{"id":2,"height":48830242,"seconds_behind":164323}],"disk":{"free_bytes":3164618342400,"total_bytes":3996276899840,"low":false}}
 ```
 
-An account's data lives on one shard, and the CLI does not say which, so
-quote the largest `seconds_behind`. In any other phase there is no node to
-read from: report the phase instead.
+An account's casts, reactions, follows and profile live on one of the
+shards numbered from 1, and the CLI does not say which, so quote the
+largest `seconds_behind` among those. Leave out shard 0: it holds the
+blocks, not accounts' messages, so its lag does not make a read stale.
+When every shard but 0 is within a minute, say the reads are current. In
+any other phase there is no node to read from: report the phase instead.
 
 ### `paircaster profile <account> --json`
 

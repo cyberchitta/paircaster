@@ -122,7 +122,7 @@ Syncing (Snapchain 0.14.3): 47h07m behind at most.
 Disk: 3165 GB free of 3996 GB.
 ```
 
-Snapchain splits the network into *shards*, each its own chain of blocks. A shard's *height* is the number of its newest block, and “behind” is how old that block is. The node reports *ready* once every shard is within a minute of its newest block. Your node's own numbers:
+Snapchain splits the network into *shards*, each its own chain of blocks. A shard's *height* is the number of its newest block, and “behind” is how old that block is. The node reports *ready* once every shard is within a minute of its newest block. Accounts' casts, reactions, follows and profiles are on shards 1 and 2; shard 0 holds the blocks. So the first line's lag leaves shard 0 out, and when only shard 0 is behind, it says the shards that hold accounts are within a minute: reads are then current. Your node's own numbers:
 
 ```run
 paircaster info
