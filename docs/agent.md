@@ -57,13 +57,9 @@ These rules match the command's text, so another spelling or a mode that skips p
 
 </limit>
 
-## Looking at a thread together
+## Building the viewer
 
-The agent can show you a thread instead of describing it: a page in your browser that reads your node, where you follow replies and go back without the agent. When you click a cast, the agent can read which one you chose. You and the agent are looking at the same page.
-
-### Build it
-
-The easiest way is to ask your agent, in the clone, as in the [quickstart](index.md#quickstart): “Install Paircaster here, with the viewer.” It skips what your machine already has and builds `paircaster` again with the viewer. The same steps by hand follow.
+The viewer is a page in your browser that you and your agent look at together. The easiest way to build it is to ask your agent, in the clone, as in the [quickstart](index.md#quickstart): “Install Paircaster here, with the viewer.” It skips what your machine already has and builds `paircaster` again with the viewer. Then go on to [starting the page](#looking-at-a-thread-together). The same steps by hand follow.
 
 The page is built into `paircaster` only with the `viewer` feature, which the quickstart's build leaves out: building the page needs tools the rest of `paircaster` does not. They are [Bun](https://bun.sh), the WebAssembly target, and `wasm-bindgen-cli` at the same version as the `wasm-bindgen` in `Cargo.lock`. Install Bun with the command on its home page (on Linux it needs `unzip`), then open a new terminal so that `bun` is on your path. From the clone, find the `wasm-bindgen` version:
 
@@ -90,6 +86,12 @@ dist/: index.html 9934 bytes, viewer.js 1277854 (wasm 912374)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output.
+
+With the viewer built, [start the page](#looking-at-a-thread-together).
+
+## Looking at a thread together
+
+The agent can show you a thread instead of describing it: a page in your browser that reads your node, where you follow replies and go back without the agent. When you click a cast, the agent can read which one you chose. You and the agent are looking at the same page.
 
 ### You start the page
 

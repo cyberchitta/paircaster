@@ -48,7 +48,7 @@ cd paircaster
 claude
 ```
 
-Then ask it: “Install Paircaster here, with the viewer.” It loads Paircaster's [skill](agent.md#the-skill) from the clone, checks what your machine already has, and builds `paircaster` with the [viewer](agent.md#looking-at-a-thread-together). Snapchain's installer asks questions at the terminal, so the skill has the agent give you steps 2 and 4 below to run yourself, with the answers, and start step 3's download for you.
+Then ask it: “Install Paircaster here, with the viewer.” It loads Paircaster's [skill](agent.md#the-skill) from the clone, checks what your machine already has, and builds `paircaster` with the [viewer](agent.md#building-the-viewer). Snapchain's installer asks questions at the terminal, so the skill has the agent give you steps 2 and 4 below to run yourself, with the answers, and start step 3's download for you.
 
 The same steps by hand follow. Each is explained in [Running the node](node.md).
 
