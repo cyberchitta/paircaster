@@ -536,7 +536,7 @@ A moniker names one view of the page, as one token. Each `<cast>` is a
 | Moniker | Shows |
 |---|---|
 | `paircaster://paircaster/thread/<cast>` | the cast's thread, as `open <cast>` does |
-| `paircaster://paircaster/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and only those of its direct replies, in the order given; the rest fold into a "Show all" button |
+| `paircaster://paircaster/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and those of its direct replies first, in the order given; the other replies fold below them into one line ("+12 other replies") the user can open |
 | `paircaster://paircaster/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
 
 Any of them may end `#cast=<cast>,…`, which marks those casts and scrolls
@@ -568,7 +568,8 @@ something to the shell.
   shows never changes it, so the rest of the state says what is on screen
   (`view` is `thread`, with `cast` and `only` when filtered, or `casts`,
   with `casts`; `selected` lists the marked casts or is `null`; `back` holds
-  what Back returns to, each as `open` takes it), and `user_selected` what
+  what Back returns to, each as `open` takes it; `folded` lists the casts
+  on the page the user has not opened, below), and `user_selected` what
   the user chose. In Shala, when `shala selection` says the user was last in
   paircaster's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
@@ -579,7 +580,18 @@ something to the shell.
   it, or where a picture fails, the page shows initials. Shala's page
   policy refuses remote images, so in Shala there are none.
 - Each card shows its likes and recasts once the page has read them,
-  current counts as `reactions` gives them.
+  current counts as `reactions` gives them, and its direct replies as
+  `replies` counts them ("3 replies", "100+ replies" past 100; nothing for
+  none).
+- **Long runs fold into one line**, which the user opens with a click: in
+  a thread, the casts between the root and the cast replied to when there
+  are more than three above, and the replies after the first ten ("+8
+  more"); with `?only=`, every reply not picked. A run holding a marked
+  cast is never folded, so mark a cast (`#cast=`) to be sure the user sees
+  it; a reply that is not picked may be marked. `folded` in `viewer state`
+  lists the casts still folded, each `FID:HASH` (`[]` once each run is
+  open, and always for `casts`). The user opening a fold does not change
+  `user_selected`; a new `open` folds them again.
 - The page shows no images in casts: an image is a link labelled
   `image`. In Shala it opens no links: a link shows its address.
 

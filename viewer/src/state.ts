@@ -3,7 +3,7 @@
 
 import type { Answer } from "pair-ui/page";
 import { type Spot, baseOf, parseAt } from "./moniker";
-import { type Shown, accountsOf, count, visible } from "./shown";
+import { type Shown, accountsOf, count, onScreen, visible } from "./shown";
 import { type Account, type Cast, refOf } from "./thread";
 
 // The tell bodies this build takes: `{ paircaster: 1, get: "state" }`.
@@ -19,13 +19,15 @@ export type Kept = Place & { user_selected: string | null };
 
 // What the page shows, read by the message handlers, which outlive a render.
 // `userSelected` is the moniker of what the owner last clicked or opened, and
-// only that: what a tell or reveal shows does not change it.
+// only that: what a tell or reveal shows does not change it. `opened` holds
+// the folds the owner opened on this view.
 export type Live = {
   node: string;
   spot: Spot | null;
   shown: Shown | null;
   marked: string[];
   trail: string[];
+  opened: ReadonlySet<string>;
   userSelected: string | null;
 };
 
@@ -56,7 +58,7 @@ export async function tell(now: Live, body: unknown): Promise<Answer> {
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
   const common = { node: now.node, user_selected: now.userSelected };
   if (!now.shown) return { ok: true, message: "no thread open", result: { view: null, ...common } };
-  const [text, state] = describe(now.shown, now.marked, now.trail);
+  const [text, state] = describe(now.shown, now.marked, now.trail, now.opened);
   return { ok: true, message: text, result: { ...state, ...common } };
 }
 
@@ -79,23 +81,32 @@ function about(accounts: Account[], c: Cast): string {
   return `${refOf(c)} by ${who ? "@" + who : "fid " + c.fid} ("${words}")`;
 }
 
-// What the page shows: one line, and the same as data.
-export function describe(shown: Shown, marked: string[], back: string[]): [string, Record<string, unknown>] {
+// What the page shows: one line, and the same as data. `folded` lists the
+// casts on the page that show only as a fold ("+8 more"), as the owner left
+// them: none once each fold is opened.
+export function describe(
+  shown: Shown,
+  marked: string[],
+  back: string[],
+  opened: ReadonlySet<string>,
+): [string, Record<string, unknown>] {
   const accounts = accountsOf(shown);
   const named = (refs: string[]) =>
     refs.map((r) => about(accounts, visible(shown).find((c) => refOf(c) === r)!)).join("; ");
   const selected = marked.length > 0 ? marked : null;
   const marks = selected ? `; selected ${named(marked)}` : "";
+  const folded = onScreen(shown, opened, marked).folded.map(refOf);
   if (shown.kind === "casts") {
     const casts = shown.casts.map(refOf);
-    return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, { view: "casts", casts, selected, back }];
+    return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, { view: "casts", casts, selected, back, folded }];
   }
   const { thread, only } = shown;
   const text =
     `the thread of ${about(accounts, thread.cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
     count(thread.replies.length, "reply", "replies") +
-    (only ? `, showing only ${named(only)}` : "") +
+    (only ? `, picked first ${named(only)}` : "") +
+    (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
     marks;
   const filter = only ? { only } : {};
-  return [text, { view: "thread", cast: refOf(thread.cast), ...filter, selected, back }];
+  return [text, { view: "thread", cast: refOf(thread.cast), ...filter, selected, back, folded }];
 }

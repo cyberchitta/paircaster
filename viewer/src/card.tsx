@@ -2,15 +2,18 @@
 
 import { useState } from "preact/hooks";
 
+import { type Branch, repliesLabel } from "./branch";
 import { host } from "./host";
 import { type Account, type Cast, ago, appName, hue, initials, refOf, segments } from "./thread";
 
 export type Tally = { likes: number; recasts: number };
 
-// What a card does when pointed at, and what it shows beside the cast.
+// What a card does when pointed at, and what it shows beside the cast:
+// likes and recasts, and its direct replies, each once read.
 export type Actions = {
   marked: string[];
   tallies: Map<string, Tally>;
+  branches: Map<string, Branch>;
   onOpen(ref: string): void;
   onSelect(cast: Cast): void;
 };
@@ -19,7 +22,7 @@ export type Role = "ancestor" | "focus" | "reply";
 
 type CardProps = { cast: Cast; role: Role; accounts: Map<number, Account>; now: number } & Actions;
 
-export function CastCard({ cast, role, accounts, now, marked, tallies, onOpen, onSelect }: CardProps) {
+export function CastCard({ cast, role, accounts, now, marked, tallies, branches, onOpen, onSelect }: CardProps) {
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
   const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
@@ -40,7 +43,7 @@ export function CastCard({ cast, role, accounts, now, marked, tallies, onOpen, o
         <Meta cast={cast} account={account} now={now} />
         <Text cast={cast} clamp={role !== "focus"} />
         <Embeds cast={cast} onOpen={onOpen} />
-        <Counts tally={tallies.get(ref)} />
+        <Counts tally={tallies.get(ref)} branch={branches.get(ref)} />
       </div>
     </article>
   );
@@ -48,7 +51,7 @@ export function CastCard({ cast, role, accounts, now, marked, tallies, onOpen, o
 
 // The picture loads only where the page policy allows remote images
 // (`viewer serve --images`); refused or broken, it falls back to initials.
-function Avatar({ account, fid }: { account: Account | undefined; fid: number }) {
+export function Avatar({ account, fid }: { account: Account | undefined; fid: number }) {
   const url = account?.pfp_url?.startsWith("https://") ? account.pfp_url : null;
   const [failed, setFailed] = useState<string | null>(null);
   return (
@@ -110,14 +113,25 @@ function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
   );
 }
 
-// Likes and recasts as the node holds them now; nothing until they are read.
-function Counts({ tally }: { tally: Tally | undefined }) {
-  if (!tally) return null;
+// Replies, likes and recasts as the node holds them now; each shows once
+// read, and replies only when there are some.
+function Counts({ tally, branch }: { tally: Tally | undefined; branch: Branch | undefined }) {
+  const replies = branch && repliesLabel(branch);
+  if (!tally && !replies) return null;
   return (
     <footer class="tally">
+      {replies && <span title="direct replies">{replies}</span>}
+      {tally && <Reactions tally={tally} />}
+    </footer>
+  );
+}
+
+function Reactions({ tally }: { tally: Tally }) {
+  return (
+    <>
       <span title="likes">♥ {tally.likes}</span>
       <span title="recasts">⇄ {tally.recasts}</span>
-    </footer>
+    </>
   );
 }
 

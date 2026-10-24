@@ -1,5 +1,6 @@
 // What a spot reads from the node, and which of it the page shows.
 
+import { drawnOf, foldedOf, layout } from "./fold";
 import type { Spot } from "./moniker";
 import type { Paircaster } from "./runtime";
 import { type Account, type Cast, type Thread, refOf } from "./thread";
@@ -29,15 +30,26 @@ export async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
   return { kind: "thread", thread, only: spot.only };
 }
 
-// The casts on the page, in the order shown.
+// The casts on the page, drawn or folded: with `only`, the picks in their
+// order and then the other replies.
 export function visible(shown: Shown): Cast[] {
   if (shown.kind === "casts") return shown.casts;
-  const { ancestors, cast } = shown.thread;
-  return [...ancestors, cast, ...repliesShown(shown.thread, shown.only)];
+  const { ancestors, cast, replies } = shown.thread;
+  const only = shown.only;
+  if (!only) return [...ancestors, cast, ...replies];
+  const picks = only.map((r) => replies.find((c) => refOf(c) === r)!);
+  return [...ancestors, cast, ...picks, ...replies.filter((c) => !only.includes(refOf(c)))];
 }
 
-export const repliesShown = (thread: Thread, only: string[] | null) =>
-  only ? only.map((r) => thread.replies.find((c) => refOf(c) === r)!) : thread.replies;
+// The casts drawn as cards, and those folded, given the folds the owner
+// opened and the casts marked. A list folds nothing.
+export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: string[]) {
+  if (shown.kind === "casts") return { drawn: shown.casts, folded: [] };
+  const { thread, only } = shown;
+  const l = layout(thread, only, opened, marked);
+  const drawn = [...drawnOf({ ...l, replies: [] }), thread.cast, ...drawnOf({ ...l, above: [] })];
+  return { drawn, folded: foldedOf(l) };
+}
 
 export const accountsOf = (shown: Shown) => (shown.kind === "thread" ? shown.thread.accounts : shown.accounts);
 
