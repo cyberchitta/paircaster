@@ -24,7 +24,7 @@ Look for 4 or more vCPUs, 16 GB of RAM and at least 1 TB of disk (a server's own
 
 <limit>
 
-The test machine is far above the stated minimum, so it shows nothing about whether the minimum is enough.
+The stated minimum has not been tried: the test machine has more than it.
 
 </limit>
 
