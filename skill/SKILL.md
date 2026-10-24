@@ -617,8 +617,11 @@ something to the shell.
 - **Pictures only with `serve --images`**: profile pictures, and images
   in casts, drawn in the card (bounded, loaded as they scroll near). Each
   then loads from the server its account or its cast chose, which learns
-  the user's address and when they looked. Off by default: turn it on only
-  when the user asks, and say so. Without it, or where a picture fails,
+  the user's address and when they looked. Off by default. When the user
+  wants to look at threads with you, offer it before `serve`, in one line
+  that says both: the page then looks like a Farcaster client, and each
+  picture's host learns their address. Start it with `--images` only when
+  they say yes, and say which you started. Without it, or where a picture fails,
   the page shows initials, and an image in a cast stays a link labelled
   `image`. Shala's page policy refuses remote images, so in Shala there
   are none.
