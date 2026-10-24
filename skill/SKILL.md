@@ -625,6 +625,14 @@ something to the shell.
   replies arrive a level at a time just after an `open`, so `folded` and
   `continued` can grow for a moment after it. The user opening a fold does
   not change `user_selected`; a new `open` folds them again.
+- **Casts show what they point at.** A quoted cast shows as a small card,
+  its author and the start of its text; in a `casts/` list, a reply names
+  the cast it replies to on one line above it ("replying to @alice: …").
+  In a thread the cast replied to is drawn above, so only quotes show.
+  Clicking either opens that cast's thread, as clicking a cast does. One
+  the node no longer holds shows as a `quoted cast` chip, or as "replying
+  to a cast that's gone". The page reads these just after it draws;
+  `viewer state` does not list them.
 - The page shows no images in casts: an image is a link labelled
   `image`. In Shala it opens no links: a link shows its address.
 

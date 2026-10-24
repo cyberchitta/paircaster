@@ -1,4 +1,5 @@
-// Casts from anywhere, in the order the moniker names them.
+// Casts from anywhere, in the order the moniker names them, each reply
+// naming the cast it replies to.
 
 import { type Actions, CastCard } from "../card";
 import { count } from "../shown";
@@ -11,7 +12,7 @@ export function ListView({ casts, accounts, ...actions }: { casts: Cast[]; accou
     <>
       <h2 class="replies">{count(casts.length, "cast")}</h2>
       {casts.map((c) => (
-        <CastCard key={c.hash} cast={c} role="reply" accounts={byFid} now={now} {...actions} />
+        <CastCard key={c.hash} cast={c} role="reply" replying accounts={byFid} now={now} {...actions} />
       ))}
     </>
   );

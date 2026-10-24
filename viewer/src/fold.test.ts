@@ -235,7 +235,7 @@ describe("viewer state", () => {
   });
 
   test("a list folds nothing", () => {
-    const shown: Shown = { kind: "casts", casts: casts(1, 3), accounts: [] };
+    const shown: Shown = { kind: "casts", casts: casts(1, 3), accounts: [], parents: new Map() };
     expect(tellState(shown, [], [], none, flat)[1].folded).toEqual([]);
   });
 });

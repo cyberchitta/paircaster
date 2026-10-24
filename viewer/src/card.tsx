@@ -3,17 +3,20 @@
 import { useState } from "preact/hooks";
 
 import { type Branch, repliesLabel } from "./branch";
+import { type Context, type Contexts, PARENT_EXCERPT, QUOTE_EXCERPT, authorOf, excerpt, parentOf } from "./context";
 import { host } from "./host";
 import { type Account, type Cast, ago, appName, hue, initials, refOf, segments } from "./thread";
 
 export type Tally = { likes: number; recasts: number };
 
 // What a card does when pointed at, and what it shows beside the cast:
-// likes and recasts, and its direct replies, each once read.
+// likes and recasts, its direct replies, and the casts it quotes or replies
+// to, each once read.
 export type Actions = {
   marked: string[];
   tallies: Map<string, Tally>;
   branches: Map<string, Branch>;
+  contexts: Contexts;
   onOpen(ref: string): void;
   onSelect(cast: Cast): void;
 };
@@ -21,18 +24,21 @@ export type Actions = {
 export type Role = "ancestor" | "focus" | "reply";
 
 // `nested` for a reply under a reply; `parent` for a card with replies drawn
-// under it, joined to them by a line.
+// under it, joined to them by a line; `replying` for a card that names the
+// cast it replies to, which a thread draws above it instead.
 type CardProps = {
   cast: Cast;
   role: Role;
   nested?: boolean;
   parent?: boolean;
+  replying?: boolean;
   accounts: Map<number, Account>;
   now: number;
 } & Actions;
 
 export function CastCard(props: CardProps) {
-  const { cast, role, nested, parent, accounts, now, marked, tallies, branches, onOpen, onSelect } = props;
+  const { cast, role, nested, parent, replying, accounts, now, marked, tallies, branches, contexts, onOpen, onSelect } =
+    props;
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
   const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
@@ -45,16 +51,17 @@ export function CastCard(props: CardProps) {
       tabIndex={0}
       onClick={click}
       onFocus={() => onSelect(cast)}
-      onKeyDown={(e) => e.key === "Enter" && click()}
+      onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && click()}
     >
       <div class="rail">
         <Avatar account={account} fid={cast.fid} />
         {(role === "ancestor" || parent) && <div class="line" />}
       </div>
       <div class="body">
+        {replying && <ReplyingTo cast={cast} contexts={contexts} onOpen={onOpen} />}
         <Meta cast={cast} account={account} now={now} />
         <Text cast={cast} clamp={role !== "focus"} />
-        <Embeds cast={cast} onOpen={onOpen} />
+        <Embeds cast={cast} contexts={contexts} now={now} onOpen={onOpen} />
         <Counts tally={tallies.get(ref)} branch={branches.get(ref)} />
       </div>
     </article>
@@ -147,7 +154,69 @@ function Reactions({ tally }: { tally: Tally }) {
   );
 }
 
-function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
+// The cast a list cast replies to, on one line; a click opens its thread.
+// Until it is read it names no one; one the node does not hold is named so.
+function ReplyingTo({ cast, contexts, onOpen }: { cast: Cast; contexts: Contexts; onOpen(ref: string): void }) {
+  const ref = parentOf(cast);
+  if (!ref) return null;
+  const context = contexts.get(ref);
+  if (context === null) return <p class="context gone">replying to a cast that's gone</p>;
+  return (
+    <button
+      class="context"
+      title={context ? excerpt(context.cast, 1000) : ref}
+      onClick={(e) => (e.stopPropagation(), onOpen(ref))}
+    >
+      replying to{" "}
+      {context ? (
+        <>
+          <span class="who">{authorOf(context)}</span>: {excerpt(context.cast, PARENT_EXCERPT)}
+        </>
+      ) : (
+        "a cast"
+      )}
+    </button>
+  );
+}
+
+// A quoted cast once read: its author and the start of its text; a click
+// opens its thread. Until then, or where the node does not hold it, a chip.
+function Quote({ fid, target, context, now, onOpen }: {
+  fid: number;
+  target: string;
+  context: Context | null | undefined;
+  now: number;
+  onOpen(ref: string): void;
+}) {
+  const open = (e: Event) => (e.stopPropagation(), onOpen(target));
+  if (!context) {
+    return (
+      <button class="chip" onClick={open}>
+        quoted cast · fid {fid}
+      </button>
+    );
+  }
+  const { cast, account } = context;
+  return (
+    <button class="quote" onClick={open} title="open the quoted cast">
+      <span class="meta">
+        <Avatar account={account} fid={cast.fid} />
+        <span class="name">{account?.display_name ?? account?.username ?? `fid ${cast.fid}`}</span>
+        {account?.username && <span class="handle">@{account.username}</span>}
+        <span class="dim">·</span>
+        <time dateTime={cast.timestamp}>{ago(cast.timestamp, now)}</time>
+      </span>
+      <span class="excerpt">{excerpt(cast, QUOTE_EXCERPT)}</span>
+    </button>
+  );
+}
+
+function Embeds({ cast, contexts, now, onOpen }: {
+  cast: Cast;
+  contexts: Contexts;
+  now: number;
+  onOpen(ref: string): void;
+}) {
   if (cast.embeds.length === 0) return null;
   return (
     <div class="embeds">
@@ -157,9 +226,14 @@ function Embeds({ cast, onOpen }: { cast: Cast; onOpen(ref: string): void }) {
             {isImage(e.url) ? "image" : hostOf(e.url)}
           </Link>
         ) : (
-          <button key={i} class="chip" onClick={(ev) => (ev.stopPropagation(), onOpen(refOf(e.cast)))}>
-            quoted cast · fid {e.cast.fid}
-          </button>
+          <Quote
+            key={i}
+            fid={e.cast.fid}
+            target={refOf(e.cast)}
+            context={contexts.get(refOf(e.cast))}
+            now={now}
+            onOpen={onOpen}
+          />
         ),
       )}
     </div>

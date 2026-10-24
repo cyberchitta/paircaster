@@ -1,15 +1,17 @@
 // What a spot reads from the node, and which of it the page shows.
 
 import { BRANCH_READ, type Branch, branchOf } from "./branch";
+import { type Context, type Contexts, heldOf, parentsOf } from "./context";
 import { type Nest, continuedOf, drawnOf, foldedOf, layout } from "./fold";
 import type { Spot } from "./moniker";
 import type { Paircaster } from "./runtime";
 import { type Account, type Cast, type Thread, refOf } from "./thread";
 
-// What a spot read from the node.
+// What a spot read from the node. A list keeps each cast's parent (`null`
+// where the node does not hold it), which its read walked up to anyway.
 export type Shown =
   | { kind: "thread"; thread: Thread; only: string[] | null }
-  | { kind: "casts"; casts: Cast[]; accounts: Account[] };
+  | { kind: "casts"; casts: Cast[]; accounts: Account[]; parents: Map<string, Context | null> };
 
 // A cast's thread, with any failure naming the cast, so a refused list says
 // which of its casts the node could not give.
@@ -23,7 +25,8 @@ export async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
   if (spot.kind === "casts") {
     const threads = await Promise.all(spot.casts.map((c) => threadOf(runtime, c, { limit: 1 })));
     const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
-    return { kind: "casts", casts: threads.map((t) => t.cast), accounts: [...accounts.values()] };
+    const casts = threads.map((t) => t.cast);
+    return { kind: "casts", casts, accounts: [...accounts.values()], parents: parentsOf(threads) };
   }
   const thread = await threadOf(runtime, spot.cast);
   const stray = spot.only?.find((r) => !thread.replies.some((c) => refOf(c) === r));
@@ -60,6 +63,15 @@ export function accountsOf(shown: Shown, nest: Nest): Account[] {
   const all = new Map([...nest.branches.values()].flatMap((b) => b.accounts).map((a) => [a.fid, a]));
   own.forEach((a) => all.set(a.fid, a));
   return [...all.values()];
+}
+
+// The context casts the page can draw: those it read with `show`, and over
+// them every cast it holds for another reason, so a read never repeats one.
+export function contextsOf(shown: Shown, nest: Nest, read: Contexts): Contexts {
+  const branched = [...nest.branches.values()].flatMap((b) => b.casts);
+  const held = heldOf([...visible(shown), ...branched], accountsOf(shown, nest));
+  const parents = shown.kind === "casts" ? shown.parents : new Map();
+  return new Map([...read, ...parents, ...held]);
 }
 
 // The replies on the way from a thread's focus down to `mark`, a cast nested

@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 import { BRANCH_READ, type Branch, branchOf, seedOf } from "./branch";
 import type { Tally } from "./card";
+import { type Context, wantedOf } from "./context";
 import { DEPTH, type FoldKey, NARROW_DEPTH, type Nest } from "./fold";
 import { host } from "./host";
 import { type Spot, atOf, monikerOf, parseAt } from "./moniker";
 import { makeRuntime, type Paircaster } from "./runtime";
-import { type Shown, onScreen, reach, read, visible } from "./shown";
+import { type Shown, contextsOf, onScreen, reach, read, visible } from "./shown";
 import { type Kept, type Live, type Place, isKept, placeOf, reveal, tell } from "./state";
 import { type Cast, refOf } from "./thread";
 import { ListView } from "./views/list";
@@ -15,7 +16,7 @@ import { ThreadView } from "./views/thread";
 
 // The node the CLI reads when --node is not given.
 const DEFAULT_NODE = "http://localhost:3381";
-// How many casts' reactions and replies are read at once.
+// How many casts' reactions and replies, or context casts, are read at once.
 const COUNTING = 6;
 // A pane at least this wide nests replies DEPTH levels deep, else
 // NARROW_DEPTH; viewer.css narrows the nesting at the same width.
@@ -25,6 +26,10 @@ const WIDE = "(min-width: 480px)";
 const project = host?.project ?? "";
 
 type View = { shown: Shown | null; error: string | null; loading: boolean };
+
+// One read the page makes after it draws: a cast's likes, recasts and
+// replies, or a context cast (one it quotes or replies to).
+type Job = { read: "counts" | "show"; ref: string };
 
 function App() {
   const [view, setView] = useState<View>({ shown: null, error: null, loading: false });
@@ -36,9 +41,13 @@ function App() {
   // its card, and what opens under it.
   const [branches, setBranches] = useState<Map<string, Branch>>(new Map());
   const branchRef = useRef(branches);
-  // The casts whose counts this view has asked for, and those still to read.
+  // The context casts read with `show`, kept like `branches`; `null` for one
+  // the node does not hold.
+  const [fetched, setFetched] = useState<Map<string, Context | null>>(new Map());
+  const fetchedRef = useRef(fetched);
+  // The jobs this view has asked for (`read ref`), and those still to do.
   const asked = useRef(new Set<string>());
-  const queue = useRef<string[]>([]);
+  const queue = useRef<Job[]>([]);
   // The readers working through `queue` for the load numbered `seq`.
   const workers = useRef({ seq: 0, n: 0 });
   const depth = useDepth();
@@ -65,6 +74,7 @@ function App() {
     if (runtime.current?.node !== place.node) {
       runtime.current = makeRuntime(place.node);
       keepBranches(new Map());
+      keepFetched(new Map());
     }
     setView((v) => ({ ...v, loading: true }));
     try {
@@ -111,15 +121,29 @@ function App() {
     setBranches(next);
   };
 
+  const keepFetched = (next: Map<string, Context | null>) => {
+    fetchedRef.current = next;
+    setFetched(next);
+  };
+
   // Fills in each drawn cast's likes, recasts and replies as they arrive, a
   // few casts at a time, after the page is drawn; a later load stops it. A
   // cast's replies are read once per node, its reactions once per view.
   // Replies read are drawn under their cast and counted in turn, so the tree
-  // fills a level at a time, as deep as the page nests and no further.
-  const fill = (rt: Paircaster, casts: Cast[], seq: number) => {
+  // fills a level at a time, as deep as the page nests and no further. The
+  // casts they quote, and in a list those they reply to, are read in the
+  // same queue, once per node, unless the page holds them already.
+  const fill = (rt: Paircaster, shown: Shown, casts: Cast[], seq: number) => {
     if (workers.current.seq !== seq) return;
-    const fresh = casts.map(refOf).filter((r) => !asked.current.has(r));
-    fresh.forEach((r) => asked.current.add(r));
+    const held = contextsOf(shown, nest, fetchedRef.current);
+    const jobs: Job[] = casts.flatMap((c) => [
+      { read: "counts" as const, ref: refOf(c) },
+      ...wantedOf([c], shown.kind === "casts")
+        .filter((r) => !held.has(r))
+        .map((ref) => ({ read: "show" as const, ref })),
+    ]);
+    const fresh = jobs.filter((j) => !asked.current.has(`${j.read} ${j.ref}`));
+    fresh.forEach((j) => asked.current.add(`${j.read} ${j.ref}`));
     queue.current.push(...fresh);
     const replies = async (ref: string) => {
       if (branchRef.current.has(ref)) return;
@@ -131,11 +155,18 @@ function App() {
       const tally = r && { likes: r.likes.length, recasts: r.recasts.length };
       if (tally && seq === latest.current) setTallies((t) => new Map(t).set(ref, tally));
     };
+    // A cast the node refuses is drawn as gone: deleted, or pruned.
+    const show = async (ref: string) => {
+      if (fetchedRef.current.has(ref)) return;
+      const r = await rt.show(ref).catch(() => null);
+      const context = r && { cast: r.cast, account: r.accounts.find((a) => a.fid === r.cast.fid) };
+      if (seq === latest.current) keepFetched(new Map(fetchedRef.current).set(ref, context));
+    };
     const worker = async () => {
       while (seq === latest.current) {
-        const ref = queue.current.shift();
-        if (!ref) break;
-        await Promise.all([reactions(ref), replies(ref)]);
+        const job = queue.current.shift();
+        if (!job) break;
+        await (job.read === "show" ? show(job.ref) : Promise.all([reactions(job.ref), replies(job.ref)]));
       }
       if (workers.current.seq === seq) workers.current.n--;
     };
@@ -145,7 +176,7 @@ function App() {
   // Whatever is drawn, at a load, an opened fold or a branch read, is counted.
   useEffect(() => {
     if (!view.shown || !runtime.current) return;
-    fill(runtime.current, onScreen(view.shown, opened, marked, nest).drawn, latest.current);
+    fill(runtime.current, view.shown, onScreen(view.shown, opened, marked, nest).drawn, latest.current);
   }, [view.shown, opened, marked, branches, depth]);
 
   // The owner opens a fold; its casts are then counted like the rest.
@@ -216,7 +247,8 @@ function App() {
       </p>
     );
   }
-  const actions = { marked, tallies, branches, onOpen: (ref: string) => go(ref), onSelect: choose };
+  const contexts = contextsOf(shown, nest, fetched);
+  const actions = { marked, tallies, branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose };
   return (
     <main class={view.loading ? "loading" : ""}>
       {trail.length > 0 && (

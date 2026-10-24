@@ -110,6 +110,47 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .chip:hover { color: var(--accent); }
 
+/* A list reply's parent, on one line above its name; a click opens it. */
+.context {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 1px;
+  font-size: 13px;
+  color: var(--dim);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context .who { color: var(--accent); }
+button.context:hover { color: var(--fg); }
+.context.gone { font-style: italic; cursor: default; }
+
+/* A quoted cast: a small card of its author and the start of its text. */
+.quote {
+  display: block;
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: left;
+}
+.quote:hover { border-color: var(--dim); }
+.quote .meta { align-items: center; font-size: 14px; }
+.quote .avatar { flex: none; width: 20px; height: 20px; font-size: 10px; }
+.quote .excerpt {
+  display: -webkit-box;
+  margin-top: 2px;
+  font-size: 14px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
 h2.replies {
   font-size: 13px;
   font-weight: 600;
