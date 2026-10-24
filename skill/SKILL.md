@@ -678,9 +678,10 @@ something to the shell.
 **Run once, on Farcaster's public node.** On 2026-10-21 a test account
 sent a cast, a like, an unlike, a delete, a follow and an unfollow through
 `crackle`, each run by an agent as described below, and each read back from
-`crackle` afterwards. One cast has since gone through the user's own node
-while it was hours behind on the account's shard: it reached the network,
-but the node did not show it, so it stayed in the outbox.
+`crackle` afterwards. Three casts, a like and its undo, and a follow and
+its undo have since gone through the user's own node. One of those casts
+went while the node was hours behind on the account's shard: it reached
+the network, but the node did not show it, so it stayed in the outbox.
 `resend --node https://crackle.farcaster.xyz:3381` then cleared it: same
 message, no second cast.
 
