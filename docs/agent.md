@@ -53,7 +53,7 @@ Each write is its own command, so your agent's harness can let reads run, ask be
 
 <limit>
 
-Rules like these match the command's text, so another spelling (options first, another path, `sh -c`) or a mode that skips prompts gets past them, and harmless text can trip them. They are a convenience, not a boundary. On your machine an agent with a shell can send anything the app key allows. What holds is the key's scope: casts, deletes, reactions and follows, never the account, its funds or its keys; and `key add` reads the phrase only from a terminal, which an agent's shell does not have.
+These rules match the command's text, so another spelling or a mode that skips prompts gets past them: a convenience, not a boundary. What holds is the key's scope, casts, deletes, reactions and follows but never the account or its funds, and that `key add` reads the phrase only from a terminal.
 
 </limit>
 
