@@ -8,7 +8,8 @@ import { type Context, wantedOf } from "./context";
 import { DEPTH, type FoldKey, NARROW_DEPTH, type Nest } from "./fold";
 import { host } from "./host";
 import { Hover } from "./hover";
-import { type Spot, atOf, monikerOf, parseAt } from "./moniker";
+import { spanned, toggled } from "./marks";
+import { type Spot, atOf, markedOf, monikerOf, parseAt } from "./moniker";
 import { makeRuntime, type Paircaster } from "./runtime";
 import { type Shown, contextsOf, onScreen, reach, read, visible } from "./shown";
 import { type Kept, type Live, type Place, isKept, placeOf, reveal, tell } from "./state";
@@ -71,7 +72,12 @@ function App() {
     opened: new Set(),
     nest: { branches: new Map(), depth: DEPTH },
     userSelected: null,
+    userMarked: null,
   });
+  // What the owner marked on this view, and the cast they last pointed at,
+  // from which Shift marks a span.
+  const userMarks = useRef<string[]>([]);
+  const anchor = useRef<string | null>(null);
   const nest: Nest = { branches, depth };
   live.current = { ...live.current, shown: view.shown, marked, trail, opened, nest };
 
@@ -106,6 +112,8 @@ function App() {
       setView({ shown, error: null, loading: false });
       setTrail(place.trail);
       setMarked(marks);
+      userMarks.current = [];
+      anchor.current = null;
       setOpened(none);
       setTallies(new Map());
       asked.current = new Set();
@@ -241,7 +249,9 @@ function App() {
     if (!connected) return;
     const kept = connected.kept;
     const restored = isKept(kept)
-      ? ((live.current.userSelected = kept.user_selected), load(placeOf(kept)).catch(() => {}))
+      ? ((live.current.userSelected = kept.user_selected),
+        (live.current.userMarked = kept.user_marked ?? null),
+        load(placeOf(kept)).catch(() => {}))
       : Promise.resolve();
     restored.then(() =>
       connected.start({
@@ -265,18 +275,48 @@ function App() {
     const next = back ? trail.slice(0, -1) : [...trail, atOf(project, from)];
     try {
       const shown = await load({ node: live.current.node, at, trail: next });
-      if (shown) point(parseAt(project, at).spot, null);
+      if (shown) {
+        live.current.userMarked = null;
+        point(parseAt(project, at).spot, null);
+      }
     } catch (e) {
       setView((v) => ({ ...v, error: String(e instanceof Error ? e.message : e) }));
     }
   };
 
-  const choose = (cast: Cast) => {
+  // A click on the focus marks it alone; the keyboard reaching a card
+  // selects it the same way, but only while the owner has marked nothing,
+  // and is not itself a mark.
+  const choose = (cast: Cast, glance = false) => {
     const spot = live.current.spot;
-    if (!spot || (marked.length === 1 && marked[0] === refOf(cast))) return;
-    setMarked([refOf(cast)]);
-    live.current.marked = [refOf(cast)];
-    point(spot, refOf(cast));
+    const ref = refOf(cast);
+    if (!spot || (glance && userMarks.current.length > 0)) return;
+    anchor.current = ref;
+    if (!glance) {
+      userMarks.current = [ref];
+      live.current.userMarked = markedOf(project, spot, [ref]);
+    }
+    setMarked([ref]);
+    live.current.marked = [ref];
+    point(spot, ref);
+  };
+
+  // Cmd/Ctrl-click or Space adds a cast to the owner's marks or takes it
+  // out; Shift marks every cast drawn from the last one pointed at.
+  const mark = (cast: Cast, span: boolean) => {
+    const spot = live.current.spot;
+    const shown = live.current.shown;
+    if (!spot || !shown) return;
+    const ref = refOf(cast);
+    const order = onScreen(shown, live.current.opened, live.current.marked, live.current.nest).drawn.map(refOf);
+    const next = span ? spanned(userMarks.current, order, anchor.current, ref) : toggled(userMarks.current, ref);
+    userMarks.current = next;
+    anchor.current = ref;
+    setMarked(next);
+    live.current.marked = next;
+    live.current.userMarked = markedOf(project, spot, next);
+    if (next.includes(ref)) point(spot, ref);
+    else save(live.current);
   };
 
   if (!host) return <p class="note">Open this page with <code>paircaster viewer open</code>.</p>;
@@ -291,7 +331,7 @@ function App() {
     );
   }
   const contexts = contextsOf(shown, nest, fetched);
-  const actions = { marked, tallies, branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose };
+  const actions = { marked, tallies, branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose, onMark: mark };
   return (
     <Hover profiles={profiles} want={want}>
       <main class={view.loading ? "loading" : ""}>
@@ -332,7 +372,13 @@ function useDepth(): number {
 
 function save(now: Live) {
   if (!now.spot) return;
-  const kept: Kept = { node: now.node, at: atOf(project, now.spot), trail: now.trail, user_selected: now.userSelected };
+  const kept: Kept = {
+    node: now.node,
+    at: atOf(project, now.spot),
+    trail: now.trail,
+    user_selected: now.userSelected,
+    user_marked: now.userMarked,
+  };
   host?.keep(kept);
 }
 

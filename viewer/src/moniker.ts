@@ -22,6 +22,10 @@ export function monikerOf(project: string, spot: Spot): string {
   return `${base}thread/${spot.cast}${spot.only ? `?only=${spot.only.join(",")}` : ""}`;
 }
 
+// The view `spot` with `marks` marked, as `#cast=` names them; null for none.
+export const markedOf = (project: string, spot: Spot, marks: string[]): string | null =>
+  marks.length > 0 ? `${monikerOf(project, spot)}#cast=${marks.join(",")}` : null;
+
 // A whole thread by its cast, the form `paircaster viewer open` takes most.
 export const atOf = (project: string, spot: Spot) =>
   spot.kind === "thread" && !spot.only ? spot.cast : monikerOf(project, spot);

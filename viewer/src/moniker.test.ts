@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { MAX_LISTED, type Spot, atOf, monikerOf, parseAt } from "./moniker";
+import { MAX_LISTED, type Spot, atOf, markedOf, monikerOf, parseAt } from "./moniker";
 
 const project = "paircaster";
 const base = "paircaster://paircaster/";
@@ -57,5 +57,14 @@ describe("monikerOf", () => {
   test("a whole thread is kept as its cast, anything else as a moniker", () => {
     expect(atOf(project, spots[0])).toBe(a);
     expect(atOf(project, spots[1])).toBe(monikerOf(project, spots[1]));
+  });
+});
+
+describe("markedOf", () => {
+  test("names the view with the casts marked, or nothing for none", () => {
+    const spot: Spot = { kind: "thread", cast: a, only: null };
+    expect(markedOf(project, spot, [b, c])).toBe(`${base}thread/${a}#cast=${b},${c}`);
+    expect(parseAt(project, markedOf(project, spot, [b, c])!).marks).toEqual([b, c]);
+    expect(markedOf(project, spot, [])).toBeNull();
   });
 });

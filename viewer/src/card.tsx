@@ -19,7 +19,10 @@ export type Actions = {
   branches: Map<string, Branch>;
   contexts: Contexts;
   onOpen(ref: string): void;
-  onSelect(cast: Cast): void;
+  // A plain click on the focus, or keyboard focus on any card (`glance`).
+  onSelect(cast: Cast, glance?: boolean): void;
+  // Cmd/Ctrl-click or Space adds or removes one; Shift a span.
+  onMark(cast: Cast, span: boolean): void;
 };
 
 export type Role = "ancestor" | "focus" | "reply";
@@ -38,11 +41,19 @@ type CardProps = {
 } & Actions;
 
 export function CastCard(props: CardProps) {
-  const { cast, role, nested, parent, replying, accounts, now, marked, tallies, branches, contexts, onOpen, onSelect } =
-    props;
+  const { cast, role, nested, parent, replying, accounts, now, marked, tallies, branches, contexts } = props;
+  const { onOpen, onSelect, onMark } = props;
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
-  const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
+  const click = (e: MouseEvent | KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return onMark(cast, e.shiftKey);
+    role === "focus" ? onSelect(cast) : onOpen(ref);
+  };
+  const key = (e: KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter") click(e);
+    else if (e.key === " ") (e.preventDefault(), onMark(cast, e.shiftKey));
+  };
   return (
     <article
       class={["cast", role, nested && "nested", parent && "parent", marked.includes(ref) && "selected"]
@@ -51,8 +62,9 @@ export function CastCard(props: CardProps) {
       data-cast={ref}
       tabIndex={0}
       onClick={click}
-      onFocus={() => onSelect(cast)}
-      onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && click()}
+      onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+      onFocus={(e) => (e.currentTarget as Element).matches(":focus-visible") && onSelect(cast, true)}
+      onKeyDown={key}
     >
       <div class="rail">
         <Face account={account} fid={cast.fid} />

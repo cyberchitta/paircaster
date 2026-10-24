@@ -54,6 +54,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .cast:hover { background: var(--hover); }
 .cast.selected, .cast:focus-visible { background: var(--selected); }
+/* A marked cast also carries a bar down its left edge, so several marked
+   read as marked apart from the one the keyboard is on. */
+.cast.selected { box-shadow: inset 3px 0 0 var(--accent); }
 .cast.reply { border-top: 1px solid var(--rule); padding-bottom: 10px; }
 .cast.focus { padding-bottom: 12px; cursor: default; }
 .cast.focus .text { font-size: 17px; }

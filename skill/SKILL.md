@@ -589,7 +589,18 @@ something to the shell.
   what Back returns to, each as `open` takes it; `folded` lists the casts
   on the page the user has not opened, and `continued` and `depth` say how
   replies nest, below), and `user_selected` what
-  the user chose. In Shala, when `shala selection` says the user was last in
+  the user chose.
+- **The user can mark several casts**: Cmd- or Ctrl-click (or Space on a
+  card) adds a cast or takes it out, and Shift-click (or Shift-Space) marks
+  every cast drawn from the last one they pointed at; a plain click does
+  what it always did. `user_marked` in `viewer state` names what they
+  marked on the view they are on, as a moniker ending
+  `#cast=<cast>,…` in the order they marked them (a click on the cast a
+  thread is of marks it alone), or is `null` when they have marked nothing
+  there. Opening it with `viewer open` shows the same casts marked. Like
+  `user_selected`, what `viewer open` shows never changes it; the user
+  clicking through to another view clears it. "These", "the ones I
+  marked" mean `user_marked`. In Shala, when `shala selection` says the user was last in
   paircaster's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.

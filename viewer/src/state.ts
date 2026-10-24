@@ -15,14 +15,16 @@ const PROTOCOL = 1;
 // else a moniker.
 export type Place = { node: string; at: string; trail: string[] };
 
-// What the host keeps: the place, and what the owner last chose.
-export type Kept = Place & { user_selected: string | null };
+// What the host keeps: the place, and what the owner last chose and marked
+// (builds before marking several kept no `user_marked`).
+export type Kept = Place & { user_selected: string | null; user_marked?: string | null };
 
 // What the page shows, read by the message handlers, which outlive a render.
 // `userSelected` is the moniker of what the owner last clicked or opened, and
 // only that: what a tell or reveal shows does not change it. `opened` holds
 // the folds the owner opened on this view; `nest` the replies read below the
-// focus, and how deep the page nests them.
+// focus, and how deep the page nests them. `userMarked` names the casts the
+// owner marked on the view they are on, as a moniker, or is null.
 export type Live = {
   node: string;
   spot: Spot | null;
@@ -32,6 +34,7 @@ export type Live = {
   opened: ReadonlySet<string>;
   nest: Nest;
   userSelected: string | null;
+  userMarked: string | null;
 };
 
 export async function reveal(
@@ -59,7 +62,7 @@ export async function tell(now: Live, body: unknown): Promise<Answer> {
     return { ok: false, message: `this page takes paircaster: ${PROTOCOL}; run the paircaster that built it` };
   }
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
-  const common = { node: now.node, user_selected: now.userSelected };
+  const common = { node: now.node, user_selected: now.userSelected, user_marked: now.userMarked };
   if (!now.shown) return { ok: true, message: "no thread open", result: { view: null, ...common } };
   const [text, state] = describe(now.shown, now.marked, now.trail, now.opened, now.nest);
   return { ok: true, message: text, result: { ...state, ...common } };
@@ -75,7 +78,8 @@ export const isKept = (v: unknown): v is Kept =>
   typeof v.node === "string" &&
   (typeof v.at === "string" || typeof v.cast === "string") &&
   Array.isArray(v.trail) &&
-  (v.user_selected === null || typeof v.user_selected === "string");
+  (v.user_selected === null || typeof v.user_selected === "string") &&
+  (v.user_marked === undefined || v.user_marked === null || typeof v.user_marked === "string");
 
 // One line naming a cast, for the owner and the agent.
 function about(accounts: Account[], c: Cast | undefined, ref: string): string {
