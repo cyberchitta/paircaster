@@ -96,7 +96,7 @@ cargo install --path crates/cli --locked --features viewer
 ```
 
 ```output
-dist/: index.html 3423 bytes, viewer.js 1243596 (wasm 901114)
+dist/: index.html 9934 bytes, viewer.js 1277854 (wasm 912374)
 ```
 
 `bun build.ts` prints the line above; the other steps print their usual output.
@@ -150,9 +150,17 @@ I found both by searching his newest 1,000 casts for "wishlist", "client" and "n
 
 > Show me just the replies worth reading.
 
-It read the thread with `paircaster thread --json`, chose six replies, and opened the thread with only those, in its order. The rest fold behind a "Show all" button. The reply names each cast by its author and a few of its words, so you can find it on the page, and says why it chose it:
+It read the replies with `paircaster replies --json`, and the replies to four of them, chose six, and opened the thread with those first, in its order, under a caption it wrote:
 
-<showcase type="image" src="images/viewer-replies.webp" frame="1600x904" alt="The agent's reply in a terminal on the left, listing six replies with a reason for each; on the right, the client wishlist in the browser under the heading 6 of 16 replies, the first of them Dan Romero's own continuation of the list." caption="Six of the wishlist's 16 replies, in the agent's order." />
+```run
+paircaster viewer open 'paircaster://paircaster/thread/3:0x597007de6219f87fdf71ad5769db542c8f2d1dde?only=3:0x660b6bf526a5d977b2cabcfebbfb350f700ec21f,10695:0x01e2c6a1839d389c824ad1550f3b6c2c817abb99,516505:0x0896e38bb856e0859090c4e0a39f7941cc3ceea5,3036:0x459499297ad8d9be01ca88a4c1124e05766d38d4,8332:0x9263e9b11e1c8cfb2a946299098caeb61b229dd0,4167:0x67b18976a4cb53aeb36687f4813b7bbcf5184df1&caption=6%20of%2016%20replies%20worth%20reading%2C%20best%20first#cast=3:0x40a0d26b7ea3c4ef79b1f574ff2261a535cb84c6'
+```
+
+The other ten fold into one line below them, which opens with a click. `#cast=` marks Dan Romero's answer to one of the six, which the page draws nested under it. The reply names each cast by its author and a few of its words, so you can find it on the page, and says why it chose it:
+
+<showcase type="image" src="images/viewer-replies.webp" frame="1600x1005" alt="The agent's reply in a terminal on the left, listing six replies with a reason for each; on the right, the client wishlist in the browser under the heading 6 of 16 replies: Dan Romero's own continuation of the list with two replies nested under it, then jdl's 'sounds difficult to scale' with Dan's marked answer 'I just want it for me.' nested beneath, each card showing its reply, like and recast counts." caption="Six of the wishlist's 16 replies, in the agent's order, with replies to them nested underneath." />
+
+Each card shows its replies, likes and recasts once the page has read them. Replies nest under the reply they answer, three levels deep (two in a narrow pane); a quoted cast shows as a small card; resting the pointer on an author shows their bio and follow counts.
 
 ### You point, the agent reads
 
@@ -165,18 +173,38 @@ It opened that thread. In the page, click KMac's reply, "Yes & filter only from 
 The agent learns what you clicked only when it runs `viewer state`, and it ran that first:
 
 ```output
-told selfcast
+told paircaster
 message: the thread of 4163:0x45563785c747be1f0c407defdae26e3b5d4f596b by @kmacb.eth ("Yes & filter only from specific signers"), 1 cast above it, 0 replies
-result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"cast":"4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","node":"http://localhost:3381","selected":null,"user_selected":"selfcast://selfcast/thread/4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","view":"thread"}
+result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"caption":null,"cast":"4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","continued":[],"depth":3,"folded":[],"node":"http://localhost:3381","selected":null,"user_marked":null,"user_selected":"paircaster://paircaster/thread/4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","view":"thread"}
 ```
 
-`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, and `selected` lists casts the agent marked (none here). It then read the reply and the post above it, and answered:
+`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, `selected` lists the casts marked on the page (none here), `folded` the casts still folded, and `caption` the agent's caption (none on this view). It answered:
 
-<showcase type="image" src="images/viewer-pointing.webp" frame="1600x904" alt="The agent's answer in a terminal on the left: Paircaster can filter what it reads by signer, but not what the node stores. On the right, the browser shows Dan Romero's Snapchain node wishlist with KMac's reply under it, opened by the click." caption="The reply you clicked, and the agent's answer about it." />
+<showcase type="image" src="images/viewer-pointing.webp" frame="1600x1005" alt="The agent's answer in a terminal on the left: Paircaster cannot change what the node stores, but can filter what it reads by the app that signed each cast. On the right, the browser shows Dan Romero's Snapchain node wishlist with KMac's reply under it, opened by the click." caption="The reply you clicked, and the agent's answer about it." />
+
+### Several at once
+
+Back on the node wishlist, hold <kbd>Cmd</kbd> (<kbd>Ctrl</kbd> elsewhere) and click two of trish's replies, "I might like this except I can't" and "So very banned": each is marked, and the page stays where it is. <kbd>Shift</kbd>-click marks every cast between the last one you pointed at and this one. Then:
+
+> What do the ones I marked have in common?
+
+`viewer state` gave them as `user_marked`, a moniker of the view with the marked casts in the order you marked them:
+
+```output
+told paircaster
+message: the thread of 3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77 by @dwr ("Snapchain node wishlist 1. I want to sync only a subset of the network. 2. I don"), 0 casts above it, 10 replies; selected 4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df by @trish ("I might like this except I can’t "); 4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6 by @trish ("So very banned ")
+result: {"back":[],"caption":null,"cast":"3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77","continued":[],"depth":3,"folded":[],"node":"http://localhost:3381","selected":["4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df","4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6"],"user_marked":"paircaster://paircaster/thread/3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77#cast=4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df,4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6","user_selected":"paircaster://paircaster/thread/3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77#cast=4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6","view":"thread"}
+```
+
+It read both casts with `paircaster show`, the thread of the second, and the profile of the app that signed them, and answered:
+
+<showcase type="image" src="images/viewer-marking.webp" frame="1600x1005" alt="The agent's answer in a terminal on the left: both marked casts are trish's, saying she is banned, signed by the Firefly app's key. On the right, the node wishlist in the browser with trish's reply and her nested answer 'So very banned' both marked with a bar down their left edge, and psydeffects' question between them." caption="Two casts you marked, and what the agent found they share." />
+
+The agent can also put up an account: `paircaster viewer open 'paircaster://paircaster/profile/3'` shows Dan Romero's picture, bio and follow counts, and his 25 latest casts.
 
 <limit>
 
-The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` is always yours. Without `--images` it loads nothing but from your node, and shows initials; the screenshots above were taken with `--images`. With it, each profile picture loads from the server its account chose, which learns your address and when you looked. Images in casts are not shown either way. `viewer open` and `viewer state` fail when no page is open, and say so.
+The page cannot tell whether you are looking at it, or whether you or the agent put up what it shows now: only `user_selected` and `user_marked` are always yours. Without `--images` it loads nothing but from your node, and shows initials, and an image in a cast stays a link. With it, each profile picture and each image in a cast loads from the server its account or cast chose, which learns your address and when you looked. `viewer open` and `viewer state` fail when no page is open, and say so.
 
 </limit>
 
