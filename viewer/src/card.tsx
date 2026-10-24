@@ -6,6 +6,7 @@ import { type Branch, repliesLabel } from "./branch";
 import { type Context, type Contexts, PARENT_EXCERPT, QUOTE_EXCERPT, authorOf, excerpt, parentOf } from "./context";
 import { host } from "./host";
 import { useAuthor } from "./hover";
+import { altOf, drawable, hostOf, isImage } from "./media";
 import { type Account, type Cast, ago, appName, hue, initials, refOf, segments } from "./thread";
 
 export type Tally = { likes: number; recasts: number };
@@ -276,9 +277,13 @@ function Embeds({ cast, contexts, now, onOpen }: {
     <div class="embeds">
       {cast.embeds.map((e, i) =>
         "url" in e ? (
-          <Link key={i} url={e.url} chip>
-            {isImage(e.url) ? "image" : hostOf(e.url)}
-          </Link>
+          drawable(e.url) ? (
+            <Picture key={i} url={e.url} />
+          ) : (
+            <Link key={i} url={e.url} chip>
+              {isImage(e.url) ? "image" : hostOf(e.url)}
+            </Link>
+          )
         ) : (
           <Quote
             key={i}
@@ -294,11 +299,35 @@ function Embeds({ cast, contexts, now, onOpen }: {
   );
 }
 
-function Link({ url, chip, children }: { url: string; chip?: boolean; children: preact.ComponentChildren }) {
+// An image in a cast, drawn where the page policy allows remote images
+// (`viewer serve --images`), bounded in size and loaded as it nears the
+// pane; refused or broken, a link labelled "image", as before.
+function Picture({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <Link url={url} chip>
+        image
+      </Link>
+    );
+  }
+  return (
+    <Link url={url} picture>
+      <img src={url} alt={altOf(url)} loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
+    </Link>
+  );
+}
+
+function Link({ url, chip, picture, children }: {
+  url: string;
+  chip?: boolean;
+  picture?: boolean;
+  children: preact.ComponentChildren;
+}) {
   const opens = host?.opensLinks ?? false;
   return (
     <a
-      class={chip ? "chip" : undefined}
+      class={chip ? "chip" : picture ? "picture" : undefined}
       href={url}
       title={url}
       target="_blank"
@@ -308,23 +337,4 @@ function Link({ url, chip, children }: { url: string; chip?: boolean; children: 
       {children}
     </a>
   );
-}
-
-// The page shows no images in casts, so an image is a link labelled as one:
-// Farcaster's image host, or a link to an image file.
-function isImage(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.host === "imagedelivery.net" || /\.(png|jpe?g|gif|webp|avif)$/i.test(u.pathname);
-  } catch {
-    return false;
-  }
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }

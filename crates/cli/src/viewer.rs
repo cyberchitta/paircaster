@@ -61,8 +61,9 @@ pub enum ViewerCommand {
     /// Serve the viewer on 127.0.0.1, reading from --node, until stopped.
     /// Prints the address to open it at.
     Serve {
-        /// Show profile pictures. Each loads from the host its account chose,
-        /// which then learns your address and when you looked.
+        /// Show profile pictures and images in casts. Each loads from the host
+        /// its account or cast chose, which then learns your address and when
+        /// you looked.
         #[arg(long)]
         images: bool,
     },

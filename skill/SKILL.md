@@ -541,7 +541,7 @@ can find it on the page. Print casts in the reply only when no page is
 open, or when the user asks for the text.
 
 ```
-paircaster viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address
+paircaster viewer serve [--images]   # host the page on 127.0.0.1 until stopped; prints its address; --images: pictures
 paircaster viewer open <FID:HASH>    # show that cast's thread; prints what it opened
 paircaster viewer open <MONIKER>     # show what a paircaster moniker names (below)
 paircaster viewer state              # what the page shows: thread or list, marked casts, Back trail
@@ -614,11 +614,14 @@ something to the shell.
   paircaster's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
   it shows.
-- **Profile pictures only with `serve --images`.** Each then loads from
-  the server its account chose, which learns the user's address and when
-  they looked. Off by default: turn it on only when the user asks. Without
-  it, or where a picture fails, the page shows initials. Shala's page
-  policy refuses remote images, so in Shala there are none.
+- **Pictures only with `serve --images`**: profile pictures, and images
+  in casts, drawn in the card (bounded, loaded as they scroll near). Each
+  then loads from the server its account or its cast chose, which learns
+  the user's address and when they looked. Off by default: turn it on only
+  when the user asks, and say so. Without it, or where a picture fails,
+  the page shows initials, and an image in a cast stays a link labelled
+  `image`. Shala's page policy refuses remote images, so in Shala there
+  are none.
 - Each card shows its likes and recasts once the page has read them,
   current counts as `reactions` gives them, and its direct replies as
   `replies` counts them ("3 replies", "100+ replies" past 100; nothing for
@@ -663,8 +666,9 @@ something to the shell.
   and handle only. It is not a selection: `viewer state` does not report
   it, and a click on the author still does what a click on the cast does:
   the user cannot open a profile view from a card; you open it.
-- The page shows no images in casts: an image is a link labelled
-  `image`. In Shala it opens no links: a link shows its address.
+- Other links in casts are chips naming their host; the page fetches
+  nothing from them (no previews). In Shala it opens no links: a link
+  shows its address.
 
 ## Writes
 

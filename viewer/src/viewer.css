@@ -123,6 +123,18 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-decoration: none;
 }
 .chip:hover { color: var(--accent); }
+/* An image in a cast, with remote images allowed: as wide as the card, two
+   to a row when there are several, never taller than a third of a screen. */
+.picture { display: block; flex: 1 1 200px; min-width: 0; max-width: 100%; }
+.picture img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--hover);
+}
 
 /* A list reply's parent, on one line above its name; a click opens it. */
 .context {
