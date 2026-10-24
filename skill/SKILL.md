@@ -549,11 +549,11 @@ something to the shell.
 
 - **One viewer per machine.** Before `serve`, run `viewer state`: if it
   answers, a page is already open, so use it. If `serve` refuses with
-  `another host is listening on …`, a viewer started elsewhere (the user's
-  terminal, or an earlier session) is still running. `viewer open` and
-  `viewer state` reach it, but its address is printed only where it was
-  started: ask the user for that address, or to stop that viewer so you
-  can start one.
+  `a viewer is already running on this machine`, one started elsewhere
+  (the user's terminal, or an earlier session) is still running. `viewer
+  open` and `viewer state` reach it, but its address is printed only where
+  it was started: ask the user for that address, or to stop that viewer so
+  you can start one.
 - **`serve` keeps running.** Run it in the background, or ask the user to
   run it in a terminal, and give them the address it prints to open. It
   reads from `--node`, and the page can reach only that node. A paircaster

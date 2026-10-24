@@ -46,6 +46,10 @@ pub enum ViewerError {
     NotBuiltIn,
     #[error("the viewer cannot reach this node: {0}")]
     BadNode(#[from] BadOrigin),
+    #[error(
+        "a viewer is already running on this machine, started in another terminal or session: `paircaster viewer open` and `viewer state` reach it, and its address is where it was started; to start a new one, stop that one first (Ctrl-C where it runs)"
+    )]
+    AlreadyServing,
     #[error("could not start the viewer: {0}")]
     Host(#[from] HostError),
     #[error("the viewer stopped: {0}")]
@@ -194,7 +198,11 @@ async fn serve(node: &str, remote_images: bool) -> Result<(), ViewerError> {
         },
         socket: socket_path(PROJECT),
     })
-    .await?;
+    .await
+    .map_err(|e| match e {
+        HostError::SocketInUse(_) => ViewerError::AlreadyServing,
+        other => ViewerError::Host(other),
+    })?;
     out::line(format!("open the viewer at {}", host.page_url()));
     out::line("stop it with Ctrl-C");
     host.serve().await.map_err(ViewerError::Serve)
