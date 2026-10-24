@@ -200,7 +200,9 @@ It read both casts with `paircaster show`, the thread of the second, and the pro
 
 <showcase type="image" src="images/viewer-marking.webp" frame="1600x1005" alt="The agent's answer in a terminal on the left: both marked casts are trish's, saying she is banned, signed by the Firefly app's key. On the right, the node wishlist in the browser with trish's reply and her nested answer 'So very banned' both marked with a bar down their left edge, and psydeffects' question between them." caption="Two casts you marked, and what the agent found they share." />
 
-The agent can also put up an account: `paircaster viewer open 'paircaster://paircaster/profile/3'` shows Dan Romero's picture, bio and follow counts, and his 25 latest casts.
+The agent can also put up an account: `paircaster viewer open 'paircaster://paircaster/profile/3'` shows Dan Romero's picture, bio and follow counts, and his 25 latest casts. With `--images`, an image in a cast is drawn in its card:
+
+<showcase type="image" src="images/viewer-profile.webp" frame="1600x1005" alt="On the right, Dan Romero's profile in the browser: his picture, name, handle and FID, bio, 79 following and 10K+ followers, then his latest casts: a landscape photo drawn in its card with 24 replies, 222 likes and 27 recasts; 'Neat' quoting balajis's cast about the Farcaster prize as a small card; and a cast headed 'replying to @jdl: sounds difficult to scale'." caption="An account's profile, with an image, a quoted cast and a reply's context drawn in the cards." />
 
 <limit>
 

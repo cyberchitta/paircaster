@@ -190,7 +190,7 @@ Each idea is explained where the guide first uses it.
 - A cast sent with `--embed`.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - A shutdown or logout with the node running; a restart with Docker other than OrbStack.
-- The viewer in browsers other than Chrome, and images in casts drawn inline with `--images`.
+- The viewer in browsers other than Chrome.
 - The agent's install where it installs the node: its hand-over of Snapchain's installer and the snapshot download has not been seen. Also the install where Rust or Bun is missing, and through Codex.
 - For a node installed some other way than this guide's: reaching its API through a web proxy, and pointing `node status` at its install directory.
 
