@@ -254,11 +254,15 @@ After a restart with the node running, it came back without being started, and h
 
 ## Upgrades
 
-The bootstrap script adds a weekly cron job that upgrades Snapchain, unless `~/snapchain/.env` contains `SKIP_CRONTAB=true`. The quickstart adds it, so upgrades happen by hand. It also lets you leave the operator FID blank: without it, a blank FID stops the script before it starts the node, because it needs the FID to pick a day for the weekly job ([snapchain #1030](https://github.com/farcasterxyz/snapchain/issues/1030)). The weekly job also runs `docker system prune --volumes -f` after each upgrade (the `autoupgrade` branch of `snapchain.sh`), which deletes every stopped container and unused volume on the machine, not only Snapchain's. On a server used only for the node that is harmless; on your own computer it is not. To upgrade:
+The bootstrap script adds a weekly cron job that upgrades Snapchain, unless `~/snapchain/.env` contains `SKIP_CRONTAB=true`. The quickstart adds it, so upgrades happen by hand. It also lets you leave the operator FID blank: without it, a blank FID stops the script before it starts the node, because it needs the FID to pick a day for the weekly job ([snapchain #1030](https://github.com/farcasterxyz/snapchain/issues/1030)). The weekly job also runs `docker system prune --volumes -f` after each upgrade (the `autoupgrade` branch of `snapchain.sh`), which deletes every stopped container and unused volume on the machine, not only Snapchain's. On a server used only for the node that is harmless; on your own computer it is not.
+
+Upgrade when the network moves to a new Snapchain version. A node still on the old version stops following a shard at the first message the new rules allow and the old ones refuse: `node status` shows that shard falling behind while the others keep up, and `docker logs snapchain-snapchain-1` shows a panic with `merkle trie root hash mismatch`. The node's version is in `node status`; the newest is the top tag on [Docker Hub](https://hub.docker.com/r/farcasterxyz/snapchain/tags). To upgrade:
 
 ```run
-cd ~/snapchain && ./snapchain.sh upgrade
+cd ~/snapchain && docker compose pull snapchain && docker compose up -d snapchain
 ```
+
+The compose file names the image `latest`, so this fetches the newest and restarts the node on it; the shard that stopped resumes. Snapchain's own `./snapchain.sh upgrade` also updates its script and compose file, but on an install like this guide's, with no Grafana running, it waits for Grafana forever before it restarts the node.
 
 ---
 
