@@ -8,10 +8,11 @@ use serde::Serialize;
 
 use crate::address::Address;
 use crate::cast::{Cast, CastRef, ChannelUrl, Mention, Reaction, Target};
-use crate::event::{Change, Event, EventBody};
+use crate::event::{Change, Content, Event, EventBody};
 use crate::feed::FeedItem;
 use crate::follow::Follow;
 use crate::profile::{self, Names, Profile, Users};
+use crate::proto::ReactionType;
 use crate::reaction::CastReactions;
 use crate::thread::{ChainTop, Thread};
 
@@ -156,6 +157,14 @@ pub fn channel_json(channel: &ChannelUrl, items: &[FeedItem], users: &Users) -> 
 /// the message gives itself; `block_time` is when the shard merged it.
 /// Only a `cast_add` has `text`, `mentions`, `embeds` and `parent`, as in
 /// `feed` but with no usernames: `text` is without the mentioned names.
+/// A `reaction_add` or `reaction_remove` ends with what it reacts to, a
+/// `link_add` or `link_remove` with the account it links:
+///
+/// ```json
+/// { …, "type": "reaction_add", …, "reaction": "like", "target": { "cast": { "fid": 37, "hash": "0x…" } } }
+/// { …, "type": "link_add", …, "link": "follow", "target_fid": 3 }
+/// ```
+///
 /// The other events, after the same first five fields:
 ///
 /// ```json
@@ -183,7 +192,7 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
             hash,
             timestamp,
             signer,
-            cast,
+            content,
         } => {
             let m = EventMessageV1 {
                 kind,
@@ -191,7 +200,7 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
                 hash: hash.to_string(),
                 timestamp: timestamp.to_string(),
                 signer: signer.to_string(),
-                cast: cast.as_deref().map(event_cast_v1),
+                content: content.as_ref().map(event_content_v1),
             };
             match change {
                 Change::Merge => EventBodyV1::Merge(m),
@@ -206,6 +215,29 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
         },
         EventBody::OnChain { fid, kind } => EventBodyV1::Onchain { kind, fid: *fid },
         EventBody::Other { node_type } => EventBodyV1::Other { kind: node_type },
+    }
+}
+
+fn event_content_v1(c: &Content) -> EventContentV1<'_> {
+    match c {
+        Content::Cast(cast) => EventContentV1::Cast(event_cast_v1(cast)),
+        Content::Reaction { kind, target } => EventContentV1::Reaction {
+            reaction: reaction_name(*kind),
+            target: target_v1(target),
+        },
+        Content::Link { kind, target_fid } => EventContentV1::Link {
+            link: kind,
+            target_fid: *target_fid,
+        },
+    }
+}
+
+/// A reaction's kind as the JSON names it: `like` or `recast`.
+pub fn reaction_name(kind: ReactionType) -> &'static str {
+    match kind {
+        ReactionType::Like => "like",
+        ReactionType::Recast => "recast",
+        ReactionType::None => "none",
     }
 }
 
@@ -447,7 +479,21 @@ struct EventMessageV1<'a> {
     timestamp: String,
     signer: String,
     #[serde(flatten)]
-    cast: Option<EventCastV1<'a>>,
+    content: Option<EventContentV1<'a>>,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum EventContentV1<'a> {
+    Cast(EventCastV1<'a>),
+    Reaction {
+        reaction: &'static str,
+        target: TargetV1<'a>,
+    },
+    Link {
+        link: &'a str,
+        target_fid: u64,
+    },
 }
 
 #[derive(Serialize)]

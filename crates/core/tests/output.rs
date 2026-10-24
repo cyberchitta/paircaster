@@ -3,7 +3,7 @@
 
 use paircaster_core::address::{Address, Protocol, Verification};
 use paircaster_core::cast::{Cast, CastRef, Mention, MessageHash, Reaction, SignerKey, Target};
-use paircaster_core::event::{Change, Event, EventBody};
+use paircaster_core::event::{Change, Content, Event, EventBody};
 use paircaster_core::feed::FeedItem;
 use paircaster_core::follow::Follow;
 use paircaster_core::output;
@@ -176,7 +176,7 @@ fn event_lines_keep_their_shape() {
     let h = format!("0x{}", "ab".repeat(20));
     let signer = format!("0x{}", "01".repeat(32));
     let head = r#"{"version":1,"shard":1,"id":81922,"block":5,"block_time":"2021-01-01T00:00:10Z""#;
-    let message = |change, kind: &str, cast| {
+    let message = |change, kind: &str, content| {
         event(EventBody::Message {
             change,
             kind: kind.to_owned(),
@@ -184,7 +184,7 @@ fn event_lines_keep_their_shape() {
             hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
             timestamp: Timestamp::from_farcaster(9),
             signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
-            cast,
+            content,
         })
     };
     let fields =
@@ -200,14 +200,45 @@ fn event_lines_keep_their_shape() {
     .iter()
     .for_each(|(c, name)| {
         assert_eq!(
-            output::event_json(&message(*c, "cast_add", Some(Box::new(item().cast)))),
+            output::event_json(&message(
+                *c,
+                "cast_add",
+                Some(Content::Cast(Box::new(item().cast)))
+            )),
             format!(r#"{head},"event":"{name}","type":"cast_add",{fields}{cast}}}"#)
         );
     });
-    assert_eq!(
-        output::event_json(&message(Change::Merge, "reaction_add", None)),
-        format!(r#"{head},"event":"merge","type":"reaction_add",{fields}}}"#)
-    );
+    let like = Content::Reaction {
+        kind: ReactionType::Like,
+        target: Target::Cast(CastRef {
+            fid: 37,
+            hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
+        }),
+    };
+    let follow = Content::Link {
+        kind: "follow".to_owned(),
+        target_fid: 3,
+    };
+    [
+        (
+            "reaction_add",
+            Some(like),
+            format!(r#","reaction":"like","target":{{"cast":{{"fid":37,"hash":"{h}"}}}}"#),
+        ),
+        (
+            "link_add",
+            Some(follow),
+            r#","link":"follow","target_fid":3"#.to_owned(),
+        ),
+        ("user_data_add", None, String::new()),
+    ]
+    .into_iter()
+    .for_each(|(kind, content, rest)| {
+        assert_eq!(
+            output::event_json(&message(Change::Merge, kind, content)),
+            format!(r#"{head},"event":"merge","type":"{kind}",{fields}{rest}}}"#)
+        );
+    });
     let others = [
         (
             EventBody::UsernameProof {

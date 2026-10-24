@@ -1,6 +1,6 @@
 ---
 name: paircaster
-description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers installing paircaster and its viewer from the clone and setting up the node (which steps are the user's), checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, and for finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
+description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) node and read from it. Covers installing paircaster and its viewer from the clone and setting up the node (which steps are the user's), checking which phase the node is in (snapshot download, unpack, stopped, syncing, ready), pausing or resuming the snapshot download, reading profiles (by FID or username), verified addresses, follower and following lists, feeds, accounts' casts, a channel's casts, threads, a cast's likes and recasts, and the network's recent events (for counting, ranking casts by likes, and finding the last three days' casts by their text) from the node, showing a thread to the user in the viewer page (in a browser or Shala), with worked examples (account stats, a feed of a list of accounts), and writing (casts, deletes, reactions, follows) once the user enables it, with the CLI's own confirmation text shown verbatim and harness permission rules that gate each write. Load before running any `paircaster` command.
 ---
 
 # paircaster
@@ -396,6 +396,11 @@ them with `thread`. A cast found here may have been deleted since: the
 node then no longer holds it, and `viewer open` refuses a list that
 includes it, naming the cast. Drop it and open the rest.
 
+A `reaction_add` or `reaction_remove` ends with `"reaction"` (`like` or
+`recast`) and `"target"` (`{"cast":{"fid","hash"}}`, or `{"url":…}`); a
+`link_add` or `link_remove` with `"link"` (`follow`, or `block`) and
+`"target_fid"`.
+
 The node keeps about three days of events, so this answers "this week"
 only for those days: say which days the count covers (the first line's
 `block_time`). One day is about 55,000 lines, read in a few seconds; three
@@ -420,6 +425,17 @@ before reading them. It matches words, not meaning, and misses a cast that
 names the subject only in an image or a link. Do not fetch casts one by one
 from the node's HTTP API instead: it drops requests under load, and the
 text is already here.
+
+To rank casts by likes, count the like merges by target in the same way:
+
+```
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .reaction == "like" and .target.cast) | "\(.target.cast.fid):\(.target.cast.hash)") | group_by(.) | map({cast: .[0], likes: length}) | sort_by(-.likes) | .[:3]'
+```
+
+gave 149, 126 and 107 likes for the top three. These are the likes merged
+in the window, to casts of any age, so say so. For the casts posted in the
+window, keep the targets that are `cast_add` merges in the same read. A
+cast's likes in full come from `reactions`.
 
 ### `paircaster replies <FID:HASH> --json`
 

@@ -1,6 +1,7 @@
 //! `paircaster events`: what the node's shards merged, block by block.
 
-use paircaster_core::event::{Change, Event, EventBody};
+use paircaster_core::cast::Target;
+use paircaster_core::event::{Change, Content, Event, EventBody};
 use paircaster_core::output;
 use paircaster_core::time::Timestamp;
 use paircaster_core::{Error, Node};
@@ -39,21 +40,42 @@ fn print_event(e: &Event, json: bool) {
                 e.shard,
                 describe(&e.body)
             ));
-            print_text(&e.body);
+            print_content(&e.body);
         }
     }
 }
 
-/// A cast's text under its event, indented, as the cast reads give it but
-/// without the mentioned names, which the event does not look up.
-fn print_text(body: &EventBody) {
-    if let EventBody::Message {
-        cast: Some(cast), ..
+/// What the message says, indented under its event: a cast's text, as the
+/// cast reads give it but without the mentioned names, which the event
+/// does not look up; what a reaction is to; whom a link points at.
+fn print_content(body: &EventBody) {
+    let EventBody::Message {
+        content: Some(content),
+        ..
     } = body
-    {
-        cast.text
+    else {
+        return;
+    };
+    match content {
+        Content::Cast(cast) => cast
+            .text
             .lines()
-            .for_each(|l| crate::out::line(format_args!("    {l}")));
+            .for_each(|l| crate::out::line(format_args!("    {l}"))),
+        Content::Reaction { kind, target } => crate::out::line(format_args!(
+            "    {} {}",
+            output::reaction_name(*kind),
+            target_text(target)
+        )),
+        Content::Link { kind, target_fid } => {
+            crate::out::line(format_args!("    {kind} fid {target_fid}"))
+        }
+    }
+}
+
+fn target_text(target: &Target) -> String {
+    match target {
+        Target::Cast(r) => r.to_string(),
+        Target::Url(url) => url.clone(),
     }
 }
 

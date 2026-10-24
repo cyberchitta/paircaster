@@ -2,7 +2,8 @@
 //! the node records them. Pure; the node module fetches the pages.
 
 use crate::Error;
-use crate::cast::{Cast, MessageHash, SignerKey};
+use crate::cast::{Cast, MessageHash, SignerKey, Target};
+use crate::proto::ReactionType;
 use crate::time::Timestamp;
 
 /// Bits of an event id below the block height (snapchain v0.14.3
@@ -40,8 +41,8 @@ pub enum EventBody {
         /// The time the message gives itself, not when it was merged.
         timestamp: Timestamp,
         signer: SignerKey,
-        /// The cast, for a `cast_add`; `None` for every other kind.
-        cast: Option<Box<Cast>>,
+        /// What the message says, for the kinds read; `None` for the rest.
+        content: Option<Content>,
     },
     UsernameProof {
         fid: u64,
@@ -56,6 +57,18 @@ pub enum EventBody {
     },
     /// An event of a type Paircaster does not read, with the node's name for it.
     Other { node_type: String },
+}
+
+/// What a message in an event says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Content {
+    /// A `cast_add`: the cast.
+    Cast(Box<Cast>),
+    /// A `reaction_add` or `reaction_remove`: a like or a recast, and what of.
+    Reaction { kind: ReactionType, target: Target },
+    /// A `link_add` or `link_remove`: the link's type (`follow`) and the
+    /// account it points at.
+    Link { kind: String, target_fid: u64 },
 }
 
 /// An event as a page lists it.

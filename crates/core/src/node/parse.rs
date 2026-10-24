@@ -15,13 +15,13 @@ use crate::account::Username;
 use crate::address::{Protocol, Verification};
 use crate::cast::{Cast, CastRef, ChannelUrl, Mention, MessageHash, Reaction, SignerKey, Target};
 use crate::custody::EthAddress;
-use crate::event::{Change, EventBody, PageEvent};
+use crate::event::{Change, Content, EventBody, PageEvent};
 use crate::follow::Follow;
 use crate::profile::UserDatum;
 use crate::proto::json::message_from_json;
 use crate::proto::{
     Body, CastAddBody, CastParent, CastType, EmbedTarget, LinkTarget, Message, MessageData,
-    MessageType, ReactionTarget, ReactionType, UserDataType,
+    MessageType, ReactionBody, ReactionTarget, ReactionType, UserDataType,
 };
 use crate::signer::Signer;
 use crate::time::Timestamp;
@@ -96,9 +96,9 @@ pub fn casts_in_channel(page: Value, channel: &ChannelUrl) -> Result<Page<Cast>,
 }
 
 /// A `GET /v1/events` page (snapchain v0.14.3 `src/network/http_server.rs`,
-/// `HubEvent` line 1986). A cast add is read in full, as `castsByFid` reads
-/// it; other message bodies are not read past the fields the event list
-/// shows.
+/// `HubEvent` line 1986). Casts, reactions and links are read in full, as
+/// the reads by account read them; other message bodies are not read past
+/// the fields the event list shows.
 pub fn events(page: Value) -> Result<Vec<PageEvent>, Error> {
     #[derive(Deserialize)]
     struct Raw {
@@ -224,8 +224,10 @@ fn event_body(raw: RawEvent) -> Result<EventBody, Error> {
 fn message_event(body: RawMessageEvent, change: Change) -> Result<EventBody, Error> {
     let m = RawEventMessage::deserialize(&body.message).map_err(|e| bad(&e.to_string()))?;
     let kind = unprefixed(&m.data.kind, "MESSAGE_TYPE_")?;
-    let cast = match kind.as_str() {
-        "cast_add" => Some(Box::new(cast(&message_from_json(body.message)?)?)),
+    let content = match kind.as_str() {
+        "cast_add" | "reaction_add" | "reaction_remove" | "link_add" | "link_remove" => {
+            Some(content(&message_from_json(body.message)?)?)
+        }
         _ => None,
     };
     Ok(EventBody::Message {
@@ -237,8 +239,26 @@ fn message_event(body: RawMessageEvent, change: Change) -> Result<EventBody, Err
         timestamp: Timestamp::from_farcaster(m.data.timestamp),
         signer: SignerKey::from_bytes(&hex_bytes(&m.signer)?)
             .ok_or_else(|| bad("signer is not 32 bytes"))?,
-        cast,
+        content,
     })
+}
+
+fn content(m: &Message) -> Result<Content, Error> {
+    match data_and_body(m)?.1 {
+        Body::CastAdd(_) => Ok(Content::Cast(Box::new(cast(m)?))),
+        Body::Reaction(r) => {
+            let (kind, target) = reaction_parts(r)?;
+            Ok(Content::Reaction { kind, target })
+        }
+        Body::Link(link) => match link.target {
+            Some(LinkTarget::Fid(target_fid)) => Ok(Content::Link {
+                kind: link.r#type.clone(),
+                target_fid,
+            }),
+            None => Err(bad("link without a target")),
+        },
+        _ => Err(bad("event message of a kind not read")),
+    }
 }
 
 fn needed<T>(body: Option<T>, kind: &str) -> Result<T, Error> {
@@ -411,20 +431,31 @@ pub fn reactions_to_cast(
 pub fn reactions(page: Value) -> Result<Page<Reaction>, Error> {
     messages(page)?.try_filter_map(|m| {
         let (data, body) = data_and_body(&m)?;
-        match body {
-            Body::Reaction(r) => Ok(Some(Reaction {
-                fid: data.fid,
-                kind: enum_value::<ReactionType>(r.r#type)?,
-                target: match &r.target {
-                    Some(ReactionTarget::CastId(id)) => Target::Cast(cast_ref(id.fid, &id.hash)?),
-                    Some(ReactionTarget::Url(url)) => Target::Url(url.clone()),
-                    None => return Err(bad("reaction without a target")),
-                },
-                timestamp: Timestamp::from_farcaster(data.timestamp),
-            })),
-            _ => Err(bad("non-reaction message in a page of reactions")),
-        }
+        let Body::Reaction(r) = body else {
+            return Err(bad("non-reaction message in a page of reactions"));
+        };
+        let (kind, target) = reaction_parts(r)?;
+        Ok(Some(Reaction {
+            fid: data.fid,
+            kind,
+            target,
+            timestamp: Timestamp::from_farcaster(data.timestamp),
+        }))
     })
+}
+
+/// A reaction's kind, like or recast, and what it is to.
+fn reaction_parts(r: &ReactionBody) -> Result<(ReactionType, Target), Error> {
+    let kind = match enum_value::<ReactionType>(r.r#type)? {
+        ReactionType::None => return Err(bad("reaction type is NONE")),
+        kind => kind,
+    };
+    let target = match &r.target {
+        Some(ReactionTarget::CastId(id)) => Target::Cast(cast_ref(id.fid, &id.hash)?),
+        Some(ReactionTarget::Url(url)) => Target::Url(url.clone()),
+        None => return Err(bad("reaction without a target")),
+    };
+    Ok((kind, target))
 }
 
 /// A `signersByFid` page.

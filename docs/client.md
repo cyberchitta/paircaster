@@ -301,6 +301,7 @@ paircaster events --since 2026-10-23T03:00:00Z --until 2026-10-23T03:00:10Z
     
     https://readnode.aft.page
 2026-10-23T03:00:04Z  shard 2  merge reaction_add  fid 3356524  0x9c00192cc0c2514ff08a3a7c8e12a62ada74f4d8
+    like 129:0xcfba523baec895dca4d524e98ee07cfe12527abc
 ```
 
 The time is the block's, when the shard merged the event, not the time a message gives itself (`timestamp` in `--json`). A node keeps about three days of events, so this is the network's recent activity, not its history. With `--json`, each event is one line, and counting is a matter of `jq`. One day, by kind of event:
@@ -332,6 +333,18 @@ paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(s
 ```output
 {"casts":9421,"accounts":2427}
 ```
+
+A like or recast names the cast it is to (`reaction`, `target`), and a follow the account (`link`, `target_fid`), so the casts liked most that day:
+
+```run
+paircaster events --since 2026-10-22 --until 2026-10-23 --json | jq -s -c 'map(select(.event == "merge" and .reaction == "like" and .target.cast) | "\(.target.cast.fid):\(.target.cast.hash)") | group_by(.) | map({cast: .[0], likes: length}) | sort_by(-.likes) | .[:3]'
+```
+
+```output
+[{"cast":"316323:0xcc9166750ab10efb63ca22c17fe981f4e7624349","likes":149},{"cast":"912253:0xeb7ff856fab32bcde047cf56c8661448bc6700af","likes":126},{"cast":"234616:0xe2c1b2f3ed1b3d511f9d46902ce6db7529ef0782","likes":107}]
+```
+
+These are the likes merged that day, to casts of any age. `paircaster reactions` on a cast gives all its likes.
 
 `--since` finds its first block by halving block heights, a few dozen requests per shard. Then each shard is read 10,000 events at a time, one shard after the other, so lines are in order within a shard, not across shards. Reading all three days took 13 seconds here. `other` is an event `paircaster` does not read, with the node's name for it as `type` (here, merge failures). Where a merge replaces messages, as a cast remove replaces its cast, the replaced ones are not listed.
 

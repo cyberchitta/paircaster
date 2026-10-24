@@ -1,13 +1,14 @@
 mod common;
 
 use std::collections::{BTreeSet, HashMap};
+use std::str::FromStr;
 
 use common::{fixture, fixture_messages};
 use paircaster_core::Error;
 use paircaster_core::account::Username;
 use paircaster_core::address::{self, Protocol};
 use paircaster_core::cast::{Cast, CastRef, ChannelUrl, Reaction, Target};
-use paircaster_core::event::{self, Change, EventBody, EventWalk, PageEvent};
+use paircaster_core::event::{self, Change, Content, EventBody, EventWalk, PageEvent};
 use paircaster_core::feed::{self, AppFilter, FeedItem};
 use paircaster_core::follow::{self, Follow};
 use paircaster_core::node::{self, ShardSync, SyncState, parse};
@@ -699,16 +700,46 @@ fn an_events_page_reads_every_kind_of_event() {
         |b| matches!(b, EventBody::Message { change: Change::Merge, kind, .. } if kind == "cast_add"),
     );
     assert_eq!(casts, 799);
-    let cast_or_not = |b: &EventBody| match b {
-        EventBody::Message { kind, cast, .. } => (kind == "cast_add") == cast.is_some(),
+    let content_or_not = |b: &EventBody| match b {
+        EventBody::Message { kind, content, .. } => {
+            let read = [
+                "cast_add",
+                "reaction_add",
+                "reaction_remove",
+                "link_add",
+                "link_remove",
+            ];
+            read.contains(&kind.as_str()) == content.is_some()
+        }
         _ => true,
     };
-    assert_eq!(body(cast_or_not), 2_850 + 1_458 + 2 + 69 + 21);
-    let first = page.iter().find_map(|e| match e {
-        PageEvent::Event {
-            body: EventBody::Message { cast: Some(c), .. },
-            ..
-        } => Some(c),
+    assert_eq!(body(content_or_not), 2_850 + 1_458 + 2 + 69 + 21);
+    let contents: Vec<&Content> = page
+        .iter()
+        .filter_map(|e| match e {
+            PageEvent::Event {
+                body:
+                    EventBody::Message {
+                        content: Some(c), ..
+                    },
+                ..
+            } => Some(c),
+            _ => None,
+        })
+        .collect();
+    let of = |f: fn(&Content) -> bool| contents.iter().filter(|c| f(c)).count();
+    assert_eq!(of(|c| matches!(c, Content::Cast(_))), 1_115);
+    assert_eq!(of(|c| matches!(c, Content::Reaction { .. })), 2_613 + 25);
+    assert_eq!(of(|c| matches!(c, Content::Link { .. })), 340 + 3);
+    let liked = Target::Cast(
+        CastRef::from_str("248222:0xaff779842a92d3cb3da096d7d34cb35da7e98657").expect("a cast"),
+    );
+    assert!(contents.iter().any(|c| matches!(c,
+        Content::Reaction { kind: ReactionType::Like, target } if *target == liked)));
+    assert!(contents.iter().any(|c| matches!(c,
+        Content::Link { kind, target_fid: 2_726_056 } if kind == "follow")));
+    let first = contents.iter().find_map(|c| match c {
+        Content::Cast(c) => Some(c),
         _ => None,
     });
     assert_eq!(
