@@ -2,8 +2,9 @@
 // for `viewer state`. Both answers are external formats (skill/SKILL.md).
 
 import type { Answer } from "pair-ui/page";
+import type { Nest } from "./fold";
 import { type Spot, baseOf, parseAt } from "./moniker";
-import { type Shown, accountsOf, count, onScreen, visible } from "./shown";
+import { type Shown, accountsOf, count, onScreen } from "./shown";
 import { type Account, type Cast, refOf } from "./thread";
 
 // The tell bodies this build takes: `{ paircaster: 1, get: "state" }`.
@@ -20,7 +21,8 @@ export type Kept = Place & { user_selected: string | null };
 // What the page shows, read by the message handlers, which outlive a render.
 // `userSelected` is the moniker of what the owner last clicked or opened, and
 // only that: what a tell or reveal shows does not change it. `opened` holds
-// the folds the owner opened on this view.
+// the folds the owner opened on this view; `nest` the replies read below the
+// focus, and how deep the page nests them.
 export type Live = {
   node: string;
   spot: Spot | null;
@@ -28,6 +30,7 @@ export type Live = {
   marked: string[];
   trail: string[];
   opened: ReadonlySet<string>;
+  nest: Nest;
   userSelected: string | null;
 };
 
@@ -58,7 +61,7 @@ export async function tell(now: Live, body: unknown): Promise<Answer> {
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
   const common = { node: now.node, user_selected: now.userSelected };
   if (!now.shown) return { ok: true, message: "no thread open", result: { view: null, ...common } };
-  const [text, state] = describe(now.shown, now.marked, now.trail, now.opened);
+  const [text, state] = describe(now.shown, now.marked, now.trail, now.opened, now.nest);
   return { ok: true, message: text, result: { ...state, ...common } };
 }
 
@@ -75,38 +78,51 @@ export const isKept = (v: unknown): v is Kept =>
   (v.user_selected === null || typeof v.user_selected === "string");
 
 // One line naming a cast, for the owner and the agent.
-function about(accounts: Account[], c: Cast): string {
+function about(accounts: Account[], c: Cast | undefined, ref: string): string {
+  if (!c) return ref;
   const who = accounts.find((a) => a.fid === c.fid)?.username;
   const words = (c.display_text ?? c.text).replace(/\s+/g, " ").slice(0, 80);
   return `${refOf(c)} by ${who ? "@" + who : "fid " + c.fid} ("${words}")`;
 }
 
 // What the page shows: one line, and the same as data. `folded` lists the
-// casts on the page that show only as a fold ("+8 more"), as the owner left
-// them: none once each fold is opened.
+// casts on the page that show only as a fold ("+8 more"), nested ones too,
+// as the owner left them: none once each fold is opened. `continued` lists
+// the replies whose own replies the page leaves to their thread ("Continue
+// this thread"), and `depth` how many levels of replies it nests.
 export function describe(
   shown: Shown,
   marked: string[],
   back: string[],
   opened: ReadonlySet<string>,
+  nest: Nest,
 ): [string, Record<string, unknown>] {
-  const accounts = accountsOf(shown);
+  const accounts = accountsOf(shown, nest);
+  const page = onScreen(shown, opened, marked, nest);
+  const on = [...page.drawn, ...page.folded];
   const named = (refs: string[]) =>
-    refs.map((r) => about(accounts, visible(shown).find((c) => refOf(c) === r)!)).join("; ");
+    refs.map((r) => about(accounts, on.find((c) => refOf(c) === r), r)).join("; ");
   const selected = marked.length > 0 ? marked : null;
   const marks = selected ? `; selected ${named(marked)}` : "";
-  const folded = onScreen(shown, opened, marked).folded.map(refOf);
+  const folded = page.folded.map(refOf);
+  const continued = page.continued.map(refOf);
   if (shown.kind === "casts") {
     const casts = shown.casts.map(refOf);
-    return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, { view: "casts", casts, selected, back, folded }];
+    const state = { view: "casts", casts, selected, back, folded, continued };
+    return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, state];
   }
   const { thread, only } = shown;
+  const cast = refOf(thread.cast);
   const text =
-    `the thread of ${about(accounts, thread.cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
+    `the thread of ${about(accounts, thread.cast, cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
     count(thread.replies.length, "reply", "replies") +
     (only ? `, picked first ${named(only)}` : "") +
     (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
+    (continued.length > 0
+      ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread`
+      : "") +
     marks;
   const filter = only ? { only } : {};
-  return [text, { view: "thread", cast: refOf(thread.cast), ...filter, selected, back, folded }];
+  const state = { view: "thread", cast, ...filter, selected, back, folded, continued, depth: nest.depth };
+  return [text, state];
 }

@@ -540,7 +540,8 @@ A moniker names one view of the page, as one token. Each `<cast>` is a
 | `paircaster://paircaster/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
 
 Any of them may end `#cast=<cast>,…`, which marks those casts and scrolls
-to the first. Use `?only=` to show the user the replies an answer is
+to the first; in a thread, a marked cast may also be a reply nested under
+one of its replies, at any depth, and the page reads its way down to it. Use `?only=` to show the user the replies an answer is
 about, ranked as you ranked them, and `casts/` for casts from different
 threads. The page refuses a moniker it cannot show in full (a reply that
 is not one, a cast the node does not hold, a marked cast not on the page)
@@ -569,7 +570,8 @@ something to the shell.
   (`view` is `thread`, with `cast` and `only` when filtered, or `casts`,
   with `casts`; `selected` lists the marked casts or is `null`; `back` holds
   what Back returns to, each as `open` takes it; `folded` lists the casts
-  on the page the user has not opened, below), and `user_selected` what
+  on the page the user has not opened, and `continued` and `depth` say how
+  replies nest, below), and `user_selected` what
   the user chose. In Shala, when `shala selection` says the user was last in
   paircaster's app, this is where to look.
 - `viewer state` cannot tell whether the user is looking, or who chose what
@@ -583,15 +585,29 @@ something to the shell.
   current counts as `reactions` gives them, and its direct replies as
   `replies` counts them ("3 replies", "100+ replies" past 100; nothing for
   none).
+- **Replies nest under the reply they answer**, joined by a line, three
+  levels below the cast the thread is of (two in a narrow pane, such as
+  Shala's), as the page reads them after it draws. A reply at the last
+  level that has replies of its own ends in "Continue this thread", which
+  opens that reply's thread as clicking it does. `thread --json` still
+  holds direct replies only: to read the deeper levels yourself, read
+  `replies` of each reply.
 - **Long runs fold into one line**, which the user opens with a click: in
   a thread, the casts between the root and the cast replied to when there
   are more than three above, and the replies after the first ten ("+8
-  more"); with `?only=`, every reply not picked. A run holding a marked
-  cast is never folded, so mark a cast (`#cast=`) to be sure the user sees
-  it; a reply that is not picked may be marked. `folded` in `viewer state`
-  lists the casts still folded, each `FID:HASH` (`[]` once each run is
-  open, and always for `casts`). The user opening a fold does not change
-  `user_selected`; a new `open` folds them again.
+  more"), after the first three at the second level and the first one
+  below that; with `?only=`, every direct reply not picked. A run holding a
+  marked cast, or a reply a marked cast is nested under, is never folded,
+  and the way down to a marked cast is drawn however deep it is, so mark a
+  cast (`#cast=`) to be sure the user sees it; a reply that is not picked
+  may be marked. `folded` in `viewer state` lists the casts still folded,
+  nested ones included, each `FID:HASH` (`[]` once each run is open, and
+  always for `casts`). `continued` lists the replies that end in "Continue
+  this thread" (`[]` for `casts`), and `depth`, in a thread, how many
+  levels of replies the page nests now (3, or 2 in a narrow pane). Nested
+  replies arrive a level at a time just after an `open`, so `folded` and
+  `continued` can grow for a moment after it. The user opening a fold does
+  not change `user_selected`; a new `open` folds them again.
 - The page shows no images in casts: an image is a link labelled
   `image`. In Shala it opens no links: a link shows its address.
 

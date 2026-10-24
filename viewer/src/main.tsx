@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 import { BRANCH_READ, type Branch, branchOf, seedOf } from "./branch";
 import type { Tally } from "./card";
-import type { FoldKey } from "./fold";
+import { DEPTH, type FoldKey, NARROW_DEPTH, type Nest } from "./fold";
 import { host } from "./host";
 import { type Spot, atOf, monikerOf, parseAt } from "./moniker";
 import { makeRuntime, type Paircaster } from "./runtime";
-import { type Shown, onScreen, read, visible } from "./shown";
+import { type Shown, onScreen, reach, read, visible } from "./shown";
 import { type Kept, type Live, type Place, isKept, placeOf, reveal, tell } from "./state";
 import { type Cast, refOf } from "./thread";
 import { ListView } from "./views/list";
@@ -17,6 +17,9 @@ import { ThreadView } from "./views/thread";
 const DEFAULT_NODE = "http://localhost:3381";
 // How many casts' reactions and replies are read at once.
 const COUNTING = 6;
+// A pane at least this wide nests replies DEPTH levels deep, else
+// NARROW_DEPTH; viewer.css narrows the nesting at the same width.
+const WIDE = "(min-width: 480px)";
 
 // The project whose monikers this page takes; a page with no host takes none.
 const project = host?.project ?? "";
@@ -33,8 +36,12 @@ function App() {
   // its card, and what opens under it.
   const [branches, setBranches] = useState<Map<string, Branch>>(new Map());
   const branchRef = useRef(branches);
-  // The casts whose counts this view has asked for.
+  // The casts whose counts this view has asked for, and those still to read.
   const asked = useRef(new Set<string>());
+  const queue = useRef<string[]>([]);
+  // The readers working through `queue` for the load numbered `seq`.
+  const workers = useRef({ seq: 0, n: 0 });
+  const depth = useDepth();
   const runtime = useRef<Paircaster | null>(null);
   const latest = useRef(0);
   const live = useRef<Live>({
@@ -44,9 +51,11 @@ function App() {
     marked: [],
     trail: [],
     opened: new Set(),
+    nest: { branches: new Map(), depth: DEPTH },
     userSelected: null,
   });
-  live.current = { ...live.current, shown: view.shown, marked, trail, opened };
+  const nest: Nest = { branches, depth };
+  live.current = { ...live.current, shown: view.shown, marked, trail, opened, nest };
 
   // Shows `at` with `marks` marked, or throws and changes nothing; a load
   // overtaken by a later one changes nothing and returns null.
@@ -59,24 +68,37 @@ function App() {
     }
     setView((v) => ({ ...v, loading: true }));
     try {
-      const shown = await read(runtime.current, spot);
-      const stray = marks.find((m) => !visible(shown).some((c) => refOf(c) === m));
-      if (stray) throw new Error(`${stray} is not on the page ${place.at} shows`);
+      const rt = runtime.current;
+      const shown = await read(rt, spot);
+      const strays = marks.filter((m) => !visible(shown).some((c) => refOf(c) === m));
+      if (strays.length > 0 && shown.kind === "casts") {
+        throw new Error(`${strays[0]} is not on the page ${place.at} shows`);
+      }
+      // A marked reply nested deeper is reached by reading the way down to it.
+      const ways =
+        shown.kind === "thread"
+          ? await Promise.all(strays.map((m) => reach(rt, shown.thread, m, branchRef.current)))
+          : [];
       if (seq !== latest.current) return null;
       const none = new Set<string>();
-      live.current = { ...live.current, node: place.node, spot, shown, marked: marks, trail: place.trail, opened: none };
+      const now = { node: place.node, spot, shown, marked: marks, trail: place.trail, opened: none };
+      live.current = { ...live.current, ...now };
       setView({ shown, error: null, loading: false });
       setTrail(place.trail);
       setMarked(marks);
       setOpened(none);
       setTallies(new Map());
       asked.current = new Set();
+      queue.current = [];
+      workers.current = { seq, n: 0 };
+      const seeds = new Map(branchRef.current);
+      ways.forEach((w) => w.forEach((b, ref) => seeds.set(ref, b)));
       if (shown.kind === "thread") {
         const seed = seedOf(shown.thread);
-        if (seed) keepBranches(new Map(branchRef.current).set(refOf(shown.thread.cast), seed));
+        if (seed) seeds.set(refOf(shown.thread.cast), seed);
       }
+      keepBranches(seeds);
       save(live.current);
-      fill(runtime.current, onScreen(shown, none, marks).drawn, seq);
       return shown;
     } catch (e) {
       if (seq === latest.current) setView((v) => ({ ...v, loading: false }));
@@ -92,9 +114,13 @@ function App() {
   // Fills in each drawn cast's likes, recasts and replies as they arrive, a
   // few casts at a time, after the page is drawn; a later load stops it. A
   // cast's replies are read once per node, its reactions once per view.
+  // Replies read are drawn under their cast and counted in turn, so the tree
+  // fills a level at a time, as deep as the page nests and no further.
   const fill = (rt: Paircaster, casts: Cast[], seq: number) => {
-    const queue = casts.map(refOf).filter((r) => !asked.current.has(r));
-    queue.forEach((r) => asked.current.add(r));
+    if (workers.current.seq !== seq) return;
+    const fresh = casts.map(refOf).filter((r) => !asked.current.has(r));
+    fresh.forEach((r) => asked.current.add(r));
+    queue.current.push(...fresh);
     const replies = async (ref: string) => {
       if (branchRef.current.has(ref)) return;
       const r = await rt.replies(ref, { limit: BRANCH_READ }).catch(() => null);
@@ -106,21 +132,27 @@ function App() {
       if (tally && seq === latest.current) setTallies((t) => new Map(t).set(ref, tally));
     };
     const worker = async () => {
-      for (let ref = queue.shift(); ref && seq === latest.current; ref = queue.shift()) {
+      while (seq === latest.current) {
+        const ref = queue.current.shift();
+        if (!ref) break;
         await Promise.all([reactions(ref), replies(ref)]);
       }
+      if (workers.current.seq === seq) workers.current.n--;
     };
-    Array.from({ length: COUNTING }, worker);
+    for (; workers.current.n < COUNTING && queue.current.length > 0; workers.current.n++) worker();
   };
+
+  // Whatever is drawn, at a load, an opened fold or a branch read, is counted.
+  useEffect(() => {
+    if (!view.shown || !runtime.current) return;
+    fill(runtime.current, onScreen(view.shown, opened, marked, nest).drawn, latest.current);
+  }, [view.shown, opened, marked, branches, depth]);
 
   // The owner opens a fold; its casts are then counted like the rest.
   const unfold = (fold: FoldKey) => {
-    const shown = live.current.shown;
-    if (!shown || !runtime.current) return;
     const next = new Set(opened).add(fold);
     live.current.opened = next;
     setOpened(next);
-    fill(runtime.current, onScreen(shown, next, marked).drawn, latest.current);
   };
 
   // A new page opens at the first marked cast, else at the top.
@@ -198,6 +230,7 @@ function App() {
           thread={shown.thread}
           only={shown.only}
           opened={opened}
+          depth={depth}
           onUnfold={unfold}
           {...actions}
         />
@@ -206,6 +239,18 @@ function App() {
       )}
     </main>
   );
+}
+
+// How deep the page nests replies, as wide as the pane is now.
+function useDepth(): number {
+  const [wide, setWide] = useState(() => matchMedia(WIDE).matches);
+  useEffect(() => {
+    const query = matchMedia(WIDE);
+    const change = (e: MediaQueryListEvent) => setWide(e.matches);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, []);
+  return wide ? DEPTH : NARROW_DEPTH;
 }
 
 function save(now: Live) {

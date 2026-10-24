@@ -1,6 +1,7 @@
 // What a spot reads from the node, and which of it the page shows.
 
-import { drawnOf, foldedOf, layout } from "./fold";
+import { BRANCH_READ, type Branch, branchOf } from "./branch";
+import { type Nest, continuedOf, drawnOf, foldedOf, layout } from "./fold";
 import type { Spot } from "./moniker";
 import type { Paircaster } from "./runtime";
 import { type Account, type Cast, type Thread, refOf } from "./thread";
@@ -30,8 +31,9 @@ export async function read(runtime: Paircaster, spot: Spot): Promise<Shown> {
   return { kind: "thread", thread, only: spot.only };
 }
 
-// The casts on the page, drawn or folded: with `only`, the picks in their
-// order and then the other replies.
+// The casts the spot's own read holds, drawn or folded: with `only`, the
+// picks in their order and then the other replies. Nested replies are not
+// among them: the page reads those after it draws.
 export function visible(shown: Shown): Cast[] {
   if (shown.kind === "casts") return shown.casts;
   const { ancestors, cast, replies } = shown.thread;
@@ -41,16 +43,47 @@ export function visible(shown: Shown): Cast[] {
   return [...ancestors, cast, ...picks, ...replies.filter((c) => !only.includes(refOf(c)))];
 }
 
-// The casts drawn as cards, and those folded, given the folds the owner
-// opened and the casts marked. A list folds nothing.
-export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: string[]) {
-  if (shown.kind === "casts") return { drawn: shown.casts, folded: [] };
+// The casts drawn as cards, those folded, and those whose replies continue
+// in their own thread, given the folds the owner opened, the casts marked
+// and the replies read. A list folds and nests nothing.
+export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: string[], nest: Nest) {
+  if (shown.kind === "casts") return { drawn: shown.casts, folded: [], continued: [] };
   const { thread, only } = shown;
-  const l = layout(thread, only, opened, marked);
+  const l = layout(thread, only, opened, marked, nest);
   const drawn = [...drawnOf({ ...l, replies: [] }), thread.cast, ...drawnOf({ ...l, above: [] })];
-  return { drawn, folded: foldedOf(l) };
+  return { drawn, folded: foldedOf(l), continued: continuedOf(l) };
 }
 
-export const accountsOf = (shown: Shown) => (shown.kind === "thread" ? shown.thread.accounts : shown.accounts);
+// Every account the page can name: the read's, and those of the replies read.
+export function accountsOf(shown: Shown, nest: Nest): Account[] {
+  const own = shown.kind === "thread" ? shown.thread.accounts : shown.accounts;
+  const all = new Map([...nest.branches.values()].flatMap((b) => b.accounts).map((a) => [a.fid, a]));
+  own.forEach((a) => all.set(a.fid, a));
+  return [...all.values()];
+}
+
+// The replies on the way from a thread's focus down to `mark`, a cast nested
+// under one of its replies, read so the page can draw it marked; throws when
+// `mark` is not under the focus or a reply on the way is not among the
+// newest its parent's read holds.
+export async function reach(
+  runtime: Paircaster,
+  thread: Thread,
+  mark: string,
+  known: ReadonlyMap<string, Branch>,
+): Promise<Map<string, Branch>> {
+  const missing = new Error(`${mark} is not on the page the thread of ${refOf(thread.cast)} shows`);
+  const above = (await threadOf(runtime, mark, { limit: 1 })).ancestors.map(refOf);
+  const path = above.slice(above.indexOf(refOf(thread.cast)) + 1);
+  if (!above.includes(refOf(thread.cast)) || !thread.replies.some((c) => refOf(c) === path[0])) throw missing;
+  const out = new Map<string, Branch>();
+  for (const [i, ref] of path.entries()) {
+    const branch = known.get(ref) ?? branchOf(await runtime.replies(ref, { limit: BRANCH_READ }));
+    const next = path[i + 1] ?? mark;
+    if (!branch.casts.some((c) => refOf(c) === next)) throw missing;
+    out.set(ref, branch);
+  }
+  return out;
+}
 
 export const count = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;

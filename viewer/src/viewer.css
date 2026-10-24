@@ -36,7 +36,7 @@ body {
   color: var(--fg);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 640px; margin: 0 auto; padding: 8px 0 24px; }
+main { max-width: 640px; margin: 0 auto; padding: 8px 0 24px; container-type: inline-size; }
 main.loading { opacity: 0.6; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 
@@ -146,3 +146,27 @@ h2.replies {
 .faces .avatar { width: 20px; height: 20px; font-size: 10px; border: 2px solid var(--bg); }
 .faces .avatar + .avatar { margin-left: -6px; }
 .fold.reply .faces { width: 42px; justify-content: center; }
+
+/* Nested replies: each level indented under its parent's avatar, joined to
+   it by a line down the left. A nest's margin puts its line under the
+   parent's avatar: the parent's left padding plus half its avatar, less
+   half the line. A narrow pane (main.tsx: WIDE) nests less and tighter. */
+.cast.reply.parent { padding-bottom: 0; }
+.nest { border-left: 2px solid var(--rule); margin-left: 36px; }
+.nest .nest { margin-left: 25px; }
+.cast.nested { border-top: 0; padding: 6px 10px 0; }
+.cast.nested .body { padding-bottom: 6px; }
+.cast.nested .rail { width: 32px; }
+.cast.nested .avatar { width: 32px; height: 32px; font-size: 13px; }
+.fold.nested { border-top: 0; padding: 4px 10px; }
+.fold.nested .faces { width: 32px; }
+.continue { display: block; color: var(--accent); font-size: 14px; padding: 4px 10px 8px; text-align: left; }
+.continue:hover { background: var(--hover); }
+@container (max-width: 479px) {
+  .nest .nest { margin-left: 19px; }
+  .cast.nested, .fold.nested { padding-left: 6px; padding-right: 8px; }
+  .cast.nested .rail { width: 28px; }
+  .cast.nested .avatar { width: 28px; height: 28px; font-size: 12px; }
+  .cast.nested { gap: 8px; }
+  .continue { padding-left: 6px; }
+}

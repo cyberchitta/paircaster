@@ -20,15 +20,27 @@ export type Actions = {
 
 export type Role = "ancestor" | "focus" | "reply";
 
-type CardProps = { cast: Cast; role: Role; accounts: Map<number, Account>; now: number } & Actions;
+// `nested` for a reply under a reply; `parent` for a card with replies drawn
+// under it, joined to them by a line.
+type CardProps = {
+  cast: Cast;
+  role: Role;
+  nested?: boolean;
+  parent?: boolean;
+  accounts: Map<number, Account>;
+  now: number;
+} & Actions;
 
-export function CastCard({ cast, role, accounts, now, marked, tallies, branches, onOpen, onSelect }: CardProps) {
+export function CastCard(props: CardProps) {
+  const { cast, role, nested, parent, accounts, now, marked, tallies, branches, onOpen, onSelect } = props;
   const account = accounts.get(cast.fid);
   const ref = refOf(cast);
   const click = () => (role === "focus" ? onSelect(cast) : onOpen(ref));
   return (
     <article
-      class={`cast ${role}${marked.includes(ref) ? " selected" : ""}`}
+      class={["cast", role, nested && "nested", parent && "parent", marked.includes(ref) && "selected"]
+        .filter(Boolean)
+        .join(" ")}
       data-cast={ref}
       tabIndex={0}
       onClick={click}
@@ -37,7 +49,7 @@ export function CastCard({ cast, role, accounts, now, marked, tallies, branches,
     >
       <div class="rail">
         <Avatar account={account} fid={cast.fid} />
-        {role === "ancestor" && <div class="line" />}
+        {(role === "ancestor" || parent) && <div class="line" />}
       </div>
       <div class="body">
         <Meta cast={cast} account={account} now={now} />
