@@ -556,6 +556,15 @@ A moniker names one view of the page, as one token. Each `<cast>` is a
 | `paircaster://paircaster/thread/<cast>?only=<reply>,…` | the cast and the casts above it, and those of its direct replies first, in the order given; the other replies fold below them into one line ("+12 other replies") the user can open |
 | `paircaster://paircaster/casts/<cast>,…` | those casts, from anywhere, in the order given; each opens its thread when clicked |
 
+Any of them may also take `?caption=<text>` (with `?only=`, join the two
+with `&`): a line the page shows above the view, as plain text. Say in it
+what the view answers: the search (`casts saying "snapchain", last 3
+days`), or what a list is ranked by (`most liked first`). URL-encode it
+(`%20` for a space, `%26` for `&`, `%23` for `#`); at most 200 characters,
+one line. `caption` in `viewer state` gives it back (`null` for none). The
+user following a cast to its thread leaves the caption behind; Back
+returns to it.
+
 Any of them may end `#cast=<cast>,…`, which marks those casts and scrolls
 to the first; in a thread, a marked cast may also be a reply nested under
 one of its replies, at any depth, and the page reads its way down to it. Use `?only=` to show the user the replies an answer is

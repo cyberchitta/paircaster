@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { MAX_LISTED, type Spot, atOf, markedOf, monikerOf, parseAt } from "./moniker";
+import { MAX_CAPTION, MAX_LISTED, type Spot, atOf, markedOf, monikerOf, parseAt } from "./moniker";
 
 const project = "paircaster";
 const base = "paircaster://paircaster/";
@@ -43,6 +43,8 @@ describe("monikerOf", () => {
     { kind: "thread", cast: a, only: null },
     { kind: "thread", cast: a, only: [c, b] },
     { kind: "casts", casts: [b, a, c] },
+    { kind: "thread", cast: a, only: [b], caption: "ranked by likes & recasts, #1 first?" },
+    { kind: "casts", casts: [a], caption: "casts saying \"snapchain\" — 100% of them" },
   ];
 
   test("names each spot so that parseAt reads it back", () => {
@@ -66,5 +68,33 @@ describe("markedOf", () => {
     expect(markedOf(project, spot, [b, c])).toBe(`${base}thread/${a}#cast=${b},${c}`);
     expect(parseAt(project, markedOf(project, spot, [b, c])!).marks).toEqual([b, c]);
     expect(markedOf(project, spot, [])).toBeNull();
+  });
+});
+
+describe("captions", () => {
+  test("are URL-decoded text, in any order with only", () => {
+    expect(parseAt(project, `${base}casts/${a}?caption=most%20liked%20%3Cb%3E`).spot).toEqual({
+      kind: "casts",
+      casts: [a],
+      caption: "most liked <b>",
+    });
+    expect(parseAt(project, `${base}thread/${a}?caption=top&only=${b}#cast=${b}`)).toEqual({
+      spot: { kind: "thread", cast: a, only: [b], caption: "top" },
+      marks: [b],
+    });
+  });
+
+  test("keep a captioned thread a moniker, not a bare cast", () => {
+    expect(atOf(project, { kind: "thread", cast: a, only: null, caption: "why" })).toBe(`${base}thread/${a}?caption=why`);
+  });
+
+  test("refuses a bad, empty, multi-line or long caption, and other keys", () => {
+    expect(() => parseAt(project, `${base}casts/${a}?caption=%E0%A4`)).toThrow("URL-encoded");
+    expect(() => parseAt(project, `${base}casts/${a}?caption=%20`)).toThrow("an empty caption");
+    expect(() => parseAt(project, `${base}casts/${a}?caption=a%0Ab`)).toThrow("one line");
+    const long = "x".repeat(MAX_CAPTION + 1);
+    expect(() => parseAt(project, `${base}casts/${a}?caption=${long}`)).toThrow(`longer than ${MAX_CAPTION}`);
+    expect(() => parseAt(project, `${base}thread/${a}?caption=a&caption=b`)).toThrow("given twice");
+    expect(() => parseAt(project, `${base}thread/${a}?sort=likes`)).toThrow("not ?sort=");
   });
 });

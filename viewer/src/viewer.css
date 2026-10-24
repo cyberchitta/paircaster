@@ -44,6 +44,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .error { color: #d0453a; }
 .note.link { color: var(--accent); text-align: left; }
 .back { color: var(--accent); padding: 8px 16px; }
+/* The agent's line about the view: what it searched for, or what a list is
+   ranked by. Its text, not the page's, so it reads as a note. */
+.caption {
+  margin: 4px 16px 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--hover);
+  color: var(--fg);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
 
 .cast {
   display: flex;

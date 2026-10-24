@@ -48,8 +48,10 @@ export async function reveal(
   const node = isObject(state) && typeof state.node === "string" ? state.node : now.node;
   const shown = await load({ node, at: moniker, trail: [] });
   if (!shown) return { ok: false, message: `${moniker} was overtaken by a later reveal; this one changed nothing` };
-  const marked = parseAt(project, moniker).marks;
-  const marks = marked.length > 0 ? `, ${marked.join(", ")} selected` : "";
+  const { spot, marks: marked } = parseAt(project, moniker);
+  const marks =
+    (marked.length > 0 ? `, ${marked.join(", ")} selected` : "") +
+    (spot.caption !== undefined ? `, captioned ${JSON.stringify(spot.caption)}` : "");
   if (shown.kind === "casts") return { ok: true, message: `${count(shown.casts.length, "cast")}${marks}, from ${node}` };
   const { thread, only } = shown;
   const what = `thread of ${refOf(thread.cast)}${only ? `, ${only.length} of its replies` : ""}${marks}`;
@@ -62,7 +64,12 @@ export async function tell(now: Live, body: unknown): Promise<Answer> {
     return { ok: false, message: `this page takes paircaster: ${PROTOCOL}; run the paircaster that built it` };
   }
   if (body.get !== "state") return { ok: false, message: `unknown request ${JSON.stringify(body)}` };
-  const common = { node: now.node, user_selected: now.userSelected, user_marked: now.userMarked };
+  const common = {
+    node: now.node,
+    caption: now.shown ? (now.spot?.caption ?? null) : null,
+    user_selected: now.userSelected,
+    user_marked: now.userMarked,
+  };
   if (!now.shown) return { ok: true, message: "no thread open", result: { view: null, ...common } };
   const [text, state] = describe(now.shown, now.marked, now.trail, now.opened, now.nest);
   return { ok: true, message: text, result: { ...state, ...common } };

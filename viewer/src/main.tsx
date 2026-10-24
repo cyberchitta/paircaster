@@ -331,6 +331,8 @@ function App() {
     );
   }
   const contexts = contextsOf(shown, nest, fetched);
+  // The agent's line about the view, drawn as text: never as markup.
+  const caption = live.current.spot?.caption;
   const actions = { marked, tallies, branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose, onMark: mark };
   return (
     <Hover profiles={profiles} want={want}>
@@ -341,6 +343,7 @@ function App() {
           </button>
         )}
         {view.error && <p class="error">{view.error}</p>}
+        {caption !== undefined && <p class="caption">{caption}</p>}
         {shown.kind === "thread" ? (
           <ThreadView
             thread={shown.thread}
