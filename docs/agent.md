@@ -49,17 +49,7 @@ The writes in [Using the client](client.md#writing:-casts,-reactions,-follows) w
 
 ## Gating writes in your harness
 
-Each write is its own command so that your agent's harness can gate it apart from the reads: let reads run, ask you before each write, and refuse `paircaster key` to the agent. How to say that is up to the harness. In Claude Code, this rule refuses `paircaster key` to the agent:
-
-```file .claude/settings.local.json
-{
-  "permissions": {
-    "deny": ["Bash(*paircaster key *)"]
-  }
-}
-```
-
-In Claude Code's auto mode it refused the agent's `paircaster key --help`, and also a command that only contained those words. It has the limit described next: `paircaster --node … key add` does not match it. `key add` cannot finish without you anyway, since it reads the phrase only from a terminal; the rule keeps the agent from starting it. Rules that ask before each write have not yet been seen to prompt. The ones tried, such as `Bash(*paircaster cast *)`, cannot match a write run as `paircaster --node … cast …`, which is how the writes were run (through Farcaster's public node, because the test node had not yet synced the new test account), and auto mode ran them without asking. Until one does, what stands between the agent and a write is the skill's instructions, which are not a lock, and the key's scope.
+Each write is its own command, so your agent's harness can let reads run, ask before each write, and refuse `paircaster key`. In Claude Code, a `deny` rule for `Bash(*paircaster key *)` refused the agent's `paircaster key --help`; rules that ask before a write have not yet been seen to prompt.
 
 <limit>
 
@@ -178,7 +168,7 @@ message: the thread of 4163:0x45563785c747be1f0c407defdae26e3b5d4f596b by @kmacb
 result: {"back":["3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77"],"caption":null,"cast":"4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","continued":[],"depth":3,"folded":[],"node":"http://localhost:3381","selected":null,"user_marked":null,"user_selected":"paircaster://paircaster/thread/4163:0x45563785c747be1f0c407defdae26e3b5d4f596b","view":"thread"}
 ```
 
-`user_selected` is the cast you last clicked or opened in the page; only you change it, never what the agent opens. `view` and `cast` are what is on screen, `back` is what Back returns to, `selected` lists the casts marked on the page (none here), `folded` the casts still folded, and `caption` the agent's caption (none on this view). `continued` lists replies that end in "Continue this thread", and `depth` is how many levels of replies the page nests (3, or 2 in a narrow pane); `only` appears when the agent picked the replies. It answered:
+`user_selected` and `user_marked` are what you chose, and only you change them; the rest says what is on screen. It answered:
 
 <showcase type="image" src="images/viewer-pointing.webp" frame="1600x1005" alt="The agent's answer in a terminal on the left: Paircaster cannot change what the node stores, but can filter what it reads by the app that signed each cast. On the right, the browser shows Dan Romero's Snapchain node wishlist with KMac's reply under it, opened by the click." caption="The reply you clicked, and the agent's answer about it." />
 
@@ -188,13 +178,7 @@ Press Back to return to the node wishlist, then hold <kbd>Cmd</kbd> (<kbd>Ctrl</
 
 > What do the ones I marked have in common?
 
-`viewer state` gave them as `user_marked`, a moniker of the view with the marked casts in the order you marked them:
-
-```output
-told paircaster
-message: the thread of 3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77 by @dwr ("Snapchain node wishlist 1. I want to sync only a subset of the network. 2. I don"), 0 casts above it, 10 replies; selected 4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df by @trish ("I might like this except I can’t "); 4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6 by @trish ("So very banned ")
-result: {"back":[],"caption":null,"cast":"3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77","continued":[],"depth":3,"folded":[],"node":"http://localhost:3381","selected":["4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df","4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6"],"user_marked":"paircaster://paircaster/thread/3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77#cast=4877:0xe397007269cb82f1e34b014b9bb107f62adaa8df,4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6","user_selected":"paircaster://paircaster/thread/3:0x35f104e944de03c93cc4eb513e8b84cef58d9b77#cast=4877:0x6cb52a4d6c3bd9050e6dbf44bcb805deb01c22a6","view":"thread"}
-```
+`viewer state` gave them to the agent as `user_marked`, in the order you marked them.
 
 It read both casts with `paircaster show`, the thread of the second, and the profile of the app that signed them, and answered:
 
