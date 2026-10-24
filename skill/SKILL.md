@@ -73,7 +73,10 @@ repository's issues.
    `df -h ~` (the node needs about 800 GB free while the snapshot downloads
    and unpacks). Report what is missing. Installing Rust
    (rustup.rs) or Docker is the user's: give them the link, do not run an
-   installer for them.
+   installer for them. Your shell may not load the user's profile, so
+   before reporting Rust missing, try `~/.cargo/bin/cargo --version`. If
+   that answers, Rust is installed: put `~/.cargo/bin` on your own
+   shell's path and go on.
 2. **Build `paircaster`**, with the viewer if the user wants to look at
    threads with you (it needs three more tools), else without:
 
@@ -520,6 +523,13 @@ is not one, a cast the node does not hold, a marked cast not on the page)
 and changes nothing. Quote the moniker in single quotes: `?` and `#` mean
 something to the shell.
 
+- **One viewer per machine.** Before `serve`, run `viewer state`: if it
+  answers, a page is already open, so use it. If `serve` refuses with
+  `another host is listening on …`, a viewer started elsewhere (the user's
+  terminal, or an earlier session) is still running. `viewer open` and
+  `viewer state` reach it, but its address is printed only where it was
+  started: ask the user for that address, or to stop that viewer so you
+  can start one.
 - **`serve` keeps running.** Run it in the background, or ask the user to
   run it in a terminal, and give them the address it prints to open. It
   reads from `--node`, and the page can reach only that node. A paircaster

@@ -184,15 +184,15 @@ Each idea is explained where the guide first uses it.
 ## Not tried yet
 
 - Linux beyond building `paircaster` and its viewer, Intel Macs, and rented servers; the [renting](node.md#renting-a-server-instead) advice is untested.
-- A node on a real remote server, reached [through SSH](client.md#where-to-run-paircaster); a write, `key add` or the viewer through a tunnel. The tunnel was tried only against a stand-in server on the same machine.
+- A write or `key add` to a node on a remote server, reached [through SSH](client.md#where-to-run-paircaster). Reads and the viewer have been run that way.
 - `key add` and `delete` through your own node. Three casts, a like and its undo, and a follow and its undo have gone through the test node; `key add` and the delete went through Farcaster's public node `crackle`.
 - Typing <kbd>yes</kbd> at a write's prompt: the writes so far were sent by an agent with `--yes`, after a person approved the dry run's text.
 - A cast sent with `--embed`.
 - The [agent skill](agent.md) in agents other than Claude Code and Codex, writes through Codex, and whether harness rules prompt outside Claude Code's auto mode.
 - `./snapchain.sh upgrade`; a shutdown or logout with the node running; a restart with Docker other than OrbStack.
 - The viewer in browsers other than Chrome.
-- The agent's install on a machine without a node or the viewer's tools: it has been run only where both were already there, so its hand-over of Snapchain's installer and the snapshot download has not been seen; and through Codex.
-- A node installed some other way than this guide's, apart from Farcaster's public node: reaching its API through a web proxy, and pointing `node status` at its install directory.
+- The agent's install where it installs the node: its hand-over of Snapchain's installer and the snapshot download has not been seen. Also the install where Rust or Bun is missing, and through Codex.
+- For a node installed some other way than this guide's: reaching its API through a web proxy, and pointing `node status` at its install directory.
 
 ## Going further
 
