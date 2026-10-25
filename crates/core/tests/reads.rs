@@ -139,7 +139,7 @@ fn repeating_reply_pages_give_each_reply_once() {
     assert_eq!(hashes(&replies), hashes(&all.items));
 }
 
-fn bounty() -> CastRef {
+fn liked_cast() -> CastRef {
     "37:0x50184b62b4c52fd76628713562e1eda3dccaf63d"
         .parse()
         .expect("FID:HASH")
@@ -147,7 +147,8 @@ fn bounty() -> CastRef {
 
 fn likes_page(name: &str) -> node::Page<Reaction> {
     let file = format!("reactionsByCast-like-37-0x50184b62-{name}.json");
-    parse::reactions_to_cast(fixture(&file), &bounty(), ReactionType::Like).expect("likes parse")
+    parse::reactions_to_cast(fixture(&file), &liked_cast(), ReactionType::Like)
+        .expect("likes parse")
 }
 
 #[test]
@@ -168,14 +169,17 @@ fn repeating_reaction_pages_give_each_account_once() {
 #[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_page_of_another_kind_of_reaction_is_refused() {
     let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
-    assert!(parse::reactions_to_cast(file, &bounty(), ReactionType::Recast).is_err());
+    assert!(parse::reactions_to_cast(file, &liked_cast(), ReactionType::Recast).is_err());
 }
 
 #[test]
 #[ignore = "needs PAIRCASTER_FIXTURES"]
 fn a_page_of_reactions_to_another_cast_is_refused() {
     let file = fixture("reactionsByCast-like-37-0x50184b62-all.json");
-    let other = CastRef { fid: 3, ..bounty() };
+    let other = CastRef {
+        fid: 3,
+        ..liked_cast()
+    };
     assert!(parse::reactions_to_cast(file, &other, ReactionType::Like).is_err());
 }
 
@@ -184,7 +188,7 @@ fn a_page_of_reactions_to_another_cast_is_refused() {
 fn reactions_are_oldest_first_and_each_account_listed_once() {
     let recasts = parse::reactions_to_cast(
         fixture("reactionsByCast-recast-37-0x50184b62-all.json"),
-        &bounty(),
+        &liked_cast(),
         ReactionType::Recast,
     )
     .expect("recasts parse");

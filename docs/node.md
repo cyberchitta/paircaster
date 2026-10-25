@@ -2,8 +2,6 @@
 title: Running the node
 ---
 
-Paircaster was called Selfcast; output captured before the rename shows the old name.
-
 ## Hardware and disk
 
 Snapchain's README asks for 16 GB RAM, 4 vCPUs and 1.5 TB of disk; its getting-started page says 2 TB. What we measured:
@@ -20,7 +18,7 @@ The 770 GB peak is worked out from shard sizes (about 470 GB of chunks; 557 GB u
 
 ### Renting a server instead
 
-Look for 4 or more vCPUs, 16 GB of RAM and at least 1 TB of disk (a server's own disk is usually far smaller, so add a block-storage volume). Most providers bill by the hour, so a test that takes two days costs two days. One example, read from Hetzner's price page on 2026-10-21: CPX42, 8 vCPU, 16 GB RAM, 320 GB disk, €0.1122 an hour or €69.99 a month at most, excluding VAT, in its EU locations. The volume is extra; that page gives no price for it. When you are done, delete both the server and the volume.
+Look for 4 or more vCPUs, 16 GB of RAM and at least 1 TB of disk (a server's own disk is usually far smaller, so add a block-storage volume). Most providers bill by the hour until you delete the server, so when you are done, delete both the server and the volume.
 
 <limit>
 
@@ -56,8 +54,8 @@ paircaster node fetch-snapshot --jobs 8
 
 ```output
 112 of 5691 chunks already on disk
-resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_0115.bin.part at 11.5 MB
-resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_0114.bin.part at 56.2 MB
+resuming ~/snapchain/.paircaster-snapshot/shard-1/chunk_0115.bin.part at 11.5 MB
+resuming ~/snapchain/.paircaster-snapshot/shard-1/chunk_0114.bin.part at 56.2 MB
 …
 ```
 
@@ -77,7 +75,7 @@ What `resume` writes to the log:
 ```output
 === resume 2026-10-19T11:02:01Z --jobs 4
 2649 of 5691 chunks already on disk
-resuming ~/snapchain/.selfcast-snapshot/shard-1/chunk_2652.bin.part at 60.0 MB
+resuming ~/snapchain/.paircaster-snapshot/shard-1/chunk_2652.bin.part at 60.0 MB
 …
 ```
 

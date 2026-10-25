@@ -40,8 +40,6 @@ from anyone: you furnish the compute. It has three parts:
 
 - **Tutorial and quickstart:** [paircaster.cyberchitta.cc](https://paircaster.cyberchitta.cc/)
   (source: [`docs/index.md`](docs/index.md))
-- **Testing it for us:** [paircaster.cyberchitta.cc/testing.html](https://paircaster.cyberchitta.cc/testing.html)
-  (source: [`docs/testing.md`](docs/testing.md))
 - **Farcaster documentation we found wrong, and the fixes we sent upstream:**
   [`docs/upstream-fixes.md`](docs/upstream-fixes.md)
 

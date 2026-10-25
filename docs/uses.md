@@ -2,7 +2,7 @@
 title: What you can do with it
 ---
 
-Each example below ran against the test node, by then within a few minutes of the network. The agent answers are Claude Code's, started in the repository with the [skill](agent.md), and are shown as it wrote them. The two `claude -p` commands now allow only `paircaster`'s read commands; their answers were captured when they allowed every `paircaster` command, writes included. Paircaster was called Selfcast; output captured before the rename shows the old name.
+Each example below ran against the test node, by then within a few minutes of the network. The agent answers are Claude Code's, started in the repository with the [skill](agent.md), and are shown as it wrote them. The two `claude -p` commands now allow only `paircaster`'s read commands; their answers were captured when they allowed every `paircaster` command, writes included. Paircaster was called Selfcast, and one answer below uses the old name.
 
 <note>
 

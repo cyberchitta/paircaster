@@ -2,7 +2,7 @@
 title: Using the client
 ---
 
-Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node, some of them taken while it was still catching up with the network. Paircaster was called Selfcast; output captured before the rename shows the old name.
+Every read below goes to your own node's HTTP API and nowhere else. The examples come from the test node, some of them taken while it was still catching up with the network. Paircaster was called Selfcast: the test account is still `@selfcast`, and its casts use the old name.
 
 ## Where to run paircaster
 
@@ -397,7 +397,7 @@ paircaster cast --help
 ```output
 Post a cast, or a reply with --reply-to
 
-Usage: selfcast cast [OPTIONS] <TEXT>
+Usage: paircaster cast [OPTIONS] <TEXT>
 
 Arguments:
   <TEXT>  The text, exactly as it will be posted. `@name` is not turned into a mention. Over 320 bytes it is sent as a long cast, up to 1024
@@ -430,7 +430,7 @@ Dry run: the node would accept 0xd595a9e74ab802363c8f136940a1dbcceec88e95. Nothi
 Everything above the last two lines is written from the signed message, which names the account by its FID, not by the name you typed. The line naming `@farcaster` is the node's answer for FID 1, so you can see whom you are about to follow. A write sent by an agent, with `--yes` after the person approved the dry run's text:
 
 ```run
-paircaster cast "This cast will be deleted with paircaster delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json
+paircaster cast "This cast will be deleted with selfcast delete. Deleting removes it from the network's current state; anyone who already read it keeps a copy." --node https://crackle.farcaster.xyz:3381 --yes --json
 ```
 
 ```output
@@ -466,7 +466,7 @@ Because your node checks a write against what it holds, it has to be synced far 
 **A node that is behind blocks writes after the first.** Snapchain keeps each account on one *shard*, and a node can be seconds behind on one shard and hours behind on another. Your node passes a write on at once, but shows it only once your account's shard has caught up. Until then the write stays in the outbox, and `paircaster` refuses every new write until `paircaster resend` sees the waiting one on your node. On a node still syncing, that can be hours. The error says why, and how far behind that shard is (not how long it will take to catch up), for example:
 
 ```output
-Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the node shows them only once it catches up (see `selfcast node status`)
+Shard 2, which holds FID 3356360's messages, is 3h25m behind the network; the node shows them only once it catches up (see `paircaster node status`)
 ```
 
 A write sent this way reaches the network even though your node does not show it yet. Do not send it again: `resend` sends the same message, and a new write would be a second one. To clear it without waiting, resend it through a node that has caught up, such as Farcaster's public one; it checks there instead:
@@ -523,7 +523,7 @@ paircaster key add --help
 ```output
 Register a new app key, authorised by the account's recovery phrase, which is read once from the terminal and never stored. Mainnet only
 
-Usage: selfcast key add [OPTIONS]
+Usage: paircaster key add [OPTIONS]
 
 Options:
       --node <NODE>  Node HTTP API base URL [default: http://localhost:3381, the node on this machine]
@@ -545,12 +545,12 @@ Add an app key to account @selfcast (FID 3356360), custody address 0x337596dD506
   Expires:     90 days after it was last used
   Nonce:       1
   Sign by:     2026-10-21T06:03:04Z (the authorisation lapses after this)
-  Saved to:    ~/.config/selfcast/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key
+  Saved to:    ~/.config/paircaster/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key
 
 It cannot change the account, move funds, or add or remove other keys.
 Type yes to sign and send: yes
 Added: app key 0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e for FID 3356360.
-Saved at ~/.config/selfcast/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key.
+Saved at ~/.config/paircaster/keys/3356360-ffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e.key.
 ```
 
 Check the custody address before typing <kbd>yes</kbd>. The Farcaster app shows two phrases, a Farcaster recovery phrase and a separate wallet one. It was the Farcaster one that gave this account's custody address.
@@ -562,6 +562,37 @@ What it does:
 3. It creates a new app key and shows what the custody key is about to authorise: the account, the new key, what it may sign (casts, deleting casts, likes and recasts, undoing them, follows, unfollows), that it expires 90 days after it was last used, the deadline for the authorisation, and where the key will be saved. You type <kbd>yes</kbd>.
 4. The custody key signs the authorisation, and is then dropped. The app key is saved at mode 0600.
 5. The authorisation goes to your node as a `KEY_ADD` message: a Snapchain message, not a chain transaction, so it costs nothing. `paircaster` reads the key back from the node before it calls it added.
+
+The node then lists the key among the account's keys (`/v1/signersByFid`). The test account's, read on `crackle`:
+
+```run
+curl -s "https://crackle.farcaster.xyz:3381/v1/signersByFid?fid=3356360" | jq '.signers[] | select(.source == "SIGNER_SOURCE_OFFCHAIN")'
+```
+
+```output
+{
+  "source": "SIGNER_SOURCE_OFFCHAIN",
+  "key": "0xffac75748030d214200d85986fecf5053a91d096749c4dd2cf41b7915e61212e",
+  "keyType": 1,
+  "fid": 3356360,
+  "addedAt": 1792558984,
+  "lastUsedAt": 1792563233,
+  "ttl": 7776000,
+  "expiresAt": 1800339233,
+  "scopes": [
+    "MESSAGE_TYPE_CAST_ADD",
+    "MESSAGE_TYPE_CAST_REMOVE",
+    "MESSAGE_TYPE_REACTION_ADD",
+    "MESSAGE_TYPE_REACTION_REMOVE",
+    "MESSAGE_TYPE_LINK_ADD",
+    "MESSAGE_TYPE_LINK_REMOVE"
+  ],
+  "requestFid": 3356360,
+  "nonce": 1
+}
+```
+
+`SIGNER_SOURCE_OFFCHAIN` marks a key added by a `KEY_ADD` message rather than on chain. `requestFid`, the app that asked for the key, is the account itself. `expiresAt` is `lastUsedAt` plus the `ttl` of 7776000 seconds (90 days), so each use pushes the expiry back.
 
 ## Filtering by client
 

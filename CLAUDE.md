@@ -3,8 +3,7 @@
 Paircaster is a Farcaster read node plus an agent-ready client, run on your own
 infrastructure with no API keys from anyone: a provision script, a wrapper
 around the Snapchain bootstrap, a Rust library and CLI over the node's HTTP
-API, an agent skill that calls the CLI, and a microsite that teaches it. It is
-a 7-day bounty entry.
+API, an agent skill that calls the CLI, and a microsite that teaches it.
 
 The project publishes code and a static site only. It runs no service, holds
 no one's keys, and has no default endpoint pointing at a server it runs or at
@@ -30,14 +29,16 @@ started from its parent, it never sees it.
   by the agent. Where the harness lets the agent answer a prompt itself, say
   so as a limit and lean on the harness's own permission rules instead (each
   write is its own subcommand so it can be gated separately from reads).
-- **Every command on the site works with the current code.** Each was run,
-  and its output is real. Where a command changed after its output was
-  captured, the site shows the current command and its opening note says
-  so. What has not been run is listed once, in the site's "Not tried yet"
-  list, not marked inline. The site is a guide, not a log: no dates of runs
-  and no account of how a check was done; that record is kept out of the
-  repo. A statement about what Paircaster does with no check behind it is
-  written as a limit, not a property.
+- **Every command on the site works with the current code.** Each was run, and
+  its output is real. Where a command changed after its output was captured,
+  the site shows the current command and its opening note says so. A name or
+  path the program prints may be updated by hand where the source shows the
+  current string (as after the Selfcast rename); what the network holds and
+  what an agent said stay as captured. What has not been run is listed once,
+  in the site's "Not tried yet" list, not marked inline. The site is a guide,
+  not a log: no dates of runs and no account of how a check was done; that
+  record is kept out of the repo. A statement about what Paircaster does with
+  no check behind it is written as a limit, not a property.
 - No telemetry or phoning home. Farcaster's public nodes (`crackle` mainnet,
   `iris` testnet) may be used during development, never as a default.
 - Do not copy code from projects with proprietary or unclear licences. The

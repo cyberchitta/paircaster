@@ -8,7 +8,7 @@ Your recovery phrase controls your account and everything in it.
 - **Use a test account.** Try this guide, and any software that asks for a recovery phrase, with an account you can afford to lose. Paste a phrase only into software from developers you trust, and prefer apps that ask your wallet to approve a key over ones that ask for the phrase.
 - **The phrase is read from the terminal only.** `paircaster key add` opens the terminal device itself, so the phrase cannot come from a pipe, a file, an argument or an environment variable, and does not end up in your shell history or an agent's transcript. The phrase and the custody key are held in memory that is wiped when they are dropped, and only the app key is written to disk. That is how the code is written; no test checks the memory.
 - **An app key cannot take the account.** It can sign casts, deletes, reactions and follows and their undos. It cannot move funds, change the account's owner, or add other keys. A key file that others can read is refused when `paircaster` loads it.
-- **Keys expire.** A key added by `paircaster` expires 90 days after it was last used; each use pushes that back (seen in [Checking a voucher](voucher.md): `expiresAt` is `lastUsedAt` plus the `ttl`).
+- **Keys expire.** A key added by `paircaster` expires 90 days after it was last used; each use pushes that back (seen in [Adding an app key](client.md#adding-an-app-key): `expiresAt` is `lastUsedAt` plus the `ttl`).
 
 <limit>
 
@@ -18,4 +18,4 @@ Your recovery phrase controls your account and everything in it.
 
 ---
 
-Next: [Testing Paircaster on a clean machine](testing.md)
+Next: [Contributions upstream](upstream.md)

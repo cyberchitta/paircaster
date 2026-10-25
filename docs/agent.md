@@ -3,9 +3,9 @@ title: Giving your AI agent Farcaster
 dek: A skill that lets your AI agent read Farcaster from your own node, show you a thread in your browser, and ask you before each write.
 ---
 
-Paircaster runs a Farcaster node on your own machine, which needs about 800 GB of disk and a day or more before it is ready, and a command-line client, `paircaster`, that reads from that node and posts through it. This page hands the client to your AI agent. Not set up yet? Start at the [quickstart](index.md#quickstart). Paircaster was called Selfcast; output captured before the rename shows the old name.
+Paircaster runs a Farcaster node on your own machine, which needs about 800 GB of disk and a day or more before it is ready, and a command-line client, `paircaster`, that reads from that node and posts through it. This page hands the client to your AI agent. Not set up yet? Start at the [quickstart](index.md#quickstart).
 
-Before you start: a node that `paircaster node status` reports ready, and `paircaster` on your `PATH`, both from the quickstart. For writes, a test account made in the Farcaster app ([Before you start](testing.md#before-you-start)) and an app key for it, which you add yourself in your own terminal ([Adding an app key](client.md#adding-an-app-key)).
+Before you start: a node that `paircaster node status` reports ready, and `paircaster` on your `PATH`, both from the quickstart. For writes, a test account made in the Farcaster app ([Safety](safety.md)) and an app key for it, which you add yourself in your own terminal ([Adding an app key](client.md#adding-an-app-key)).
 
 ## The skill
 
@@ -33,7 +33,7 @@ Your node is **syncing**. Shards 0 and 1 are about **2 seconds behind**; shard 2
 It read the skill and ran `paircaster node status --json` to answer. Under the default sandbox, `paircaster node status` fails with:
 
 ```output
-error: not permitted to connect to http://localhost:3381, so the node's state is unknown; an agent's sandbox may be blocking network access for selfcast
+error: not permitted to connect to http://localhost:3381, so the node's state is unknown; an agent's sandbox may be blocking network access for paircaster
 ```
 
 On Windows, git checks both links out as plain files unless symlinks are enabled (`core.symlinks`), and then the skill does not load.
@@ -188,7 +188,7 @@ It read both casts with `paircaster show`, the thread of the second, and the pro
 
 The agent can also put up an account: `paircaster viewer open 'paircaster://paircaster/profile/3'` shows Dan Romero's picture, bio and follow counts, and his 25 latest casts. With `--images`, an image in a cast is drawn in its card:
 
-<showcase type="image" src="images/viewer-profile.webp" frame="800x1172" alt="Dan Romero's profile in the browser: his picture, name, handle and FID, bio, 79 following and 10K+ followers, then his latest casts: a landscape photo drawn in its card with 24 replies, 222 likes and 27 recasts; 'Neat' quoting balajis's cast about the Farcaster prize as a small card; and a cast headed 'replying to @jdl: sounds difficult to scale'." caption="An account's profile, with an image, a quoted cast and a reply's context drawn in the cards." />
+<showcase type="image" src="images/viewer-profile.webp" frame="800x1172" alt="Dan Romero's profile in the browser: his picture, name, handle and FID, bio, 79 following and 10K+ followers, then his latest casts: a landscape photo drawn in its card with 24 replies, 222 likes and 27 recasts; 'Neat' quoting a cast by balajis as a small card; and a cast headed 'replying to @jdl: sounds difficult to scale'." caption="An account's profile, with an image, a quoted cast and a reply's context drawn in the cards." />
 
 <limit>
 

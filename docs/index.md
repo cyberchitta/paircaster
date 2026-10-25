@@ -13,13 +13,13 @@ dek: Farcaster from your own Snapchain node, for you and your AI agent. No API k
 
 <warning>
 
-**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase, and use a test account** ([Before you start](testing.md#before-you-start), [Safety](safety.md)).
+**Reading needs no keys. Writing needs an app key, which you add once with your recovery phrase: read the code before you give it that phrase, and use a test account** ([Safety](safety.md)).
 
 </warning>
 
 <note>
 
-**Paircaster is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs; where a command has changed since, the guide shows the current one. Paircaster was called Selfcast: some output shows the old name, and the test account is still `@selfcast`. To run it on a clean machine and report what happened, see [Testing Paircaster](testing.md).
+**Paircaster is new.** This guide was run on one Mac (Apple Silicon, macOS, Docker through OrbStack), except what is [listed at the end](#not-tried-yet) as not tried yet. The outputs are from real runs; where a command has changed since, the guide shows the current one. Paircaster was called Selfcast: the test account is still `@selfcast`, and its casts use the old name.
 
 </note>
 
@@ -177,9 +177,7 @@ Each idea is explained where the guide first uses it.
 3. [Giving your AI agent Farcaster](agent.md)
 4. [What you can do with it](uses.md)
 5. [Safety](safety.md)
-6. [Testing Paircaster on a clean machine](testing.md)
-7. [Checking a voucher](voucher.md)
-8. [Contributions upstream](upstream.md)
+6. [Contributions upstream](upstream.md)
 
 ## Not tried yet
 

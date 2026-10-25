@@ -1,7 +1,7 @@
 # Upstream doc fixes
 
 Discrepancies between farcasterxyz docs and observed behaviour, found while
-building Selfcast. Each entry becomes a candidate PR to a `farcasterxyz` repo.
+building Paircaster. Each entry becomes a candidate PR to a `farcasterxyz` repo.
 
 | Date | Doc (URL) | Says | Actually | Evidence | PR |
 |---|---|---|---|---|---|
