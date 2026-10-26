@@ -6,11 +6,11 @@
 // The viewer is the first page built on this. A page an agent writes would
 // use the same object, found at `window.paircaster`.
 
-import * as wasm from "../wasm/paircaster_wasm.js";
 import wasmBase64 from "../wasm/module";
+import * as wasm from "../wasm/paircaster_wasm.js";
 import type { Addresses, Casts, Channel, Event, Feed, Followers, Following, Profile, Reactions, Replies, Show } from "./reads";
 import { versioned } from "./reads";
-import { type Thread, asThread } from "./thread";
+import { asThread, type Thread } from "./thread";
 
 // A FID, or a username as the CLI takes it: `dwr`, `vitalik.eth`, `@123`.
 export type AccountName = number | string;

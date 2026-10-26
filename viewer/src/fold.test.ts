@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import { BRANCH_READ, type Branch, COUNTED, repliesLabel, seedOf } from "./branch";
-import { DEPTH, FIRST_REPLIES, type Layout, type Nest, type Piece, SHOWN, continuedOf, drawnOf, foldedOf, layout, repliesFold } from "./fold";
+import { continuedOf, DEPTH, drawnOf, FIRST_REPLIES, foldedOf, type Layout, layout, type Nest, type Piece, repliesFold, SHOWN } from "./fold";
 import type { Paircaster } from "./runtime";
-import { type Shown, reach } from "./shown";
+import { reach, type Shown } from "./shown";
 import { describe as tellState } from "./state";
-import { type Cast, type Thread, refOf } from "./thread";
+import { type Cast, refOf, type Thread } from "./thread";
 
 const cast = (fid: number, n: number): Cast => ({
   hash: "0x" + n.toString(16).padStart(40, "0"),

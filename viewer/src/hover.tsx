@@ -12,7 +12,7 @@
 import { type ComponentChildren, createContext } from "preact";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { CLOSE_DELAY, HOVER_DELAY, type Profiles, type Rect, place } from "./author";
+import { CLOSE_DELAY, HOVER_DELAY, type Profiles, place, type Rect } from "./author";
 import { ProfileHead } from "./head";
 import type { Account } from "./thread";
 

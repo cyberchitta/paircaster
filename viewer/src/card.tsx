@@ -3,11 +3,11 @@
 import { useState } from "preact/hooks";
 
 import { type Branch, repliesLabel } from "./branch";
-import { type Context, type Contexts, PARENT_EXCERPT, QUOTE_EXCERPT, authorOf, excerpt, parentOf } from "./context";
+import { authorOf, type Context, type Contexts, excerpt, PARENT_EXCERPT, parentOf, QUOTE_EXCERPT } from "./context";
 import { host } from "./host";
 import { useAuthor } from "./hover";
 import { altOf, drawable, hostOf, isImage } from "./media";
-import { type Account, type Cast, ago, appName, hue, initials, refOf, segments } from "./thread";
+import { type Account, ago, appName, type Cast, hue, initials, refOf, segments } from "./thread";
 
 export type Tally = { likes: number; recasts: number };
 

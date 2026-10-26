@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { GAP, MARGIN, countLabel, place, profileJob, shownAccount, wanted } from "./author";
+import { countLabel, GAP, MARGIN, place, profileJob, shownAccount, wanted } from "./author";
 import type { Profile } from "./reads";
 
 const profile = (fid: number, more: Partial<Profile> = {}): Profile => ({

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { authorOf, excerpt, heldOf, parentOf, parentsOf, quotesOf, wantedOf } from "./context";
 import type { Nest } from "./fold";
-import { type Shown, contextsOf } from "./shown";
-import { type Account, type Cast, type Thread, refOf } from "./thread";
+import { contextsOf, type Shown } from "./shown";
+import { type Account, type Cast, refOf, type Thread } from "./thread";
 
 const hash = (n: number) => "0x" + n.toString(16).padStart(40, "0");
 const cast = (fid: number, n: number, more: Partial<Cast> = {}): Cast => ({

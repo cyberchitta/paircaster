@@ -4,9 +4,9 @@
 // its order, and the other replies fold below them.
 
 import { type Actions, Avatar, CastCard, type Role } from "../card";
-import { type FoldKey, type Piece, layout } from "../fold";
+import { type FoldKey, layout, type Piece } from "../fold";
 import { accountsOf, count } from "../shown";
-import { type Account, type Cast, type Thread, refOf } from "../thread";
+import { type Account, type Cast, refOf, type Thread } from "../thread";
 
 type ThreadProps = {
   thread: Thread;

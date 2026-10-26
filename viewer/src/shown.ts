@@ -2,11 +2,11 @@
 
 import { BRANCH_READ, type Branch, branchOf } from "./branch";
 import { type Context, type Contexts, heldOf, parentsOf } from "./context";
-import { type Nest, continuedOf, drawnOf, foldedOf, layout } from "./fold";
+import { continuedOf, drawnOf, foldedOf, layout, type Nest } from "./fold";
 import type { Spot } from "./moniker";
 import type { Profile } from "./reads";
 import type { Paircaster } from "./runtime";
-import { type Account, type Cast, type Thread, refOf } from "./thread";
+import { type Account, type Cast, refOf, type Thread } from "./thread";
 
 // What a spot read from the node. A list keeps each cast's parent (`null`
 // where the node does not hold it), which its read walked up to anyway. A

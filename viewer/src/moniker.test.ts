@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { MAX_CAPTION, MAX_LISTED, type Spot, atOf, markedOf, monikerOf, parseAt } from "./moniker";
+import { atOf, MAX_CAPTION, MAX_LISTED, markedOf, monikerOf, parseAt, type Spot } from "./moniker";
 
 const project = "paircaster";
 const base = "paircaster://paircaster/";

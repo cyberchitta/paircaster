@@ -5,7 +5,7 @@
 // the way down to a marked cast is drawn however deep it is.
 
 import type { Branch } from "./branch";
-import { type Cast, type Thread, refOf } from "./thread";
+import { type Cast, refOf, type Thread } from "./thread";
 
 // Direct replies shown before the rest fold.
 export const FIRST_REPLIES = 10;

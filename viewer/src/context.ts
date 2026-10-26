@@ -6,7 +6,7 @@
 // holds it: a cast drawn, folded or read below another, or a list cast's
 // parent, which the list read already walked up to.
 
-import { type Account, type Cast, type Thread, refOf } from "./thread";
+import { type Account, type Cast, refOf, type Thread } from "./thread";
 
 // A context cast and its author as the page knows them; `null` for one the
 // node does not hold (deleted, or pruned).

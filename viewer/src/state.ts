@@ -3,9 +3,9 @@
 
 import type { Answer } from "pair-ui/page";
 import type { Nest } from "./fold";
-import { type Spot, baseOf, parseAt } from "./moniker";
+import { baseOf, parseAt, type Spot } from "./moniker";
 import type { Profile } from "./reads";
-import { type Shown, accountsOf, count, onScreen } from "./shown";
+import { accountsOf, count, onScreen, type Shown } from "./shown";
 import { type Account, type Cast, refOf } from "./thread";
 
 // The tell bodies this build takes: `{ paircaster: 1, get: "state" }`.
