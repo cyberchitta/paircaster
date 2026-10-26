@@ -9,11 +9,7 @@ import type { Account } from "./thread";
 
 // `profile` is the account's profile once read, `null` where the read
 // failed; until then the head shows what the page holds of `account`.
-export function ProfileHead({ fid, account, profile }: {
-  fid: number;
-  account: Account | undefined;
-  profile: Profile | null | undefined;
-}) {
+export function ProfileHead({ fid, account, profile }: { fid: number; account: Account | undefined; profile: Profile | null | undefined }) {
   const shown = shownAccount(fid, account, profile);
   const name = shown.display_name ?? shown.username ?? `fid ${fid}`;
   return (
@@ -33,13 +29,7 @@ export function ProfileHead({ fid, account, profile }: {
           <span>
             <strong>{countLabel(profile.following)}</strong> following
           </span>
-          <span
-            title={
-              profile.followers_exact
-                ? undefined
-                : `at least ${profile.followers.toLocaleString("en-US")}: the page stops counting there`
-            }
-          >
+          <span title={profile.followers_exact ? undefined : `at least ${profile.followers.toLocaleString("en-US")}: the page stops counting there`}>
             <strong>{countLabel(profile.followers, profile.followers_exact)}</strong> followers
           </span>
         </p>

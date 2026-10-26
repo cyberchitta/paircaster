@@ -20,8 +20,7 @@ const cast = (fid: number, n: number, more: Partial<Cast> = {}): Cast => ({
   ...more,
 });
 const ref = (fid: number, n: number) => ({ fid, hash: hash(n) });
-const replyTo = (fid: number, n: number, to: { fid: number; hash: string }, more: Partial<Cast> = {}) =>
-  cast(fid, n, { parent: { cast: to }, ...more });
+const replyTo = (fid: number, n: number, to: { fid: number; hash: string }, more: Partial<Cast> = {}) => cast(fid, n, { parent: { cast: to }, ...more });
 const quoting = (fid: number, n: number, ...quoted: { fid: number; hash: string }[]) =>
   cast(fid, n, { embeds: [{ url: "https://example.com/a" }, ...quoted.map((q) => ({ cast: q }))] });
 const alice: Account = { fid: 2, username: "alice", display_name: "Alice", pfp_url: null };
@@ -77,7 +76,14 @@ describe("what the page holds already", () => {
     const thread: Thread = { version: 1, top: "root", ancestors: [], cast: quoted, replies: [], accounts: [alice] };
     const shown: Shown = { kind: "thread", thread, only: null };
     const nest: Nest = { branches: new Map([[refOf(quoted), { casts: [nested], accounts: [] }]]), depth: 3 };
-    const all = contextsOf(shown, nest, new Map([[refOf(quoted), null], ["7:" + hash(1), null]]));
+    const all = contextsOf(
+      shown,
+      nest,
+      new Map([
+        [refOf(quoted), null],
+        ["7:" + hash(1), null],
+      ]),
+    );
     expect(all.get(refOf(quoted))).toEqual({ cast: quoted, account: alice });
     expect(all.get(refOf(nested))?.cast).toEqual(nested);
     expect(all.get("7:" + hash(1))).toBeNull();

@@ -52,10 +52,7 @@ export function appName(fid: number | null): string {
   return APPS[fid] ?? `app ${fid}`;
 }
 
-export type Segment =
-  | { kind: "text"; text: string }
-  | { kind: "link"; text: string; url: string }
-  | { kind: "mention"; text: string };
+export type Segment = { kind: "text"; text: string } | { kind: "link"; text: string; url: string } | { kind: "mention"; text: string };
 
 const TOKEN = /https?:\/\/[^\s<>"]+|@fid:\d+|@[a-z0-9][a-z0-9_.-]*/gi;
 

@@ -7,7 +7,12 @@ import type { Profile } from "../reads";
 import { count } from "../shown";
 import type { Account, Cast } from "../thread";
 
-export function ProfileView({ profile, casts, accounts, ...actions }: {
+export function ProfileView({
+  profile,
+  casts,
+  accounts,
+  ...actions
+}: {
   profile: Profile;
   casts: Cast[];
   accounts: Account[];

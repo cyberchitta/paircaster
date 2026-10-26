@@ -103,10 +103,7 @@ function App() {
         throw new Error(`${strays[0]} is not on the page ${place.at} shows`);
       }
       // A marked reply nested deeper is reached by reading the way down to it.
-      const ways =
-        shown.kind === "thread"
-          ? await Promise.all(strays.map((m) => reach(rt, shown.thread, m, branchRef.current)))
-          : [];
+      const ways = shown.kind === "thread" ? await Promise.all(strays.map((m) => reach(rt, shown.thread, m, branchRef.current))) : [];
       if (seq !== latest.current) return null;
       const none = new Set<string>();
       const now = { node: place.node, spot, shown, marked: marks, trail: place.trail, opened: none };
@@ -253,9 +250,7 @@ function App() {
     if (!connected) return;
     const kept = connected.kept;
     const restored = isKept(kept)
-      ? ((live.current.userSelected = kept.user_selected),
-        (live.current.userMarked = kept.user_marked ?? null),
-        load(placeOf(kept)).catch(() => {}))
+      ? ((live.current.userSelected = kept.user_selected), (live.current.userMarked = kept.user_marked ?? null), load(placeOf(kept)).catch(() => {}))
       : Promise.resolve();
     restored.then(() =>
       connected.start({
@@ -323,14 +318,19 @@ function App() {
     else save(live.current);
   };
 
-  if (!host) return <p class="note">Open this page with <code>paircaster viewer open</code>.</p>;
+  if (!host)
+    return (
+      <p class="note">
+        Open this page with <code>paircaster viewer open</code>.
+      </p>
+    );
   const shown = view.shown;
   if (!shown) {
     if (view.error || view.loading) return <p class="note">{view.error ?? "Reading the node…"}</p>;
     return (
       <p class="note">
-        <strong>Nothing open yet.</strong> Ask your agent to show you a conversation, for example “show me the
-        replies to dwr's latest cast”. Click any cast and your agent can see which one you mean.
+        <strong>Nothing open yet.</strong> Ask your agent to show you a conversation, for example “show me the replies to dwr's latest cast”. Click any cast and
+        your agent can see which one you mean.
       </p>
     );
   }
@@ -349,14 +349,7 @@ function App() {
         {view.error && <p class="error">{view.error}</p>}
         {caption !== undefined && <p class="caption">{caption}</p>}
         {shown.kind === "thread" ? (
-          <ThreadView
-            thread={shown.thread}
-            only={shown.only}
-            opened={opened}
-            depth={depth}
-            onUnfold={unfold}
-            {...actions}
-          />
+          <ThreadView thread={shown.thread} only={shown.only} opened={opened} depth={depth} onUnfold={unfold} {...actions} />
         ) : shown.kind === "profile" ? (
           <ProfileView profile={shown.profile} casts={shown.casts} accounts={shown.accounts} {...actions} />
         ) : (

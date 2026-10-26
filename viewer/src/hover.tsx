@@ -28,11 +28,7 @@ const HubContext = createContext<Hub | null>(null);
 
 // Holds the card for the page within it; `want` asks the page to read an
 // account's profile.
-export function Hover({ profiles, want, children }: {
-  profiles: Profiles;
-  want(fid: number): void;
-  children: ComponentChildren;
-}) {
+export function Hover({ profiles, want, children }: { profiles: Profiles; want(fid: number): void; children: ComponentChildren }) {
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const wantRef = useRef(want);
@@ -98,8 +94,7 @@ export function useAuthor(fid: number, account: Account | undefined) {
   const hub = useContext(HubContext);
   if (!hub) return {};
   return {
-    onPointerEnter: (e: PointerEvent) =>
-      e.pointerType !== "touch" && hub.enter(fid, account, e.currentTarget as Element, HOVER_DELAY),
+    onPointerEnter: (e: PointerEvent) => e.pointerType !== "touch" && hub.enter(fid, account, e.currentTarget as Element, HOVER_DELAY),
     onPointerLeave: () => hub.leave(),
     onFocus: (e: FocusEvent) => {
       const el = e.currentTarget as Element;

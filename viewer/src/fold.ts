@@ -46,24 +46,18 @@ function leadsOf(thread: Thread, marked: string[], nest: Nest): Set<string> {
   return leads;
 }
 
-export function layout(
-  thread: Thread,
-  only: string[] | null,
-  opened: ReadonlySet<string>,
-  marked: string[],
-  nest: Nest,
-): Layout {
+export function layout(thread: Thread, only: string[] | null, opened: ReadonlySet<string>, marked: string[], nest: Nest): Layout {
   const leads = leadsOf(thread, marked, nest);
   const run = (fold: FoldKey, casts: Cast[], each: (c: Cast) => Piece): Piece[] =>
-    casts.length === 0 || opened.has(fold) || casts.some((c) => leads.has(refOf(c)))
-      ? casts.map(each)
-      : [{ fold, casts }];
-  const node = (depth: number) => (cast: Cast): Piece => {
-    const below = nest.branches.get(refOf(cast))?.casts ?? [];
-    if (below.length === 0) return leaf(cast);
-    if (depth >= nest.depth && !below.some((c) => leads.has(refOf(c)))) return { ...leaf(cast), continues: true };
-    return { cast, replies: level(repliesFold(refOf(cast)), below, depth + 1), continues: false };
-  };
+    casts.length === 0 || opened.has(fold) || casts.some((c) => leads.has(refOf(c))) ? casts.map(each) : [{ fold, casts }];
+  const node =
+    (depth: number) =>
+    (cast: Cast): Piece => {
+      const below = nest.branches.get(refOf(cast))?.casts ?? [];
+      if (below.length === 0) return leaf(cast);
+      if (depth >= nest.depth && !below.some((c) => leads.has(refOf(c)))) return { ...leaf(cast), continues: true };
+      return { cast, replies: level(repliesFold(refOf(cast)), below, depth + 1), continues: false };
+    };
   // A level's first few replies, and the rest folded when two or more remain.
   const level = (fold: FoldKey, casts: Cast[], depth: number): Piece[] => {
     const shown = SHOWN[Math.min(depth, SHOWN.length) - 1];
@@ -73,8 +67,7 @@ export function layout(
   };
   const { ancestors: a, replies } = thread;
   // The root and the cast replied to stay; a fold of one cast saves nothing.
-  const above =
-    a.length < 4 ? a.map(leaf) : [leaf(a[0]), ...run("above", a.slice(1, -1), leaf), leaf(a[a.length - 1])];
+  const above = a.length < 4 ? a.map(leaf) : [leaf(a[0]), ...run("above", a.slice(1, -1), leaf), leaf(a[a.length - 1])];
   if (only) {
     const picks = only.map((r) => replies.find((c) => refOf(c) === r)!);
     const rest = replies.filter((c) => !only.includes(refOf(c)));
@@ -94,5 +87,4 @@ export const foldedOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("fold" 
 export const drawnOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("cast" in p ? [p.cast] : []));
 
 // The cards whose replies continue in their own thread.
-export const continuedOf = (l: Layout): Cast[] =>
-  pieces(l).flatMap((p) => ("cast" in p && p.continues ? [p.cast] : []));
+export const continuedOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("cast" in p && p.continues ? [p.cast] : []));

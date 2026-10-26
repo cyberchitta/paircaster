@@ -49,7 +49,7 @@ describe("monikerOf", () => {
     { kind: "thread", cast: a, only: [b], caption: "ranked by likes & recasts, #1 first?" },
     { kind: "profile", fid: 3 },
     { kind: "profile", fid: 3356360, caption: "who replied most" },
-    { kind: "casts", casts: [a], caption: "casts saying \"snapchain\" — 100% of them" },
+    { kind: "casts", casts: [a], caption: 'casts saying "snapchain" — 100% of them' },
   ];
 
   test("names each spot so that parseAt reads it back", () => {

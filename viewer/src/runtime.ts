@@ -8,19 +8,7 @@
 
 import * as wasm from "../wasm/paircaster_wasm.js";
 import wasmBase64 from "../wasm/module";
-import type {
-  Addresses,
-  Casts,
-  Channel,
-  Event,
-  Feed,
-  Followers,
-  Following,
-  Profile,
-  Reactions,
-  Replies,
-  Show,
-} from "./reads";
+import type { Addresses, Casts, Channel, Event, Feed, Followers, Following, Profile, Reactions, Replies, Show } from "./reads";
 import { versioned } from "./reads";
 import { type Thread, asThread } from "./thread";
 
@@ -81,21 +69,14 @@ export function makeRuntime(node: string): Paircaster {
   const now = () => Math.floor(Date.now() / 1000);
   const paircaster: Paircaster = {
     node,
-    profile: async (account, o = {}) =>
-      versioned(await wasm.profile(node, nameOf(account), o.allFollowers ?? false), "profile"),
-    feed: async (account, o = {}) =>
-      versioned(await wasm.feed(node, nameOf(account), o.limit ?? 20, ...apps(o), now()), "feed"),
-    casts: async (accounts, o = {}) =>
-      versioned(await wasm.casts(node, listOf(accounts), o.limit ?? 20, ...apps(o), now()), "casts"),
-    channel: async (url, o = {}) =>
-      versioned(await wasm.channel(node, url, o.limit ?? 20, ...apps(o), now()), "channel"),
+    profile: async (account, o = {}) => versioned(await wasm.profile(node, nameOf(account), o.allFollowers ?? false), "profile"),
+    feed: async (account, o = {}) => versioned(await wasm.feed(node, nameOf(account), o.limit ?? 20, ...apps(o), now()), "feed"),
+    casts: async (accounts, o = {}) => versioned(await wasm.casts(node, listOf(accounts), o.limit ?? 20, ...apps(o), now()), "casts"),
+    channel: async (url, o = {}) => versioned(await wasm.channel(node, url, o.limit ?? 20, ...apps(o), now()), "channel"),
     addresses: async (account) => versioned(await wasm.addresses(node, nameOf(account)), "addresses"),
-    followers: async (account, o = {}) =>
-      versioned(await wasm.followers(node, nameOf(account), o.limit ?? 100), "followers"),
-    following: async (account, o = {}) =>
-      versioned(await wasm.following(node, nameOf(account), o.limit ?? 100), "following"),
-    replies: async (cast, o = {}) =>
-      versioned(await wasm.replies(node, cast, o.limit ?? 100, ...apps(o), now()), "replies"),
+    followers: async (account, o = {}) => versioned(await wasm.followers(node, nameOf(account), o.limit ?? 100), "followers"),
+    following: async (account, o = {}) => versioned(await wasm.following(node, nameOf(account), o.limit ?? 100), "following"),
+    replies: async (cast, o = {}) => versioned(await wasm.replies(node, cast, o.limit ?? 100, ...apps(o), now()), "replies"),
     thread: async (cast, o = {}) => asThread(JSON.parse(await wasm.thread(node, cast, o.limit ?? 100, now()))),
     show: async (cast) => versioned(await wasm.show(node, cast), "show"),
     reactions: async (cast) => versioned(await wasm.reactions(node, cast), "reactions"),
@@ -105,10 +86,7 @@ export function makeRuntime(node: string): Paircaster {
   return paircaster;
 }
 
-async function* events(
-  node: string,
-  o: { since?: string; until?: string; shard?: number },
-): AsyncGenerator<Event> {
+async function* events(node: string, o: { since?: string; until?: string; shard?: number }): AsyncGenerator<Event> {
   const read = await wasm.events(node, o.shard, o.since, o.until);
   try {
     for (let page = await read.next(); page !== undefined; page = await read.next()) {

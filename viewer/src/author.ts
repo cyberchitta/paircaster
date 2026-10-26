@@ -29,8 +29,7 @@ export const profileJob = (fid: number) => `profile ${fid}`;
 
 // Whether a hover on `fid` reads its profile: not when the page holds it, or
 // asked for it already on this view.
-export const wanted = (profiles: Profiles, asked: ReadonlySet<string>, fid: number): boolean =>
-  !profiles.has(fid) && !asked.has(profileJob(fid));
+export const wanted = (profiles: Profiles, asked: ReadonlySet<string>, fid: number): boolean => !profiles.has(fid) && !asked.has(profileJob(fid));
 
 // The account as the card names it: the profile once read, else what the
 // page holds from the casts.

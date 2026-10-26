@@ -13,10 +13,7 @@ const root = `${import.meta.dir}/..`;
 await $`cargo build -q -p paircaster-wasm --target wasm32-unknown-unknown --profile wasm`.cwd(root);
 await $`wasm-bindgen --target web --out-dir viewer/wasm target/wasm32-unknown-unknown/wasm/paircaster_wasm.wasm`.cwd(root);
 const wasm = await Bun.file(`${import.meta.dir}/wasm/paircaster_wasm_bg.wasm`).arrayBuffer();
-await Bun.write(
-  `${import.meta.dir}/wasm/module.ts`,
-  `export default "${Buffer.from(wasm).toString("base64")}";\n`,
-);
+await Bun.write(`${import.meta.dir}/wasm/module.ts`, `export default "${Buffer.from(wasm).toString("base64")}";\n`);
 
 const built = await Bun.build({
   entrypoints: [`${import.meta.dir}/src/main.tsx`],

@@ -14,11 +14,9 @@ const FID = /^[1-9]\d{0,15}$/;
 // `profile/<fid>`, an account and its latest casts. Any may end
 // `#cast=<cast>,…` to mark casts it shows, and carry `?caption=<text>`,
 // URL-encoded: a line the agent shows above the view.
-export type Spot = (
-  | { kind: "thread"; cast: string; only: string[] | null }
-  | { kind: "casts"; casts: string[] }
-  | { kind: "profile"; fid: number }
-) & { caption?: string };
+export type Spot = ({ kind: "thread"; cast: string; only: string[] | null } | { kind: "casts"; casts: string[] } | { kind: "profile"; fid: number }) & {
+  caption?: string;
+};
 
 // The longest caption, in characters.
 export const MAX_CAPTION = 200;

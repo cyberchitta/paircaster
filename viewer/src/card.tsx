@@ -53,13 +53,11 @@ export function CastCard(props: CardProps) {
   const key = (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter") click(e);
-    else if (e.key === " ") (e.preventDefault(), onMark(cast, e.shiftKey));
+    else if (e.key === " ") e.preventDefault(), onMark(cast, e.shiftKey);
   };
   return (
     <article
-      class={["cast", role, nested && "nested", parent && "parent", marked.includes(ref) && "selected"]
-        .filter(Boolean)
-        .join(" ")}
+      class={["cast", role, nested && "nested", parent && "parent", marked.includes(ref) && "selected"].filter(Boolean).join(" ")}
       data-cast={ref}
       tabIndex={0}
       onClick={click}
@@ -116,11 +114,7 @@ export function Avatar({ account, fid }: { account: Account | undefined; fid: nu
   const [failed, setFailed] = useState<string | null>(null);
   return (
     <div class="avatar" style={{ "--hue": hue(fid) }} aria-hidden="true">
-      {url && failed !== url ? (
-        <img src={url} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(url)} />
-      ) : (
-        initials(account, fid)
-      )}
+      {url && failed !== url ? <img src={url} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(url)} /> : initials(account, fid)}
     </div>
   );
 }
@@ -202,11 +196,7 @@ function ReplyingTo({ cast, contexts, onOpen }: { cast: Cast; contexts: Contexts
   const context = contexts.get(ref);
   if (context === null) return <p class="context gone">replying to a cast that's gone</p>;
   return (
-    <button
-      class="context"
-      title={context ? excerpt(context.cast, 1000) : ref}
-      onClick={(e) => (e.stopPropagation(), onOpen(ref))}
-    >
+    <button class="context" title={context ? excerpt(context.cast, 1000) : ref} onClick={(e) => (e.stopPropagation(), onOpen(ref))}>
       replying to{" "}
       {context ? (
         <>
@@ -221,7 +211,13 @@ function ReplyingTo({ cast, contexts, onOpen }: { cast: Cast; contexts: Contexts
 
 // A quoted cast once read: its author and the start of its text; a click
 // opens its thread. Until then, or where the node does not hold it, a chip.
-function Quote({ fid, target, context, now, onOpen }: {
+function Quote({
+  fid,
+  target,
+  context,
+  now,
+  onOpen,
+}: {
   fid: number;
   target: string;
   context: Context | null | undefined;
@@ -266,12 +262,7 @@ function QuoteCard({ context, now, open }: { context: Context; now: number; open
   );
 }
 
-function Embeds({ cast, contexts, now, onOpen }: {
-  cast: Cast;
-  contexts: Contexts;
-  now: number;
-  onOpen(ref: string): void;
-}) {
+function Embeds({ cast, contexts, now, onOpen }: { cast: Cast; contexts: Contexts; now: number; onOpen(ref: string): void }) {
   if (cast.embeds.length === 0) return null;
   return (
     <div class="embeds">
@@ -285,14 +276,7 @@ function Embeds({ cast, contexts, now, onOpen }: {
             </Link>
           )
         ) : (
-          <Quote
-            key={i}
-            fid={e.cast.fid}
-            target={refOf(e.cast)}
-            context={contexts.get(refOf(e.cast))}
-            now={now}
-            onOpen={onOpen}
-          />
+          <Quote key={i} fid={e.cast.fid} target={refOf(e.cast)} context={contexts.get(refOf(e.cast))} now={now} onOpen={onOpen} />
         ),
       )}
     </div>
@@ -318,12 +302,7 @@ function Picture({ url }: { url: string }) {
   );
 }
 
-function Link({ url, chip, picture, children }: {
-  url: string;
-  chip?: boolean;
-  picture?: boolean;
-  children: preact.ComponentChildren;
-}) {
+function Link({ url, chip, picture, children }: { url: string; chip?: boolean; picture?: boolean; children: preact.ComponentChildren }) {
   const opens = host?.opensLinks ?? false;
   return (
     <a

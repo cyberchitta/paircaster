@@ -31,10 +31,7 @@ function threadOf(runtime: Paircaster, cast: string, options?: { limit?: number 
 // `known` is the account's profile when the page holds it already.
 export async function read(runtime: Paircaster, spot: Spot, known?: Profile): Promise<Shown> {
   if (spot.kind === "profile") {
-    const [profile, { casts, accounts }] = await Promise.all([
-      known ?? runtime.profile(spot.fid),
-      runtime.casts(spot.fid, { limit: PROFILE_CASTS }),
-    ]);
+    const [profile, { casts, accounts }] = await Promise.all([known ?? runtime.profile(spot.fid), runtime.casts(spot.fid, { limit: PROFILE_CASTS })]);
     return { kind: "profile", profile, casts, accounts };
   }
   if (spot.kind === "casts") {
@@ -93,12 +90,7 @@ export function contextsOf(shown: Shown, nest: Nest, read: Contexts): Contexts {
 // under one of its replies, read so the page can draw it marked; throws when
 // `mark` is not under the focus or a reply on the way is not among the
 // newest its parent's read holds.
-export async function reach(
-  runtime: Paircaster,
-  thread: Thread,
-  mark: string,
-  known: ReadonlyMap<string, Branch>,
-): Promise<Map<string, Branch>> {
+export async function reach(runtime: Paircaster, thread: Thread, mark: string, known: ReadonlyMap<string, Branch>): Promise<Map<string, Branch>> {
   const missing = new Error(`${mark} is not on the page the thread of ${refOf(thread.cast)} shows`);
   const above = (await threadOf(runtime, mark, { limit: 1 })).ancestors.map(refOf);
   const path = above.slice(above.indexOf(refOf(thread.cast)) + 1);

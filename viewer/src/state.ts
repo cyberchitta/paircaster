@@ -38,21 +38,14 @@ export type Live = {
   userMarked: string | null;
 };
 
-export async function reveal(
-  project: string,
-  load: (place: Place) => Promise<Shown | null>,
-  now: Live,
-  moniker: string,
-  state: unknown,
-): Promise<Answer> {
+export async function reveal(project: string, load: (place: Place) => Promise<Shown | null>, now: Live, moniker: string, state: unknown): Promise<Answer> {
   if (!moniker.startsWith(baseOf(project))) return { ok: false, message: `not a moniker of this project: ${moniker}` };
   const node = isObject(state) && typeof state.node === "string" ? state.node : now.node;
   const shown = await load({ node, at: moniker, trail: [] });
   if (!shown) return { ok: false, message: `${moniker} was overtaken by a later reveal; this one changed nothing` };
   const { spot, marks: marked } = parseAt(project, moniker);
   const marks =
-    (marked.length > 0 ? `, ${marked.join(", ")} selected` : "") +
-    (spot.caption !== undefined ? `, captioned ${JSON.stringify(spot.caption)}` : "");
+    (marked.length > 0 ? `, ${marked.join(", ")} selected` : "") + (spot.caption !== undefined ? `, captioned ${JSON.stringify(spot.caption)}` : "");
   if (shown.kind === "casts") return { ok: true, message: `${count(shown.casts.length, "cast")}${marks}, from ${node}` };
   if (shown.kind === "profile") {
     const what = `profile of ${nameOf(shown.profile)}, ${count(shown.casts.length, "latest cast")}`;
@@ -109,18 +102,20 @@ function about(accounts: Account[], c: Cast | undefined, ref: string): string {
 // as the owner left them: none once each fold is opened. `continued` lists
 // the replies whose own replies the page leaves to their thread ("Continue
 // this thread"), and `depth` how many levels of replies it nests.
-export function describe(
-  shown: Shown,
-  marked: string[],
-  back: string[],
-  opened: ReadonlySet<string>,
-  nest: Nest,
-): [string, Record<string, unknown>] {
+export function describe(shown: Shown, marked: string[], back: string[], opened: ReadonlySet<string>, nest: Nest): [string, Record<string, unknown>] {
   const accounts = accountsOf(shown, nest);
   const page = onScreen(shown, opened, marked, nest);
   const on = [...page.drawn, ...page.folded];
   const named = (refs: string[]) =>
-    refs.map((r) => about(accounts, on.find((c) => refOf(c) === r), r)).join("; ");
+    refs
+      .map((r) =>
+        about(
+          accounts,
+          on.find((c) => refOf(c) === r),
+          r,
+        ),
+      )
+      .join("; ");
   const selected = marked.length > 0 ? marked : null;
   const marks = selected ? `; selected ${named(marked)}` : "";
   const folded = page.folded.map(refOf);
@@ -144,9 +139,7 @@ export function describe(
     count(thread.replies.length, "reply", "replies") +
     (only ? `, picked first ${named(only)}` : "") +
     (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
-    (continued.length > 0
-      ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread`
-      : "") +
+    (continued.length > 0 ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread` : "") +
     marks;
   const filter = only ? { only } : {};
   const state = { view: "thread", cast, ...filter, selected, back, folded, continued, depth: nest.depth };

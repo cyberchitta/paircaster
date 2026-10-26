@@ -37,18 +37,7 @@ export function ThreadView({ thread, only, opened, depth, onUnfold, ...actions }
       );
     }
     const under = p.replies.length > 0 || p.continues;
-    const card = (
-      <CastCard
-        key={p.cast.hash}
-        cast={p.cast}
-        role={role}
-        nested={level > 1}
-        parent={under}
-        accounts={accounts}
-        now={now}
-        {...actions}
-      />
-    );
+    const card = <CastCard key={p.cast.hash} cast={p.cast} role={role} nested={level > 1} parent={under} accounts={accounts} now={now} {...actions} />;
     if (!under) return card;
     return [
       card,
@@ -80,22 +69,11 @@ function labelOf(fold: FoldKey, n: number, only: string[] | null): string {
 }
 
 // A folded run: its size and the first few authors; a click opens it in place.
-function Fold(props: {
-  casts: Cast[];
-  role: Role;
-  nested: boolean;
-  label: string;
-  accounts: Map<number, Account>;
-  onOpen(): void;
-}) {
+function Fold(props: { casts: Cast[]; role: Role; nested: boolean; label: string; accounts: Map<number, Account>; onOpen(): void }) {
   const { casts, role, nested, label, accounts, onOpen } = props;
   const authors = [...new Set(casts.map((c) => c.fid))].slice(0, 3);
   return (
-    <button
-      class={`fold ${role}${nested ? " nested" : ""}`}
-      onClick={onOpen}
-      title={`show ${count(casts.length, "cast")}`}
-    >
+    <button class={`fold ${role}${nested ? " nested" : ""}`} onClick={onOpen} title={`show ${count(casts.length, "cast")}`}>
       <span class="rail">{role === "ancestor" && <span class="line dotted" />}</span>
       <span class="faces" aria-hidden="true">
         {authors.map((fid) => (

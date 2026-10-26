@@ -19,8 +19,7 @@ export const branchOf = (r: Replies): Branch => ({ casts: r.casts, accounts: r.a
 
 // The focus's replies, when the thread read holds all of them; else the
 // focus is read like any other cast.
-export const seedOf = (thread: Thread): Branch | null =>
-  thread.replies.length < THREAD_READ ? { casts: thread.replies, accounts: thread.accounts } : null;
+export const seedOf = (thread: Thread): Branch | null => (thread.replies.length < THREAD_READ ? { casts: thread.replies, accounts: thread.accounts } : null);
 
 // What a card says of its replies; nothing for none.
 export function repliesLabel(branch: Branch): string | null {

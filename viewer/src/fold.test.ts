@@ -1,19 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { BRANCH_READ, type Branch, COUNTED, repliesLabel, seedOf } from "./branch";
-import {
-  DEPTH,
-  FIRST_REPLIES,
-  type Layout,
-  type Nest,
-  type Piece,
-  SHOWN,
-  continuedOf,
-  drawnOf,
-  foldedOf,
-  layout,
-  repliesFold,
-} from "./fold";
+import { DEPTH, FIRST_REPLIES, type Layout, type Nest, type Piece, SHOWN, continuedOf, drawnOf, foldedOf, layout, repliesFold } from "./fold";
 import type { Paircaster } from "./runtime";
 import { type Shown, reach } from "./shown";
 import { describe as tellState } from "./state";
@@ -157,9 +145,7 @@ describe("nested replies", () => {
     const mark = deep.casts[2];
     const l = layout(t, null, none, [refOf(mark)], { branches, depth: 2 });
     expect(drawnOf(l).map((c) => parseInt(c.hash, 16))).toContain(parseInt(mark.hash, 16));
-    expect(nested(l.replies)).toEqual([
-      [200, ["2000>", "2001>", [2002, ["3200>", [3201, [4700, 4701, 4702]], "3202>"]]]],
-    ]);
+    expect(nested(l.replies)).toEqual([[200, ["2000>", "2001>", [2002, ["3200>", [3201, [4700, 4701, 4702]], "3202>"]]]]]);
   });
 });
 
