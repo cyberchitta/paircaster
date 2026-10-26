@@ -76,7 +76,11 @@ export type Event = EventHead &
     | { event: "other"; type: string }
   );
 
-// Parses a read's JSON and checks it is the version this page knows.
+// Parses a read's JSON and checks it is the version this page knows. The
+// rest is cast, not parsed: the JSON is paircaster-core's own output, built
+// into this page as WebAssembly, which parsed the node's responses into
+// these shapes before printing them. A build whose core prints another
+// shape changes the version.
 export function versioned<T>(json: string, read: string): T {
   const value = JSON.parse(json);
   if (value?.version !== 1) throw new Error(`not a version 1 ${read} result`);

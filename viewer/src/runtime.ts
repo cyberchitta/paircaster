@@ -96,6 +96,7 @@ async function* events(node: string, o: { since?: string; until?: string; shard?
   const read = await wasm.events(node, o.shard, o.since, o.until);
   try {
     for (let page = await read.next(); page !== undefined; page = await read.next()) {
+      // Cast, not parsed, as `versioned` (reads.ts) says why.
       for (const e of JSON.parse(page) as Event[]) {
         if (e.version !== 1) throw new Error("not a version 1 event");
         yield e;

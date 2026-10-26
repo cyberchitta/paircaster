@@ -33,6 +33,8 @@ export type Thread = {
   accounts: Account[];
 };
 
+// Checks the version and the fields a thread view cannot draw without; the
+// rest is cast, as `versioned` (reads.ts) says why.
 export function asThread(value: unknown): Thread {
   const t = value as Thread;
   if (t?.version !== 1 || !t.cast || !Array.isArray(t.replies)) {
