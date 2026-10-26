@@ -8,13 +8,13 @@ import { type FoldKey, layout, type Piece } from "../fold";
 import { accountsOf, count } from "../shown";
 import { type Account, type Cast, refOf, type Thread } from "../thread";
 
-type ThreadProps = {
+interface ThreadProps extends Actions {
   thread: Thread;
   only: string[] | null;
   opened: ReadonlySet<string>;
   depth: number;
   onUnfold(fold: FoldKey): void;
-} & Actions;
+}
 
 export function ThreadView({ thread, only, opened, depth, onUnfold, ...actions }: ThreadProps) {
   const nest = { branches: actions.branches, depth };

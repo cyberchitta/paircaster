@@ -9,12 +9,15 @@ import { useAuthor } from "./hover";
 import { altOf, drawable, hostOf, isImage } from "./media";
 import { type Account, ago, appName, type Cast, hue, initials, refOf, segments } from "./thread";
 
-export type Tally = { likes: number; recasts: number };
+export interface Tally {
+  likes: number;
+  recasts: number;
+}
 
 // What a card does when pointed at, and what it shows beside the cast:
 // likes and recasts, its direct replies, and the casts it quotes or replies
 // to, each once read.
-export type Actions = {
+export interface Actions {
   marked: string[];
   tallies: Map<string, Tally>;
   branches: Map<string, Branch>;
@@ -24,14 +27,14 @@ export type Actions = {
   onSelect(cast: Cast, glance?: boolean): void;
   // Cmd/Ctrl-click or Space adds or removes one; Shift a span.
   onMark(cast: Cast, span: boolean): void;
-};
+}
 
 export type Role = "ancestor" | "focus" | "reply";
 
 // `nested` for a reply under a reply; `parent` for a card with replies drawn
 // under it, joined to them by a line; `replying` for a card that names the
 // cast it replies to, which a thread draws above it instead.
-type CardProps = {
+interface CardProps extends Actions {
   cast: Cast;
   role: Role;
   nested?: boolean;
@@ -39,7 +42,7 @@ type CardProps = {
   replying?: boolean;
   accounts: Map<number, Account>;
   now: number;
-} & Actions;
+}
 
 export function CastCard(props: CardProps) {
   const { cast, role, nested, parent, replying, accounts, now, marked, tallies, branches, contexts } = props;

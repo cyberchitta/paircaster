@@ -1,10 +1,13 @@
 // The `thread` tool's result: `paircaster thread --json`, version 1
 // (crates/cli/src/reads.rs, `ThreadV1`).
 
-export type Ref = { readonly fid: number; readonly hash: string };
+export interface Ref {
+  readonly fid: number;
+  readonly hash: string;
+}
 export type Target = { readonly cast: Ref } | { readonly url: string };
 
-export type Cast = {
+export interface Cast {
   readonly hash: string;
   readonly fid: number;
   readonly timestamp: string;
@@ -15,23 +18,23 @@ export type Cast = {
   readonly parent: Target | null;
   readonly signer: string;
   readonly app_fid: number | null;
-};
+}
 
-export type Account = {
+export interface Account {
   readonly fid: number;
   readonly username: string | null;
   readonly display_name: string | null;
   readonly pfp_url: string | null;
-};
+}
 
-export type Thread = {
+export interface Thread {
   readonly version: 1;
   readonly top: "root" | { readonly missing: Ref } | { readonly cut: Ref };
   readonly ancestors: readonly Cast[];
   readonly cast: Cast;
   readonly replies: readonly Cast[];
   readonly accounts: readonly Account[];
-};
+}
 
 // Checks the version and the fields a thread view cannot draw without; the
 // rest is cast, as `versioned` (reads.ts) says why.

@@ -51,8 +51,16 @@ export function countLabel(n: number, exact = true): string {
 }
 
 // A box on screen, in the pane's coordinates.
-export type Rect = { top: number; left: number; bottom: number; right: number };
-export type Size = { width: number; height: number };
+export interface Rect {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+}
+export interface Size {
+  width: number;
+  height: number;
+}
 
 // Where the card goes: below what it describes, or above when it fits only
 // there, or has more room there; its left edge with the anchor's, moved in

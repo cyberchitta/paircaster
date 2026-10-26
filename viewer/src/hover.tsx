@@ -16,13 +16,18 @@ import { CLOSE_DELAY, HOVER_DELAY, type Profiles, place, type Rect } from "./aut
 import { ProfileHead } from "./head";
 import type { Account } from "./thread";
 
-type Hovered = { fid: number; account: Account | undefined; el: Element; anchor: Rect };
+interface Hovered {
+  fid: number;
+  account: Account | undefined;
+  el: Element;
+  anchor: Rect;
+}
 
-type Hub = {
+interface Hub {
   enter(fid: number, account: Account | undefined, el: Element, delay: number): void;
   leave(): void;
   stay(): void;
-};
+}
 
 const HubContext = createContext<Hub | null>(null);
 

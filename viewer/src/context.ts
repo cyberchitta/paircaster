@@ -10,7 +10,10 @@ import { type Account, type Cast, refOf, type Thread } from "./thread";
 
 // A context cast and its author as the page knows them; `null` for one the
 // node does not hold (deleted, or pruned).
-export type Context = { cast: Cast; account: Account | undefined };
+export interface Context {
+  cast: Cast;
+  account: Account | undefined;
+}
 export type Contexts = ReadonlyMap<string, Context | null>;
 
 // How much of a context cast's text shows: a quote's, clamped to three lines

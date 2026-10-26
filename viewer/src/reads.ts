@@ -4,7 +4,7 @@
 
 import type { Account, Cast, Ref, Target } from "./thread";
 
-export type Profile = {
+export interface Profile {
   readonly version: 1;
   readonly fid: number;
   readonly username: string | null;
@@ -19,22 +19,59 @@ export type Profile = {
   readonly following: number;
   readonly followers: number;
   readonly followers_exact: boolean;
-};
+}
 
-export type Feed = { readonly version: 1; readonly fid: number; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
-export type Casts = { readonly version: 1; readonly fids: readonly number[]; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
-export type Channel = { readonly version: 1; readonly channel: string; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
-export type Replies = { readonly version: 1; readonly parent: Ref; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
+export interface Feed {
+  readonly version: 1;
+  readonly fid: number;
+  readonly casts: readonly Cast[];
+  readonly accounts: readonly Account[];
+}
+export interface Casts {
+  readonly version: 1;
+  readonly fids: readonly number[];
+  readonly casts: readonly Cast[];
+  readonly accounts: readonly Account[];
+}
+export interface Channel {
+  readonly version: 1;
+  readonly channel: string;
+  readonly casts: readonly Cast[];
+  readonly accounts: readonly Account[];
+}
+export interface Replies {
+  readonly version: 1;
+  readonly parent: Ref;
+  readonly casts: readonly Cast[];
+  readonly accounts: readonly Account[];
+}
 // One cast by its ID, without the casts around it.
-export type Show = { readonly version: 1; readonly cast: Cast; readonly accounts: readonly Account[] };
+export interface Show {
+  readonly version: 1;
+  readonly cast: Cast;
+  readonly accounts: readonly Account[];
+}
 
 // An account and when it followed, liked or recast.
-export type AccountAt = { readonly fid: number; readonly timestamp: string };
+export interface AccountAt {
+  readonly fid: number;
+  readonly timestamp: string;
+}
 
-export type Followers = { readonly version: 1; readonly fid: number; readonly followers: readonly AccountAt[]; readonly accounts: readonly Account[] };
-export type Following = { readonly version: 1; readonly fid: number; readonly following: readonly AccountAt[]; readonly accounts: readonly Account[] };
+export interface Followers {
+  readonly version: 1;
+  readonly fid: number;
+  readonly followers: readonly AccountAt[];
+  readonly accounts: readonly Account[];
+}
+export interface Following {
+  readonly version: 1;
+  readonly fid: number;
+  readonly following: readonly AccountAt[];
+  readonly accounts: readonly Account[];
+}
 
-export type Addresses = {
+export interface Addresses {
   readonly version: 1;
   readonly fid: number;
   readonly addresses: readonly {
@@ -44,17 +81,23 @@ export type Addresses = {
     readonly timestamp: string;
     readonly primary: boolean;
   }[];
-};
+}
 
-export type Reactions = {
+export interface Reactions {
   readonly version: 1;
   readonly cast: Ref;
   readonly likes: readonly AccountAt[];
   readonly recasts: readonly AccountAt[];
   readonly accounts: readonly Account[];
-};
+}
 
-type EventHead = { readonly version: 1; readonly shard: number; readonly id: number; readonly block: number; readonly block_time: string };
+interface EventHead {
+  readonly version: 1;
+  readonly shard: number;
+  readonly id: number;
+  readonly block: number;
+  readonly block_time: string;
+}
 
 export type Event = EventHead &
   (

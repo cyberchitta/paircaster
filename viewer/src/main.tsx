@@ -29,7 +29,11 @@ const WIDE = "(min-width: 480px)";
 // The project whose monikers this page takes; a page with no host takes none.
 const project = host?.project ?? "";
 
-type View = { shown: Shown | null; error: string | null; loading: boolean };
+interface View {
+  shown: Shown | null;
+  error: string | null;
+  loading: boolean;
+}
 
 // One read the page makes after it draws: a cast's likes, recasts and
 // replies, or a context cast (one it quotes or replies to); or, when the

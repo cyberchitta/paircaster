@@ -14,11 +14,18 @@ const PROTOCOL = 1;
 // Where the page is, as the host keeps it across restarts. `at` and each of
 // `trail` are what `paircaster viewer open` takes: a cast for a whole thread,
 // else a moniker.
-export type Place = { node: string; at: string; trail: string[] };
+export interface Place {
+  node: string;
+  at: string;
+  trail: string[];
+}
 
 // What the host keeps: the place, and what the owner last chose and marked
 // (builds before marking several kept no `user_marked`).
-export type Kept = Place & { user_selected: string | null; user_marked?: string | null };
+export interface Kept extends Place {
+  user_selected: string | null;
+  user_marked?: string | null;
+}
 
 // What the page shows, read by the message handlers, which outlive a render.
 // `userSelected` is the moniker of what the owner last clicked or opened, and
@@ -26,7 +33,7 @@ export type Kept = Place & { user_selected: string | null; user_marked?: string 
 // the folds the owner opened on this view; `nest` the replies read below the
 // focus, and how deep the page nests them. `userMarked` names the casts the
 // owner marked on the view they are on, as a moniker, or is null.
-export type Live = {
+export interface Live {
   node: string;
   spot: Spot | null;
   shown: Shown | null;
@@ -36,7 +43,7 @@ export type Live = {
   nest: Nest;
   userSelected: string | null;
   userMarked: string | null;
-};
+}
 
 export async function reveal(project: string, load: (place: Place) => Promise<Shown | null>, now: Live, moniker: string, state: unknown): Promise<Answer> {
   if (!moniker.startsWith(baseOf(project))) return { ok: false, message: `not a moniker of this project: ${moniker}` };

@@ -23,14 +23,20 @@ export type FoldKey = string;
 export const repliesFold = (ref: string): FoldKey => `replies:${ref}`;
 
 // What the page has read below the focus, and how deep it nests.
-export type Nest = { branches: ReadonlyMap<string, Branch>; depth: number };
+export interface Nest {
+  branches: ReadonlyMap<string, Branch>;
+  depth: number;
+}
 
 // A cast drawn as a card, with its replies laid out under it, or `continues`
 // when it has replies past the depth the page nests; or a folded run.
 export type Piece = { cast: Cast; replies: Piece[]; continues: boolean } | { fold: FoldKey; casts: readonly Cast[] };
 
 // The casts above the focus, and its replies, as the page lays them out.
-export type Layout = { above: Piece[]; replies: Piece[] };
+export interface Layout {
+  above: Piece[];
+  replies: Piece[];
+}
 
 const leaf = (cast: Cast): Piece => ({ cast, replies: [], continues: false });
 

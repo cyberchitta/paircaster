@@ -16,10 +16,15 @@ import { asThread, type Thread } from "./thread";
 export type AccountName = number | string;
 
 // The CLI's `--include-app` and `--exclude-app`, by app FID. Not both.
-export type AppOptions = { includeApp?: number[]; excludeApp?: number[] };
-export type CastOptions = { limit?: number } & AppOptions;
+export interface AppOptions {
+  includeApp?: number[];
+  excludeApp?: number[];
+}
+export interface CastOptions extends AppOptions {
+  limit?: number;
+}
 
-export type Paircaster = {
+export interface Paircaster {
   // The node the page reads.
   node: string;
   // `paircaster profile <account> [--all-followers]`.
@@ -49,7 +54,7 @@ export type Paircaster = {
   // underneath; `since` and `until` as the CLI takes them (2026-10-22 or
   // 2026-10-22T06:00:00Z). Leaving the loop early stops the reading.
   events(options?: { since?: string; until?: string; shard?: number }): AsyncIterable<Event>;
-};
+}
 
 declare global {
   interface Window {

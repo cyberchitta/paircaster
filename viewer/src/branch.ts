@@ -13,7 +13,10 @@ export const BRANCH_READ = COUNTED + 1;
 // What the `thread` read holds of the focus's replies (its default limit).
 const THREAD_READ = 100;
 
-export type Branch = { casts: readonly Cast[]; accounts: readonly Account[] };
+export interface Branch {
+  casts: readonly Cast[];
+  accounts: readonly Account[];
+}
 
 export const branchOf = (r: Replies): Branch => ({ casts: r.casts, accounts: r.accounts });
 
