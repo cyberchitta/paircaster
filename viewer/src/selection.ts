@@ -24,6 +24,13 @@ export function useSelection(project: string, live: { current: Live }, setMarked
     anchor.current = null;
   };
 
+  // Marks the owner made before the page reloaded, drawn again: what they
+  // mark next adds to them, and Shift spans from the last.
+  const restore = (marks: string[]) => {
+    userMarks.current = marks;
+    anchor.current = marks.at(-1) ?? null;
+  };
+
   const point = (spot: Spot, chosen: string | null) => {
     const focus = spot.kind === "thread" ? spot.cast : null;
     live.current.userSelected = monikerOf(project, spot) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
@@ -65,5 +72,5 @@ export function useSelection(project: string, live: { current: Live }, setMarked
     else save(live.current);
   };
 
-  return { reset, point, choose, mark };
+  return { reset, restore, point, choose, mark };
 }

@@ -121,7 +121,7 @@ function App() {
     card ? card.scrollIntoView({ block: "center" }) : window.scrollTo(0, 0);
   }, [view.shown]);
 
-  useHost(project, load, live);
+  useHost(project, load, live, selection.restore);
 
   const go = async (at: string, back = false) => {
     const from = live.current.spot;
