@@ -102,7 +102,7 @@ What this repo adds:
 - `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`
   and `cargo test --workspace` before every commit.
 - For a commit touching `viewer/`, also, in `viewer/`: `bun run lint`
-  (Biome), `bun run check` (`tsc` over the source and the tests) and
+  (Biome), `bun run check` (`tsc` over the source, the tests and `build.ts`) and
   `bun test`.
 - Discrepancies between farcasterxyz docs and observed behaviour go in
   `docs/upstream-fixes.md` as they are found. Each is a candidate PR.
