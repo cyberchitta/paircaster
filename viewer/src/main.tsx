@@ -156,7 +156,7 @@ function App() {
   // fills a level at a time, as deep as the page nests and no further. The
   // casts they quote, and in a list those they reply to, are read in the
   // same queue, once per node, unless the page holds them already.
-  const fill = (rt: Paircaster, shown: Shown, casts: Cast[], seq: number) => {
+  const fill = (rt: Paircaster, shown: Shown, casts: readonly Cast[], seq: number) => {
     if (workers.current.seq !== seq) return;
     const held = contextsOf(shown, nest, fetchedRef.current);
     const jobs: Job[] = casts.flatMap((c) => [

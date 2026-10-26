@@ -1,36 +1,36 @@
 // The `thread` tool's result: `paircaster thread --json`, version 1
 // (crates/cli/src/reads.rs, `ThreadV1`).
 
-export type Ref = { fid: number; hash: string };
-export type Target = { cast: Ref } | { url: string };
+export type Ref = { readonly fid: number; readonly hash: string };
+export type Target = { readonly cast: Ref } | { readonly url: string };
 
 export type Cast = {
-  hash: string;
-  fid: number;
-  timestamp: string;
-  text: string;
-  display_text: string | null;
-  mentions: { fid: number; username: string | null; position: number }[];
-  embeds: Target[];
-  parent: Target | null;
-  signer: string;
-  app_fid: number | null;
+  readonly hash: string;
+  readonly fid: number;
+  readonly timestamp: string;
+  readonly text: string;
+  readonly display_text: string | null;
+  readonly mentions: readonly { readonly fid: number; readonly username: string | null; readonly position: number }[];
+  readonly embeds: readonly Target[];
+  readonly parent: Target | null;
+  readonly signer: string;
+  readonly app_fid: number | null;
 };
 
 export type Account = {
-  fid: number;
-  username: string | null;
-  display_name: string | null;
-  pfp_url: string | null;
+  readonly fid: number;
+  readonly username: string | null;
+  readonly display_name: string | null;
+  readonly pfp_url: string | null;
 };
 
 export type Thread = {
-  version: 1;
-  top: "root" | { missing: Ref } | { cut: Ref };
-  ancestors: Cast[];
-  cast: Cast;
-  replies: Cast[];
-  accounts: Account[];
+  readonly version: 1;
+  readonly top: "root" | { readonly missing: Ref } | { readonly cut: Ref };
+  readonly ancestors: readonly Cast[];
+  readonly cast: Cast;
+  readonly replies: readonly Cast[];
+  readonly accounts: readonly Account[];
 };
 
 // Checks the version and the fields a thread view cannot draw without; the

@@ -5,7 +5,7 @@ import { type Actions, CastCard } from "../card";
 import { count } from "../shown";
 import type { Account, Cast } from "../thread";
 
-export function ListView({ casts, accounts, ...actions }: { casts: Cast[]; accounts: Account[] } & Actions) {
+export function ListView({ casts, accounts, ...actions }: { casts: readonly Cast[]; accounts: readonly Account[] } & Actions) {
   const byFid = new Map(accounts.map((a) => [a.fid, a]));
   const now = Date.now();
   return (

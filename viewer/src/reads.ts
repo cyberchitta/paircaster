@@ -5,75 +5,75 @@
 import type { Account, Cast, Ref, Target } from "./thread";
 
 export type Profile = {
-  version: 1;
-  fid: number;
-  username: string | null;
-  display_name: string | null;
-  bio: string | null;
-  pfp_url: string | null;
-  url: string | null;
-  location: string | null;
-  twitter: string | null;
-  github: string | null;
-  banner_url: string | null;
-  following: number;
-  followers: number;
-  followers_exact: boolean;
+  readonly version: 1;
+  readonly fid: number;
+  readonly username: string | null;
+  readonly display_name: string | null;
+  readonly bio: string | null;
+  readonly pfp_url: string | null;
+  readonly url: string | null;
+  readonly location: string | null;
+  readonly twitter: string | null;
+  readonly github: string | null;
+  readonly banner_url: string | null;
+  readonly following: number;
+  readonly followers: number;
+  readonly followers_exact: boolean;
 };
 
-export type Feed = { version: 1; fid: number; casts: Cast[]; accounts: Account[] };
-export type Casts = { version: 1; fids: number[]; casts: Cast[]; accounts: Account[] };
-export type Channel = { version: 1; channel: string; casts: Cast[]; accounts: Account[] };
-export type Replies = { version: 1; parent: Ref; casts: Cast[]; accounts: Account[] };
+export type Feed = { readonly version: 1; readonly fid: number; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
+export type Casts = { readonly version: 1; readonly fids: readonly number[]; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
+export type Channel = { readonly version: 1; readonly channel: string; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
+export type Replies = { readonly version: 1; readonly parent: Ref; readonly casts: readonly Cast[]; readonly accounts: readonly Account[] };
 // One cast by its ID, without the casts around it.
-export type Show = { version: 1; cast: Cast; accounts: Account[] };
+export type Show = { readonly version: 1; readonly cast: Cast; readonly accounts: readonly Account[] };
 
 // An account and when it followed, liked or recast.
-export type AccountAt = { fid: number; timestamp: string };
+export type AccountAt = { readonly fid: number; readonly timestamp: string };
 
-export type Followers = { version: 1; fid: number; followers: AccountAt[]; accounts: Account[] };
-export type Following = { version: 1; fid: number; following: AccountAt[]; accounts: Account[] };
+export type Followers = { readonly version: 1; readonly fid: number; readonly followers: readonly AccountAt[]; readonly accounts: readonly Account[] };
+export type Following = { readonly version: 1; readonly fid: number; readonly following: readonly AccountAt[]; readonly accounts: readonly Account[] };
 
 export type Addresses = {
-  version: 1;
-  fid: number;
-  addresses: {
-    address: string;
-    protocol: "ethereum" | "solana";
-    chain_id: number;
-    timestamp: string;
-    primary: boolean;
+  readonly version: 1;
+  readonly fid: number;
+  readonly addresses: readonly {
+    readonly address: string;
+    readonly protocol: "ethereum" | "solana";
+    readonly chain_id: number;
+    readonly timestamp: string;
+    readonly primary: boolean;
   }[];
 };
 
 export type Reactions = {
-  version: 1;
-  cast: Ref;
-  likes: AccountAt[];
-  recasts: AccountAt[];
-  accounts: Account[];
+  readonly version: 1;
+  readonly cast: Ref;
+  readonly likes: readonly AccountAt[];
+  readonly recasts: readonly AccountAt[];
+  readonly accounts: readonly Account[];
 };
 
-type EventHead = { version: 1; shard: number; id: number; block: number; block_time: string };
+type EventHead = { readonly version: 1; readonly shard: number; readonly id: number; readonly block: number; readonly block_time: string };
 
 export type Event = EventHead &
   (
     | {
-        event: "merge" | "prune" | "revoke";
-        type: string;
-        fid: number;
-        hash: string;
-        timestamp: string;
-        signer: string;
+        readonly event: "merge" | "prune" | "revoke";
+        readonly type: string;
+        readonly fid: number;
+        readonly hash: string;
+        readonly timestamp: string;
+        readonly signer: string;
         // A cast_add's cast, without usernames; absent for other types.
-        text?: string;
-        mentions?: { fid: number; position: number }[];
-        embeds?: Target[];
-        parent?: Target | null;
+        readonly text?: string;
+        readonly mentions?: readonly { readonly fid: number; readonly position: number }[];
+        readonly embeds?: readonly Target[];
+        readonly parent?: Target | null;
       }
-    | { event: "username_proof"; type: string; fid: number; name: string }
-    | { event: "onchain"; type: string; fid: number }
-    | { event: "other"; type: string }
+    | { readonly event: "username_proof"; readonly type: string; readonly fid: number; readonly name: string }
+    | { readonly event: "onchain"; readonly type: string; readonly fid: number }
+    | { readonly event: "other"; readonly type: string }
   );
 
 // Parses a read's JSON and checks it is the version this page knows. The

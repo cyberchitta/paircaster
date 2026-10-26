@@ -94,7 +94,7 @@ export const isKept = (v: unknown): v is Kept =>
 const nameOf = (p: Profile) => (p.username ? `@${p.username} (fid ${p.fid})` : `fid ${p.fid}`);
 
 // One line naming a cast, for the owner and the agent.
-function about(accounts: Account[], c: Cast | undefined, ref: string): string {
+function about(accounts: readonly Account[], c: Cast | undefined, ref: string): string {
   if (!c) return ref;
   const who = accounts.find((a) => a.fid === c.fid)?.username;
   const words = (c.display_text ?? c.text).replace(/\s+/g, " ").slice(0, 80);

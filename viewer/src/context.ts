@@ -26,13 +26,13 @@ export const parentOf = (c: Cast): string | null => (c.parent && "cast" in c.par
 
 // The context casts the cards drawn need, each once, in page order: each
 // card's parent (in a list) and then what it quotes.
-export function wantedOf(drawn: Cast[], list: boolean): string[] {
+export function wantedOf(drawn: readonly Cast[], list: boolean): string[] {
   const refs = drawn.flatMap((c) => [...(list ? [parentOf(c)] : []), ...quotesOf(c)]);
   return [...new Set(refs.filter((r): r is string => r !== null))];
 }
 
 // The casts the page holds already, as context, with their authors.
-export function heldOf(casts: Cast[], accounts: Account[]): Map<string, Context> {
+export function heldOf(casts: readonly Cast[], accounts: readonly Account[]): Map<string, Context> {
   const byFid = new Map(accounts.map((a) => [a.fid, a]));
   return new Map(casts.map((c) => [refOf(c), { cast: c, account: byFid.get(c.fid) }]));
 }

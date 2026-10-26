@@ -14,8 +14,8 @@ import { type Account, type Cast, refOf, type Thread } from "./thread";
 // page reads after it draws.
 export type Shown =
   | { kind: "thread"; thread: Thread; only: string[] | null }
-  | { kind: "casts"; casts: Cast[]; accounts: Account[]; parents: Map<string, Context | null> }
-  | { kind: "profile"; profile: Profile; casts: Cast[]; accounts: Account[] };
+  | { kind: "casts"; casts: readonly Cast[]; accounts: readonly Account[]; parents: Map<string, Context | null> }
+  | { kind: "profile"; profile: Profile; casts: readonly Cast[]; accounts: readonly Account[] };
 
 // How many of an account's casts its profile shows.
 export const PROFILE_CASTS = 25;
@@ -66,7 +66,7 @@ async function readThread(runtime: Paircaster, cast: string, only: string[] | nu
 // The casts the spot's own read holds, drawn or folded: with `only`, the
 // picks in their order and then the other replies. Nested replies are not
 // among them: the page reads those after it draws.
-export function visible(shown: Shown): Cast[] {
+export function visible(shown: Shown): readonly Cast[] {
   if (shown.kind !== "thread") return shown.casts;
   const { ancestors, cast, replies } = shown.thread;
   const only = shown.only;
@@ -87,7 +87,7 @@ export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: stri
 }
 
 // Every account the page can name: the read's, and those of the replies read.
-export function accountsOf(shown: Shown, nest: Nest): Account[] {
+export function accountsOf(shown: Shown, nest: Nest): readonly Account[] {
   const own = shown.kind === "thread" ? shown.thread.accounts : shown.accounts;
   const all = new Map([...[...nest.branches.values()].flatMap((b) => b.accounts), ...own].map((a) => [a.fid, a]));
   return [...all.values()];

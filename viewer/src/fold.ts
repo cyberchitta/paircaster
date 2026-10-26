@@ -27,7 +27,7 @@ export type Nest = { branches: ReadonlyMap<string, Branch>; depth: number };
 
 // A cast drawn as a card, with its replies laid out under it, or `continues`
 // when it has replies past the depth the page nests; or a folded run.
-export type Piece = { cast: Cast; replies: Piece[]; continues: boolean } | { fold: FoldKey; casts: Cast[] };
+export type Piece = { cast: Cast; replies: Piece[]; continues: boolean } | { fold: FoldKey; casts: readonly Cast[] };
 
 // The casts above the focus, and its replies, as the page lays them out.
 export type Layout = { above: Piece[]; replies: Piece[] };
@@ -48,7 +48,7 @@ function leadsOf(thread: Thread, marked: string[], nest: Nest): Set<string> {
 
 export function layout(thread: Thread, only: string[] | null, opened: ReadonlySet<string>, marked: string[], nest: Nest): Layout {
   const leads = leadsOf(thread, marked, nest);
-  const run = (fold: FoldKey, casts: Cast[], each: (c: Cast) => Piece): Piece[] =>
+  const run = (fold: FoldKey, casts: readonly Cast[], each: (c: Cast) => Piece): Piece[] =>
     casts.length === 0 || opened.has(fold) || casts.some((c) => leads.has(refOf(c))) ? casts.map(each) : [{ fold, casts }];
   const node =
     (depth: number) =>
@@ -59,7 +59,7 @@ export function layout(thread: Thread, only: string[] | null, opened: ReadonlySe
       return { cast, replies: level(repliesFold(refOf(cast)), below, depth + 1), continues: false };
     };
   // A level's first few replies, and the rest folded when two or more remain.
-  const level = (fold: FoldKey, casts: Cast[], depth: number): Piece[] => {
+  const level = (fold: FoldKey, casts: readonly Cast[], depth: number): Piece[] => {
     const shown = SHOWN[Math.min(depth, SHOWN.length) - 1];
     const rest = casts.slice(shown);
     const each = node(depth);
@@ -81,10 +81,10 @@ const flat = (ps: Piece[]): Piece[] => ps.flatMap((p) => ("cast" in p ? [p, ...f
 const pieces = (l: Layout) => flat([...l.above, ...l.replies]);
 
 // The casts the page holds but shows only as a fold.
-export const foldedOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("fold" in p ? p.casts : []));
+export const foldedOf = (l: Layout): readonly Cast[] => pieces(l).flatMap((p) => ("fold" in p ? p.casts : []));
 
 // The casts drawn as cards, in page order; the focus is not in a layout.
-export const drawnOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("cast" in p ? [p.cast] : []));
+export const drawnOf = (l: Layout): readonly Cast[] => pieces(l).flatMap((p) => ("cast" in p ? [p.cast] : []));
 
 // The cards whose replies continue in their own thread.
-export const continuedOf = (l: Layout): Cast[] => pieces(l).flatMap((p) => ("cast" in p && p.continues ? [p.cast] : []));
+export const continuedOf = (l: Layout): readonly Cast[] => pieces(l).flatMap((p) => ("cast" in p && p.continues ? [p.cast] : []));

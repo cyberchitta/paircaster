@@ -14,8 +14,8 @@ export function ProfileView({
   ...actions
 }: {
   profile: Profile;
-  casts: Cast[];
-  accounts: Account[];
+  casts: readonly Cast[];
+  accounts: readonly Account[];
 } & Actions) {
   const byFid = new Map(accounts.map((a) => [a.fid, a]));
   const now = Date.now();

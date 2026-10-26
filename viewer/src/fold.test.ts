@@ -39,7 +39,7 @@ const thread = (above: number, replies: number): Thread => ({
   accounts: [],
 });
 
-const refs = (l: Cast[]) => l.map(refOf);
+const refs = (l: readonly Cast[]) => l.map(refOf);
 // Each piece of a layout as a cast's number, or "+n" for a fold of n.
 const shape = (l: Layout) => {
   const of = (p: Piece) => ("cast" in p ? parseInt(p.cast.hash, 16) : `+${p.casts.length}`);

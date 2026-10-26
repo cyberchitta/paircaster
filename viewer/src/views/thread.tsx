@@ -69,7 +69,7 @@ function labelOf(fold: FoldKey, n: number, only: string[] | null): string {
 }
 
 // A folded run: its size and the first few authors; a click opens it in place.
-function Fold(props: { casts: Cast[]; role: Role; nested: boolean; label: string; accounts: Map<number, Account>; onOpen(): void }) {
+function Fold(props: { casts: readonly Cast[]; role: Role; nested: boolean; label: string; accounts: Map<number, Account>; onOpen(): void }) {
   const { casts, role, nested, label, accounts, onOpen } = props;
   const authors = [...new Set(casts.map((c) => c.fid))].slice(0, 3);
   return (
