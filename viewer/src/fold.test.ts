@@ -157,33 +157,33 @@ describe("nested replies", () => {
   });
 });
 
-describe("a marked nested reply", () => {
-  // A node holding `t` and `branches`: a cast's thread names the casts above
-  // it, and its replies are its branch; it counts the reads it answers.
-  function node(t: Thread, branches: Map<string, Branch>) {
-    const parent = new Map<string, Cast>(t.replies.map((c) => [refOf(c), t.cast]));
-    const byRef = new Map<string, Cast>([[refOf(t.cast), t.cast], ...t.replies.map((c) => [refOf(c), c] as const)]);
-    for (const [ref, b] of branches) {
-      for (const c of b.casts) {
-        parent.set(refOf(c), got(byRef, ref));
-        byRef.set(refOf(c), c);
-      }
+// A node holding `t` and `branches`: a cast's thread names the casts above
+// it, and its replies are its branch; it counts the reads it answers.
+function node(t: Thread, branches: Map<string, Branch>) {
+  const parent = new Map<string, Cast>(t.replies.map((c) => [refOf(c), t.cast]));
+  const byRef = new Map<string, Cast>([[refOf(t.cast), t.cast], ...t.replies.map((c) => [refOf(c), c] as const)]);
+  for (const [ref, b] of branches) {
+    for (const c of b.casts) {
+      parent.set(refOf(c), got(byRef, ref));
+      byRef.set(refOf(c), c);
     }
-    const reads: string[] = [];
-    const rt = {
-      thread: async (ref: string) => {
-        const ancestors: Cast[] = [];
-        for (let p = parent.get(ref); p; p = parent.get(refOf(p))) ancestors.unshift(p);
-        return { ...t, ancestors, cast: got(byRef, ref), replies: [] };
-      },
-      replies: async (ref: string) => {
-        reads.push(ref);
-        return { version: 1, parent: { fid: 0, hash: "" }, ...got(branches, ref) };
-      },
-    } as unknown as Paircaster;
-    return { rt, reads };
   }
+  const reads: string[] = [];
+  const rt = {
+    thread: async (ref: string) => {
+      const ancestors: Cast[] = [];
+      for (let p = parent.get(ref); p; p = parent.get(refOf(p))) ancestors.unshift(p);
+      return { ...t, ancestors, cast: got(byRef, ref), replies: [] };
+    },
+    replies: async (ref: string) => {
+      reads.push(ref);
+      return { version: 1, parent: { fid: 0, hash: "" }, ...got(branches, ref) };
+    },
+  } as unknown as Paircaster;
+  return { rt, reads };
+}
 
+describe("a marked nested reply", () => {
   test("is reached by reading each reply on the way down to it", async () => {
     const { t, branches } = tree(1, 2, 4);
     const { rt, reads } = node(t, branches);

@@ -6,7 +6,7 @@ import type { Nest } from "./fold";
 import { baseOf, parseAt, type Spot } from "./moniker";
 import type { Profile } from "./reads";
 import { accountsOf, count, onScreen, type Shown } from "./shown";
-import { type Account, type Cast, refOf } from "./thread";
+import { type Account, type Cast, refOf, type Thread } from "./thread";
 
 // The tell bodies this build takes: `{ paircaster: 1, get: "state" }`.
 const PROTOCOL = 1;
@@ -127,51 +127,65 @@ function about(accounts: readonly Account[], c: Cast | undefined, ref: string): 
 export function describe(shown: Shown, marked: string[], back: string[], opened: ReadonlySet<string>, nest: Nest): [string, Record<string, unknown>] {
   const accounts = accountsOf(shown, nest);
   const page = onScreen(shown, opened, marked, nest);
-  const on = [...page.drawn, ...page.folded];
-  const named = (refs: string[]) =>
-    refs
-      .map((r) =>
-        about(
-          accounts,
-          on.find((c) => refOf(c) === r),
-          r,
-        ),
-      )
-      .join("; ");
+  const named = namer(accounts, [...page.drawn, ...page.folded]);
   const selected = marked.length > 0 ? marked : null;
+  const common: Common = { selected, back, folded: page.folded.map(refOf), continued: page.continued.map(refOf) };
   const marks = selected ? `; selected ${named(marked)}` : "";
-  const folded = page.folded.map(refOf);
-  const continued = page.continued.map(refOf);
   switch (shown.kind) {
     case "casts": {
       const casts = shown.casts.map(refOf);
-      const state = { view: "casts", casts, selected, back, folded, continued };
-      return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, state];
+      return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, { view: "casts", casts, ...common }];
     }
     case "profile": {
       const casts = shown.casts.map(refOf);
-      const fid = shown.profile.fid;
-      const state = { view: "profile", fid, casts, selected, back, folded, continued };
       const latest = casts.length > 0 ? `: ${named(casts)}` : "";
+      const state = { view: "profile", fid: shown.profile.fid, casts, ...common };
       return [`the profile of ${nameOf(shown.profile)}, ${count(casts.length, "latest cast")}${latest}${marks}`, state];
     }
     case "thread": {
-      const { thread, only } = shown;
-      const cast = refOf(thread.cast);
-      const text =
-        `the thread of ${about(accounts, thread.cast, cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
-        count(thread.replies.length, "reply", "replies") +
-        (only ? `, picked first ${named(only)}` : "") +
-        (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
-        (continued.length > 0 ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread` : "") +
-        marks;
-      const filter = only ? { only } : {};
-      const state = { view: "thread", cast, ...filter, selected, back, folded, continued, depth: nest.depth };
-      return [text, state];
+      const cast = refOf(shown.thread.cast);
+      const filter = shown.only ? { only: shown.only } : {};
+      return [threadLine(shown, accounts, named, common) + marks, { view: "thread", cast, ...filter, ...common, depth: nest.depth }];
     }
     default: {
       const unknown: never = shown;
       throw new Error(`no description for ${JSON.stringify(unknown)}`);
     }
   }
+}
+
+// What every view's state says alike, in this order.
+interface Common {
+  selected: string[] | null;
+  back: string[];
+  folded: string[];
+  continued: string[];
+}
+
+// Names each of `refs` with `about`, from the casts on the page.
+const namer = (accounts: readonly Account[], on: readonly Cast[]) => (refs: string[]) =>
+  refs
+    .map((r) =>
+      about(
+        accounts,
+        on.find((c) => refOf(c) === r),
+        r,
+      ),
+    )
+    .join("; ");
+
+// A thread's line, before the casts marked on it.
+function threadLine(
+  { thread, only }: { thread: Pick<Thread, "cast" | "ancestors" | "replies">; only: string[] | null },
+  accounts: readonly Account[],
+  named: (refs: string[]) => string,
+  { folded, continued }: Pick<Common, "folded" | "continued">,
+): string {
+  return (
+    `the thread of ${about(accounts, thread.cast, refOf(thread.cast))}, ${count(thread.ancestors.length, "cast")} above it, ` +
+    count(thread.replies.length, "reply", "replies") +
+    (only ? `, picked first ${named(only)}` : "") +
+    (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
+    (continued.length > 0 ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread` : "")
+  );
 }

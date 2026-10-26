@@ -43,7 +43,7 @@ describe("which casts a card needs", () => {
   });
 });
 
-describe("what the page holds already", () => {
+describe("the parents of a list's casts", () => {
   test("a list cast's parent is the nearest cast its read walked up to", () => {
     const parent = cast(2, 9);
     const t: Thread = {
@@ -69,7 +69,9 @@ describe("what the page holds already", () => {
     const root: Thread = { ...missing, top: "root", cast: cast(3, 2) };
     expect([...parentsOf([missing, root])]).toEqual([[`2:${hash(9)}`, null]]);
   });
+});
 
+describe("what the page holds already", () => {
   test("a cast on the page, or read below one, is not read again; over a read, the page's own wins", () => {
     const quoted = cast(2, 9);
     const nested = cast(4, 8);

@@ -36,13 +36,31 @@ const HubContext = createContext<Hub | null>(null);
 export function Hover({ profiles, want, children }: { profiles: Profiles; want(fid: number): void; children: ComponentChildren }) {
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hub = useHub(hovered, setHovered, timer, want);
+  useDismiss(hovered, setHovered, timer);
+  return (
+    <HubContext.Provider value={hub}>
+      {children}
+      {hovered && <Card hovered={hovered} profile={profiles.get(hovered.fid)} hub={hub} />}
+    </HubContext.Provider>
+  );
+}
+
+interface Timer {
+  current: ReturnType<typeof setTimeout> | undefined;
+}
+
+// What the authors on the page tell the card: open on one after `delay`,
+// close a moment after the pointer leaves, or stay open.
+function useHub(hovered: Hovered | null, setHovered: (h: Hovered | null) => void, timer: Timer, want: (fid: number) => void): Hub {
   const wantRef = useRef(want);
   wantRef.current = want;
   // What the card describes now, so moving from a name to its handle or
   // picture on the same cast keeps the card instead of reopening it.
   const shown = useRef<Hovered | null>(null);
   shown.current = hovered;
-  const hub = useMemo<Hub>(() => {
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return useMemo<Hub>(() => {
     const later = (f: () => void, ms: number) => {
       clearTimeout(timer.current);
       timer.current = setTimeout(f, ms);
@@ -60,9 +78,11 @@ export function Hover({ profiles, want, children }: { profiles: Profiles; want(f
       stay: () => clearTimeout(timer.current),
     };
   }, []);
+}
 
-  // The card describes what was under the pointer: Escape, a scroll or a
-  // resize puts it away.
+// The card describes what was under the pointer: Escape, a scroll or a
+// resize puts it away, as does a new view drawn over its author.
+function useDismiss(hovered: Hovered | null, setHovered: (h: Hovered | null) => void, timer: Timer) {
   useEffect(() => {
     if (!hovered) return;
     const close = () => {
@@ -79,18 +99,9 @@ export function Hover({ profiles, want, children }: { profiles: Profiles; want(f
       removeEventListener("resize", close);
     };
   }, [hovered]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  // A new view drew over the author the card described.
   useEffect(() => {
     if (hovered && !hovered.el.isConnected) setHovered(null);
   });
-
-  return (
-    <HubContext.Provider value={hub}>
-      {children}
-      {hovered && <Card hovered={hovered} profile={profiles.get(hovered.fid)} hub={hub} />}
-    </HubContext.Provider>
-  );
 }
 
 const CARD = "article, .quote";
