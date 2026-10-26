@@ -21,11 +21,11 @@ export type Contexts = ReadonlyMap<string, Context | null>;
 export const QUOTE_EXCERPT = 280;
 export const PARENT_EXCERPT = 140;
 
-export const quotesOf = (c: Cast): string[] => c.embeds.flatMap((e) => ("cast" in e ? [refOf(e.cast)] : []));
+export const quotesOf = (c: Pick<Cast, "embeds">): string[] => c.embeds.flatMap((e) => ("cast" in e ? [refOf(e.cast)] : []));
 
 // The cast a cast replies to; none for a cast in a channel, which replies to
 // a URL.
-export const parentOf = (c: Cast): string | null => (c.parent && "cast" in c.parent ? refOf(c.parent.cast) : null);
+export const parentOf = (c: Pick<Cast, "parent">): string | null => (c.parent && "cast" in c.parent ? refOf(c.parent.cast) : null);
 
 // The context casts the cards drawn need, each once, in page order: each
 // card's parent (in a list) and then what it quotes.
@@ -55,7 +55,7 @@ export function parentsOf(threads: Thread[]): Map<string, Context | null> {
 }
 
 // A cast's text on one line, cut at a word near `max` characters.
-export function excerpt(cast: Cast, max: number): string {
+export function excerpt(cast: Pick<Cast, "display_text" | "text">, max: number): string {
   const chars = Array.from((cast.display_text ?? cast.text).replace(/\s+/g, " ").trim());
   if (chars.length <= max) return chars.join("");
   const cut = chars.slice(0, max).join("");

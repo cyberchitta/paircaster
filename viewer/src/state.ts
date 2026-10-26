@@ -98,7 +98,7 @@ export const isKept = (v: unknown): v is Kept =>
   (v.user_marked === undefined || v.user_marked === null || typeof v.user_marked === "string");
 
 // An account as a line names it.
-const nameOf = (p: Profile) => (p.username ? `@${p.username} (fid ${p.fid})` : `fid ${p.fid}`);
+const nameOf = (p: Pick<Profile, "username" | "fid">) => (p.username ? `@${p.username} (fid ${p.fid})` : `fid ${p.fid}`);
 
 // One line naming a cast, for the owner and the agent.
 function about(accounts: readonly Account[], c: Cast | undefined, ref: string): string {

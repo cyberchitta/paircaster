@@ -64,7 +64,7 @@ const TOKEN = /https?:\/\/[^\s<>"]+|@fid:\d+|@[a-z0-9][a-z0-9_.-]*/gi;
 // Splits a cast's text into plain text, links and mentions. Farcaster marks
 // mentions but not links, so links are found by pattern; a mention counts
 // only when the cast names that account.
-export function segments(cast: Cast): Segment[] {
+export function segments(cast: Pick<Cast, "display_text" | "text" | "mentions">): Segment[] {
   const text = cast.display_text ?? cast.text;
   const names = new Set(cast.mentions.map((m) => (m.username ?? `fid:${m.fid}`).toLowerCase()));
   const out: Segment[] = [];
