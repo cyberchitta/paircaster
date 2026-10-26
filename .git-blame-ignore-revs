@@ -1,0 +1,15 @@
+# Commits git blame should look through, not stop at: each one only
+# reformats, without changing behaviour.
+#
+# Opt in per clone:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Add each commit in the FOLLOWING commit (a commit cannot contain its own
+# hash), as its subject line and full 40-character hash.
+
+# style: format TypeScript with Biome
+485ef4665bc71a3761ea858062f59dc6d5ed1fdc
+
+# style: sort imports with Biome
+9c9dc851a45857374fa30e777e77e4f6c7c386d0
