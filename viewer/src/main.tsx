@@ -2,16 +2,17 @@ import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { seedOf } from "./branch";
+import { useHost } from "./connect";
 import { DEPTH, type FoldKey, NARROW_DEPTH, type Nest } from "./fold";
 import { host } from "./host";
 import { Hover } from "./hover";
-import { spanned, toggled } from "./marks";
-import { atOf, markedOf, monikerOf, parseAt, type Spot } from "./moniker";
+import { atOf, parseAt } from "./moniker";
 import { useQueue } from "./queue";
 import { makeRuntime, type Paircaster } from "./runtime";
+import { useSelection } from "./selection";
 import { contextsOf, onScreen, reach, read, type Shown, visible } from "./shown";
-import { isKept, type Kept, type Live, type Place, placeOf, reveal, tell } from "./state";
-import { type Cast, refOf } from "./thread";
+import type { Kept, Live, Place } from "./state";
+import { refOf } from "./thread";
 import { ShownView } from "./views/shown";
 
 // The node the CLI reads when --node is not given.
@@ -50,10 +51,7 @@ function App() {
     userSelected: null,
     userMarked: null,
   });
-  // What the owner marked on this view, and the cast they last pointed at,
-  // from which Shift marks a span.
-  const userMarks = useRef<string[]>([]);
-  const anchor = useRef<string | null>(null);
+  const selection = useSelection(project, live, setMarked, save);
   const nest: Nest = { branches: reads.branches, depth };
   live.current = { ...live.current, shown: view.shown, marked, trail, opened, nest };
 
@@ -84,8 +82,7 @@ function App() {
       setView({ shown, error: null, loading: false });
       setTrail(place.trail);
       setMarked(marks);
-      userMarks.current = [];
-      anchor.current = null;
+      selection.reset();
       setOpened(none);
       reads.restart(seq);
       const seeds = new Map([...reads.held.branches.current, ...ways.flatMap((w) => [...w])]);
@@ -124,32 +121,7 @@ function App() {
     card ? card.scrollIntoView({ block: "center" }) : window.scrollTo(0, 0);
   }, [view.shown]);
 
-  useEffect(() => {
-    const connected = host;
-    if (!connected) return;
-    const kept = connected.kept;
-    const restore = () => {
-      if (!isKept(kept)) return Promise.resolve();
-      live.current.userSelected = kept.user_selected;
-      live.current.userMarked = kept.user_marked ?? null;
-      return load(placeOf(kept)).catch(() => {});
-    };
-    const restored = restore();
-    restored.then(() =>
-      connected.start({
-        reveal: (moniker, state) => reveal(project, load, live.current, moniker, state),
-        tell: (body) => tell(live.current, body),
-      }),
-    );
-  }, []);
-
-  // What the owner does becomes their selection, in the page's state, which
-  // a tell reads under either host. Never what a tell or reveal did.
-  const point = (spot: Spot, chosen: string | null) => {
-    const focus = spot.kind === "thread" ? spot.cast : null;
-    live.current.userSelected = monikerOf(project, spot) + (chosen && chosen !== focus ? `#cast=${chosen}` : "");
-    save(live.current);
-  };
+  useHost(project, load, live);
 
   const go = async (at: string, back = false) => {
     const from = live.current.spot;
@@ -159,46 +131,11 @@ function App() {
       const shown = await load({ node: live.current.node, at, trail: next });
       if (shown) {
         live.current.userMarked = null;
-        point(parseAt(project, at).spot, null);
+        selection.point(parseAt(project, at).spot, null);
       }
     } catch (e) {
       setView((v) => ({ ...v, error: String(e instanceof Error ? e.message : e) }));
     }
-  };
-
-  // A click on the focus marks it alone; the keyboard reaching a card
-  // selects it the same way, but only while the owner has marked nothing,
-  // and is not itself a mark.
-  const choose = (cast: Cast, glance = false) => {
-    const spot = live.current.spot;
-    const ref = refOf(cast);
-    if (!spot || (glance && userMarks.current.length > 0)) return;
-    anchor.current = ref;
-    if (!glance) {
-      userMarks.current = [ref];
-      live.current.userMarked = markedOf(project, spot, [ref]);
-    }
-    setMarked([ref]);
-    live.current.marked = [ref];
-    point(spot, ref);
-  };
-
-  // Cmd/Ctrl-click or Space adds a cast to the owner's marks or takes it
-  // out; Shift marks every cast drawn from the last one pointed at.
-  const mark = (cast: Cast, span: boolean) => {
-    const spot = live.current.spot;
-    const shown = live.current.shown;
-    if (!spot || !shown) return;
-    const ref = refOf(cast);
-    const order = onScreen(shown, live.current.opened, live.current.marked, live.current.nest).drawn.map(refOf);
-    const next = span ? spanned(userMarks.current, order, anchor.current, ref) : toggled(userMarks.current, ref);
-    userMarks.current = next;
-    anchor.current = ref;
-    setMarked(next);
-    live.current.marked = next;
-    live.current.userMarked = markedOf(project, spot, next);
-    if (next.includes(ref)) point(spot, ref);
-    else save(live.current);
   };
 
   if (!host)
@@ -220,7 +157,15 @@ function App() {
   const contexts = contextsOf(shown, nest, reads.fetched);
   // The agent's line about the view, drawn as text: never as markup.
   const caption = live.current.spot?.caption;
-  const actions = { marked, tallies: reads.tallies, branches: reads.branches, contexts, onOpen: (ref: string) => go(ref), onSelect: choose, onMark: mark };
+  const actions = {
+    marked,
+    tallies: reads.tallies,
+    branches: reads.branches,
+    contexts,
+    onOpen: (ref: string) => go(ref),
+    onSelect: selection.choose,
+    onMark: selection.mark,
+  };
   return (
     <Hover profiles={reads.profiles} want={reads.want}>
       <main class={view.loading ? "loading" : ""}>
