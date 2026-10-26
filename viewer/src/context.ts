@@ -45,7 +45,7 @@ export function parentsOf(threads: Thread[]): Map<string, Context | null> {
     const parent = parentOf(t.cast);
     if (!parent) continue;
     const up = t.ancestors.at(-1);
-    if (up && refOf(up) === parent) out.set(parent, heldOf([up], t.accounts).get(parent)!);
+    if (up && refOf(up) === parent) out.set(parent, { cast: up, account: t.accounts.find((a) => a.fid === up.fid) });
     else if (typeof t.top === "object" && "missing" in t.top && refOf(t.top.missing) === parent) out.set(parent, null);
   }
   return out;
@@ -57,7 +57,7 @@ export function excerpt(cast: Cast, max: number): string {
   if (chars.length <= max) return chars.join("");
   const cut = chars.slice(0, max).join("");
   const space = cut.lastIndexOf(" ");
-  return (space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd() + "…";
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
 // Who wrote a context cast, as a reply names them.

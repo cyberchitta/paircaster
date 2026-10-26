@@ -54,7 +54,7 @@ export function visible(shown: Shown): Cast[] {
   const { ancestors, cast, replies } = shown.thread;
   const only = shown.only;
   if (!only) return [...ancestors, cast, ...replies];
-  const picks = only.map((r) => replies.find((c) => refOf(c) === r)!);
+  const picks = only.flatMap((r) => replies.find((c) => refOf(c) === r) ?? []);
   return [...ancestors, cast, ...picks, ...replies.filter((c) => !only.includes(refOf(c)))];
 }
 
@@ -72,8 +72,7 @@ export function onScreen(shown: Shown, opened: ReadonlySet<string>, marked: stri
 // Every account the page can name: the read's, and those of the replies read.
 export function accountsOf(shown: Shown, nest: Nest): Account[] {
   const own = shown.kind === "thread" ? shown.thread.accounts : shown.accounts;
-  const all = new Map([...nest.branches.values()].flatMap((b) => b.accounts).map((a) => [a.fid, a]));
-  own.forEach((a) => all.set(a.fid, a));
+  const all = new Map([...[...nest.branches.values()].flatMap((b) => b.accounts), ...own].map((a) => [a.fid, a]));
   return [...all.values()];
 }
 
@@ -105,4 +104,4 @@ export async function reach(runtime: Paircaster, thread: Thread, mark: string, k
   return out;
 }
 
-export const count = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

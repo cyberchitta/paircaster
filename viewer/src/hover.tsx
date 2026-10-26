@@ -60,7 +60,10 @@ export function Hover({ profiles, want, children }: { profiles: Profiles; want(f
   // resize puts it away.
   useEffect(() => {
     if (!hovered) return;
-    const close = () => (clearTimeout(timer.current), setHovered(null));
+    const close = () => {
+      clearTimeout(timer.current);
+      setHovered(null);
+    };
     const key = (e: KeyboardEvent) => e.key === "Escape" && close();
     addEventListener("keydown", key);
     addEventListener("scroll", close, { capture: true, passive: true });

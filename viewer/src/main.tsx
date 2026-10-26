@@ -118,8 +118,7 @@ function App() {
       asked.current = new Set();
       queue.current = [];
       workers.current = { seq, n: 0 };
-      const seeds = new Map(branchRef.current);
-      ways.forEach((w) => w.forEach((b, ref) => seeds.set(ref, b)));
+      const seeds = new Map([...branchRef.current, ...ways.flatMap((w) => [...w])]);
       if (shown.kind === "thread") {
         const seed = seedOf(shown.thread);
         if (seed) seeds.set(refOf(shown.thread.cast), seed);
@@ -167,7 +166,7 @@ function App() {
         .map((ref) => ({ read: "show" as const, ref })),
     ]);
     const fresh = jobs.filter((j) => !asked.current.has(jobKey(j)));
-    fresh.forEach((j) => asked.current.add(jobKey(j)));
+    for (const j of fresh) asked.current.add(jobKey(j));
     queue.current.push(...fresh);
     pump(rt, seq);
   };
@@ -249,9 +248,13 @@ function App() {
     const connected = host;
     if (!connected) return;
     const kept = connected.kept;
-    const restored = isKept(kept)
-      ? ((live.current.userSelected = kept.user_selected), (live.current.userMarked = kept.user_marked ?? null), load(placeOf(kept)).catch(() => {}))
-      : Promise.resolve();
+    const restore = () => {
+      if (!isKept(kept)) return Promise.resolve();
+      live.current.userSelected = kept.user_selected;
+      live.current.userMarked = kept.user_marked ?? null;
+      return load(placeOf(kept)).catch(() => {});
+    };
+    const restored = restore();
     restored.then(() =>
       connected.start({
         reveal: (moniker, state) => reveal(project, load, live.current, moniker, state),
@@ -342,7 +345,7 @@ function App() {
     <Hover profiles={profiles} want={want}>
       <main class={view.loading ? "loading" : ""}>
         {trail.length > 0 && (
-          <button class="back" onClick={() => go(trail[trail.length - 1], true)}>
+          <button type="button" class="back" onClick={() => go(trail[trail.length - 1], true)}>
             ← Back
           </button>
         )}
@@ -384,4 +387,6 @@ function save(now: Live) {
   host?.keep(kept);
 }
 
-render(<App />, document.getElementById("app")!);
+const root = document.getElementById("app");
+if (!root) throw new Error("the page has no #app element to draw into");
+render(<App />, root);

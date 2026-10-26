@@ -51,6 +51,12 @@ export type Paircaster = {
   events(options?: { since?: string; until?: string; shard?: number }): AsyncIterable<Event>;
 };
 
+declare global {
+  interface Window {
+    paircaster: Paircaster;
+  }
+}
+
 let loaded = false;
 
 function load() {
@@ -82,7 +88,7 @@ export function makeRuntime(node: string): Paircaster {
     reactions: async (cast) => versioned(await wasm.reactions(node, cast), "reactions"),
     events: (o = {}) => events(node, o),
   };
-  (window as any).paircaster = paircaster;
+  window.paircaster = paircaster;
   return paircaster;
 }
 

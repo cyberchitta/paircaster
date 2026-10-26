@@ -5,7 +5,7 @@ import type { Nest } from "./fold";
 import { contextsOf, type Shown } from "./shown";
 import { type Account, type Cast, refOf, type Thread } from "./thread";
 
-const hash = (n: number) => "0x" + n.toString(16).padStart(40, "0");
+const hash = (n: number) => `0x${n.toString(16).padStart(40, "0")}`;
 const cast = (fid: number, n: number, more: Partial<Cast> = {}): Cast => ({
   hash: hash(n),
   fid,
@@ -28,18 +28,18 @@ const flat: Nest = { branches: new Map(), depth: 3 };
 
 describe("which casts a card needs", () => {
   test("a quote's cast embeds, not its links", () => {
-    expect(quotesOf(quoting(3, 1, ref(2, 9)))).toEqual(["2:" + hash(9)]);
+    expect(quotesOf(quoting(3, 1, ref(2, 9)))).toEqual([`2:${hash(9)}`]);
   });
 
   test("a reply's parent, but not a channel cast's URL", () => {
-    expect(parentOf(replyTo(3, 1, ref(2, 9)))).toBe("2:" + hash(9));
+    expect(parentOf(replyTo(3, 1, ref(2, 9)))).toBe(`2:${hash(9)}`);
     expect(parentOf(cast(3, 1, { parent: { url: "https://farcaster.xyz/~/channel/x" } }))).toBeNull();
   });
 
   test("a list wants parents and quotes, a thread quotes only, each once, in page order", () => {
     const drawn = [replyTo(3, 1, ref(2, 9)), quoting(3, 2, ref(4, 8), ref(2, 9)), cast(3, 3)];
-    expect(wantedOf(drawn, true)).toEqual(["2:" + hash(9), "4:" + hash(8)]);
-    expect(wantedOf(drawn, false)).toEqual(["4:" + hash(8), "2:" + hash(9)]);
+    expect(wantedOf(drawn, true)).toEqual([`2:${hash(9)}`, `4:${hash(8)}`]);
+    expect(wantedOf(drawn, false)).toEqual([`4:${hash(8)}`, `2:${hash(9)}`]);
   });
 });
 
@@ -67,7 +67,7 @@ describe("what the page holds already", () => {
       accounts: [],
     };
     const root: Thread = { ...missing, top: "root", cast: cast(3, 2) };
-    expect([...parentsOf([missing, root])]).toEqual([["2:" + hash(9), null]]);
+    expect([...parentsOf([missing, root])]).toEqual([[`2:${hash(9)}`, null]]);
   });
 
   test("a cast on the page, or read below one, is not read again; over a read, the page's own wins", () => {
@@ -81,12 +81,12 @@ describe("what the page holds already", () => {
       nest,
       new Map([
         [refOf(quoted), null],
-        ["7:" + hash(1), null],
+        [`7:${hash(1)}`, null],
       ]),
     );
     expect(all.get(refOf(quoted))).toEqual({ cast: quoted, account: alice });
     expect(all.get(refOf(nested))?.cast).toEqual(nested);
-    expect(all.get("7:" + hash(1))).toBeNull();
+    expect(all.get(`7:${hash(1)}`)).toBeNull();
   });
 
   test("a list's parents count as held", () => {

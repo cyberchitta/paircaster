@@ -91,7 +91,7 @@ export function shortUrl(url: string): string {
     const u = new URL(url);
     const host = u.host.replace(/^www\./, "");
     const rest = u.pathname + u.search;
-    return rest.length > 1 ? host + (rest.length > 16 ? rest.slice(0, 15) + "…" : rest) : host;
+    return rest.length > 1 ? host + (rest.length > 16 ? `${rest.slice(0, 15)}…` : rest) : host;
   } catch {
     return url;
   }

@@ -44,7 +44,7 @@ export function ThreadView({ thread, only, opened, depth, onUnfold, ...actions }
       <div key={`${p.cast.hash}/replies`} class="nest">
         {p.replies.map((r) => piece(r, "reply", level + 1))}
         {p.continues && (
-          <button class="continue" onClick={() => actions.onOpen(refOf(p.cast))}>
+          <button type="button" class="continue" onClick={() => actions.onOpen(refOf(p.cast))}>
             Continue this thread →
           </button>
         )}
@@ -73,7 +73,7 @@ function Fold(props: { casts: Cast[]; role: Role; nested: boolean; label: string
   const { casts, role, nested, label, accounts, onOpen } = props;
   const authors = [...new Set(casts.map((c) => c.fid))].slice(0, 3);
   return (
-    <button class={`fold ${role}${nested ? " nested" : ""}`} onClick={onOpen} title={`show ${count(casts.length, "cast")}`}>
+    <button type="button" class={`fold ${role}${nested ? " nested" : ""}`} onClick={onOpen} title={`show ${count(casts.length, "cast")}`}>
       <span class="rail">{role === "ancestor" && <span class="line dotted" />}</span>
       <span class="faces" aria-hidden="true">
         {authors.map((fid) => (
@@ -91,7 +91,7 @@ function Top({ top, onOpen }: { top: Thread["top"]; onOpen(ref: string): void })
     return <p class="note">Replies to a cast this node does not hold ({refOf(top.missing)}).</p>;
   }
   return (
-    <button class="note link" onClick={() => onOpen(refOf(top.cut))}>
+    <button type="button" class="note link" onClick={() => onOpen(refOf(top.cut))}>
       Earlier casts in this thread…
     </button>
   );

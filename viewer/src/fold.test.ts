@@ -7,8 +7,16 @@ import { reach, type Shown } from "./shown";
 import { describe as tellState } from "./state";
 import { type Cast, refOf, type Thread } from "./thread";
 
+// A map's value at `key`, failing the test where it has none.
+function got<V>(map: ReadonlyMap<string, V>, key: string): V {
+  const value = map.get(key);
+  if (value === undefined) throw new Error(`nothing at ${key}`);
+  return value;
+}
+const below = (branches: ReadonlyMap<string, Branch>, c: Cast) => got(branches, refOf(c)).casts;
+
 const cast = (fid: number, n: number): Cast => ({
-  hash: "0x" + n.toString(16).padStart(40, "0"),
+  hash: `0x${n.toString(16).padStart(40, "0")}`,
   fid,
   timestamp: "2026-10-20T12:00:00Z",
   text: `cast ${n}`,
@@ -128,7 +136,7 @@ describe("nested replies", () => {
     expect(nested(layout(t, null, none, [], { branches, depth: 3 }).replies)).toEqual([[200, [[2000, ["3000>"]]]]]);
     const narrow = layout(t, null, none, [], { branches, depth: 2 });
     expect(nested(narrow.replies)).toEqual([[200, ["2000>"]]]);
-    expect(refs(continuedOf(narrow))).toEqual([refOf(branches.get(refOf(t.replies[0]))!.casts[0])]);
+    expect(refs(continuedOf(narrow))).toEqual([refOf(below(branches, t.replies[0])[0])]);
   });
 
   test("an opened nested fold shows its casts, and their replies are counted as drawn", () => {
@@ -136,12 +144,12 @@ describe("nested replies", () => {
     const fold = repliesFold(refOf(t.replies[0]));
     const l = layout(t, null, new Set([fold]), [], { branches, depth: DEPTH });
     expect(foldedOf(l)).toEqual([]);
-    expect(drawnOf(l)).toEqual([t.replies[0], ...branches.get(refOf(t.replies[0]))!.casts]);
+    expect(drawnOf(l)).toEqual([t.replies[0], ...below(branches, t.replies[0])]);
   });
 
   test("the way down to a marked cast is drawn, unfolded and past the depth", () => {
     const { t, branches } = tree(1, 3, 4);
-    const deep = branches.get(refOf(branches.get(refOf(branches.get(refOf(t.replies[0]))!.casts[2]))!.casts[1]))!;
+    const deep = got(branches, refOf(below(branches, below(branches, t.replies[0])[2])[1]));
     const mark = deep.casts[2];
     const l = layout(t, null, none, [refOf(mark)], { branches, depth: 2 });
     expect(drawnOf(l).map((c) => parseInt(c.hash, 16))).toContain(parseInt(mark.hash, 16));
@@ -155,15 +163,23 @@ describe("a marked nested reply", () => {
   function node(t: Thread, branches: Map<string, Branch>) {
     const parent = new Map<string, Cast>(t.replies.map((c) => [refOf(c), t.cast]));
     const byRef = new Map<string, Cast>([[refOf(t.cast), t.cast], ...t.replies.map((c) => [refOf(c), c] as const)]);
-    branches.forEach((b, ref) => b.casts.forEach((c) => (parent.set(refOf(c), byRef.get(ref)!), byRef.set(refOf(c), c))));
+    for (const [ref, b] of branches) {
+      for (const c of b.casts) {
+        parent.set(refOf(c), got(byRef, ref));
+        byRef.set(refOf(c), c);
+      }
+    }
     const reads: string[] = [];
     const rt = {
       thread: async (ref: string) => {
         const ancestors: Cast[] = [];
         for (let p = parent.get(ref); p; p = parent.get(refOf(p))) ancestors.unshift(p);
-        return { ...t, ancestors, cast: byRef.get(ref)!, replies: [] };
+        return { ...t, ancestors, cast: got(byRef, ref), replies: [] };
       },
-      replies: async (ref: string) => (reads.push(ref), { version: 1, parent: { fid: 0, hash: "" }, ...branches.get(ref)! }),
+      replies: async (ref: string) => {
+        reads.push(ref);
+        return { version: 1, parent: { fid: 0, hash: "" }, ...got(branches, ref) };
+      },
     } as unknown as Paircaster;
     return { rt, reads };
   }
@@ -171,10 +187,10 @@ describe("a marked nested reply", () => {
   test("is reached by reading each reply on the way down to it", async () => {
     const { t, branches } = tree(1, 2, 4);
     const { rt, reads } = node(t, branches);
-    const l2 = branches.get(refOf(t.replies[0]))!.casts[1];
-    const l3 = branches.get(refOf(l2))!.casts[0];
-    const mark = branches.get(refOf(l3))!.casts[1];
-    const known = new Map([[refOf(t.replies[0]), branches.get(refOf(t.replies[0]))!]]);
+    const l2 = below(branches, t.replies[0])[1];
+    const l3 = below(branches, l2)[0];
+    const mark = below(branches, l3)[1];
+    const known = new Map([[refOf(t.replies[0]), got(branches, refOf(t.replies[0]))]]);
     const way = await reach(rt, t, refOf(mark), known);
     expect([...way.keys()]).toEqual(refs([t.replies[0], l2, l3]));
     expect(reads).toEqual(refs([l2, l3]));
@@ -184,7 +200,7 @@ describe("a marked nested reply", () => {
     const { t, branches } = tree(2, 2, 3);
     const { rt } = node(t, branches);
     const elsewhere = { ...t, cast: t.replies[1], replies: [] };
-    const mark = branches.get(refOf(t.replies[0]))!.casts[0];
+    const mark = below(branches, t.replies[0])[0];
     await expect(reach(rt, elsewhere, refOf(mark), new Map())).rejects.toThrow("is not on the page");
   });
 });
@@ -203,7 +219,7 @@ describe("viewer state", () => {
     const { t, branches } = tree(1, 5, 4);
     const shown: Shown = { kind: "thread", thread: t, only: null };
     const nest = { branches, depth: 2 };
-    const level2 = branches.get(refOf(t.replies[0]))!.casts;
+    const level2 = below(branches, t.replies[0]);
     const [text, state] = tellState(shown, [], [], none, nest);
     expect(state.folded).toEqual(refs(level2.slice(3)));
     expect(state.continued).toEqual(refs(level2.slice(0, 3)));
@@ -214,7 +230,7 @@ describe("viewer state", () => {
   test("names a selected nested reply", () => {
     const { t, branches } = tree(1, 2, 2);
     const shown: Shown = { kind: "thread", thread: t, only: null };
-    const reply = branches.get(refOf(t.replies[0]))!.casts[1];
+    const reply = below(branches, t.replies[0])[1];
     const [text, state] = tellState(shown, [refOf(reply)], [], none, { branches, depth: DEPTH });
     expect(state.selected).toEqual([refOf(reply)]);
     expect(text).toContain(`selected ${refOf(reply)} by fid ${reply.fid} ("cast ${parseInt(reply.hash, 16)}")`);

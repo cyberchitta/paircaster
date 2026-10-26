@@ -53,7 +53,8 @@ export function parseAt(project: string, at: string): { spot: Spot; marks: strin
   const [path, query] = cut(body, "?");
   const marks = fragment === null ? [] : listAfter(fragment, "cast=", at);
   const params = paramsOf(query, at);
-  const caption = params.has("caption") ? captionOf(params.get("caption")!, at) : undefined;
+  const given = params.get("caption");
+  const caption = given === undefined ? undefined : captionOf(given, at);
   const captioned = caption === undefined ? {} : { caption };
   if (path.startsWith("casts/") || path.startsWith("profile/")) {
     const other = [...params.keys()].find((k) => k !== "caption");
@@ -68,7 +69,8 @@ export function parseAt(project: string, at: string): { spot: Spot; marks: strin
   if (!CAST.test(cast)) throw new Error(`not a thread, a list of casts or a profile: ${at}`);
   const other = [...params.keys()].find((k) => k !== "caption" && k !== "only");
   if (other !== undefined) throw new Error(`a thread takes ?only= and ?caption=, not ?${other}=: ${at}`);
-  const only = params.has("only") ? list(params.get("only")!, at) : null;
+  const picked = params.get("only");
+  const only = picked === undefined ? null : list(picked, at);
   return { spot: { kind: "thread", cast, only, ...captioned }, marks };
 }
 

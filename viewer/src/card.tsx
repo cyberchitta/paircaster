@@ -53,12 +53,16 @@ export function CastCard(props: CardProps) {
   const key = (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter") click(e);
-    else if (e.key === " ") e.preventDefault(), onMark(cast, e.shiftKey);
+    else if (e.key === " ") {
+      e.preventDefault();
+      onMark(cast, e.shiftKey);
+    }
   };
   return (
     <article
       class={["cast", role, nested && "nested", parent && "parent", marked.includes(ref) && "selected"].filter(Boolean).join(" ")}
       data-cast={ref}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: a card is a keyboard stop: Enter opens it, Space marks it (`key`, above).
       tabIndex={0}
       onClick={click}
       onMouseDown={(e) => e.shiftKey && e.preventDefault()}
@@ -95,6 +99,7 @@ function Author({ fid, account }: { fid: number; account: Account | undefined })
   const hover = useAuthor(fid, account);
   return (
     <>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: focus on the name shows the author's card, the keyboard's way to it. */}
       <span class="name" tabIndex={0} {...hover}>
         {account?.display_name ?? account?.username ?? `fid ${fid}`}
       </span>
@@ -158,7 +163,14 @@ function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
         )}
       </p>
       {long && !open && (
-        <button class="more" onClick={(e) => (e.stopPropagation(), setOpen(true))}>
+        <button
+          type="button"
+          class="more"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+        >
           Show more
         </button>
       )}
@@ -196,7 +208,15 @@ function ReplyingTo({ cast, contexts, onOpen }: { cast: Cast; contexts: Contexts
   const context = contexts.get(ref);
   if (context === null) return <p class="context gone">replying to a cast that's gone</p>;
   return (
-    <button class="context" title={context ? excerpt(context.cast, 1000) : ref} onClick={(e) => (e.stopPropagation(), onOpen(ref))}>
+    <button
+      type="button"
+      class="context"
+      title={context ? excerpt(context.cast, 1000) : ref}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(ref);
+      }}
+    >
       replying to{" "}
       {context ? (
         <>
@@ -224,10 +244,13 @@ function Quote({
   now: number;
   onOpen(ref: string): void;
 }) {
-  const open = (e: Event) => (e.stopPropagation(), onOpen(target));
+  const open = (e: Event) => {
+    e.stopPropagation();
+    onOpen(target);
+  };
   if (!context) {
     return (
-      <button class="chip" onClick={open}>
+      <button type="button" class="chip" onClick={open}>
         quoted cast · fid {fid}
       </button>
     );
@@ -241,7 +264,7 @@ function QuoteCard({ context, now, open }: { context: Context; now: number; open
   const { cast, account } = context;
   const hover = useAuthor(cast.fid, account);
   return (
-    <button class="quote" onClick={open} title="open the quoted cast" onFocus={hover.onFocus} onBlur={hover.onBlur}>
+    <button type="button" class="quote" onClick={open} title="open the quoted cast" onFocus={hover.onFocus} onBlur={hover.onBlur}>
       <span class="meta">
         <span class="face" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
           <Avatar account={account} fid={cast.fid} />
@@ -311,7 +334,10 @@ function Link({ url, chip, picture, children }: { url: string; chip?: boolean; p
       title={url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => (opens ? e.stopPropagation() : (e.preventDefault(), e.stopPropagation()))}
+      onClick={(e) => {
+        if (!opens) e.preventDefault();
+        e.stopPropagation();
+      }}
     >
       {children}
     </a>

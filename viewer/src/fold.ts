@@ -37,8 +37,8 @@ const leaf = (cast: Cast): Piece => ({ cast, replies: [], continues: false });
 // The marked casts and every cast they are nested under, up to the focus.
 function leadsOf(thread: Thread, marked: string[], nest: Nest): Set<string> {
   const focus = refOf(thread.cast);
-  const parent = new Map(thread.replies.map((c) => [refOf(c), focus]));
-  nest.branches.forEach((b, ref) => b.casts.forEach((c) => parent.set(refOf(c), ref)));
+  const below = [...nest.branches].flatMap(([ref, b]) => b.casts.map((c): [string, string] => [refOf(c), ref]));
+  const parent = new Map([...thread.replies.map((c): [string, string] => [refOf(c), focus]), ...below]);
   const leads = new Set<string>();
   for (const m of marked) {
     for (let r: string | undefined = m; r && r !== focus && !leads.has(r); r = parent.get(r)) leads.add(r);
@@ -69,7 +69,7 @@ export function layout(thread: Thread, only: string[] | null, opened: ReadonlySe
   // The root and the cast replied to stay; a fold of one cast saves nothing.
   const above = a.length < 4 ? a.map(leaf) : [leaf(a[0]), ...run("above", a.slice(1, -1), leaf), leaf(a[a.length - 1])];
   if (only) {
-    const picks = only.map((r) => replies.find((c) => refOf(c) === r)!);
+    const picks = only.flatMap((r) => replies.find((c) => refOf(c) === r) ?? []);
     const rest = replies.filter((c) => !only.includes(refOf(c)));
     return { above, replies: [...picks.map(node(1)), ...run("replies", rest, node(1))] };
   }

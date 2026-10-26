@@ -4,9 +4,9 @@ import { atOf, MAX_CAPTION, MAX_LISTED, markedOf, monikerOf, parseAt, type Spot 
 
 const project = "paircaster";
 const base = "paircaster://paircaster/";
-const a = "3:0x" + "a".repeat(40);
-const b = "194:0x" + "b".repeat(40);
-const c = "2:0x" + "C".repeat(40);
+const a = `3:0x${"a".repeat(40)}`;
+const b = `194:0x${"b".repeat(40)}`;
+const c = `2:0x${"C".repeat(40)}`;
 
 describe("parseAt", () => {
   test("a bare cast is its whole thread", () => {
@@ -71,7 +71,7 @@ describe("markedOf", () => {
   test("names the view with the casts marked, or nothing for none", () => {
     const spot: Spot = { kind: "thread", cast: a, only: null };
     expect(markedOf(project, spot, [b, c])).toBe(`${base}thread/${a}#cast=${b},${c}`);
-    expect(parseAt(project, markedOf(project, spot, [b, c])!).marks).toEqual([b, c]);
+    expect(parseAt(project, `${base}thread/${a}#cast=${b},${c}`).marks).toEqual([b, c]);
     expect(markedOf(project, spot, [])).toBeNull();
   });
 });

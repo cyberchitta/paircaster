@@ -76,7 +76,11 @@ export async function tell(now: Live, body: unknown): Promise<Answer> {
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
 // Builds before monikers kept `cast` where `at` is now.
-export const placeOf = (k: Kept & { cast?: string }): Place => ({ node: k.node, at: k.at ?? k.cast!, trail: k.trail });
+export function placeOf(k: Kept & { cast?: string }): Place {
+  const at = k.at ?? k.cast;
+  if (at === undefined) throw new Error("a kept place with neither `at` nor `cast`");
+  return { node: k.node, at, trail: k.trail };
+}
 
 export const isKept = (v: unknown): v is Kept =>
   isObject(v) &&
@@ -94,7 +98,7 @@ function about(accounts: Account[], c: Cast | undefined, ref: string): string {
   if (!c) return ref;
   const who = accounts.find((a) => a.fid === c.fid)?.username;
   const words = (c.display_text ?? c.text).replace(/\s+/g, " ").slice(0, 80);
-  return `${refOf(c)} by ${who ? "@" + who : "fid " + c.fid} ("${words}")`;
+  return `${refOf(c)} by ${who ? `@${who}` : `fid ${c.fid}`} ("${words}")`;
 }
 
 // What the page shows: one line, and the same as data. `folded` lists the
