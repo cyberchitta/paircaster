@@ -7,7 +7,8 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "a11y": { "useValidAriaRole": { "level": "error", "options": { "ignoreNonDom": true } } }
+      "a11y": { "useValidAriaRole": { "level": "error", "options": { "ignoreNonDom": true } } },
+      "complexity": { "noExcessiveLinesPerFunction": { "level": "error", "options": { "maxLines": 30, "skipBlankLines": true } } }
     }
   }
 }
