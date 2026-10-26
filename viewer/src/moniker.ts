@@ -32,8 +32,18 @@ export function monikerOf(project: string, spot: Spot): string {
 }
 
 function pathOf(spot: Spot): string {
-  if (spot.kind === "casts") return `casts/${spot.casts.join(",")}`;
-  return spot.kind === "profile" ? `profile/${spot.fid}` : `thread/${spot.cast}`;
+  switch (spot.kind) {
+    case "casts":
+      return `casts/${spot.casts.join(",")}`;
+    case "profile":
+      return `profile/${spot.fid}`;
+    case "thread":
+      return `thread/${spot.cast}`;
+    default: {
+      const unknown: never = spot;
+      throw new Error(`no path for ${JSON.stringify(unknown)}`);
+    }
+  }
 }
 
 // The view `spot` with `marks` marked, as `#cast=` names them; null for none.

@@ -30,20 +30,37 @@ function threadOf(runtime: Paircaster, cast: string, options?: { limit?: number 
 
 // `known` is the account's profile when the page holds it already.
 export async function read(runtime: Paircaster, spot: Spot, known?: Profile): Promise<Shown> {
-  if (spot.kind === "profile") {
-    const [profile, { casts, accounts }] = await Promise.all([known ?? runtime.profile(spot.fid), runtime.casts(spot.fid, { limit: PROFILE_CASTS })]);
-    return { kind: "profile", profile, casts, accounts };
+  switch (spot.kind) {
+    case "profile":
+      return readProfile(runtime, spot.fid, known);
+    case "casts":
+      return readCasts(runtime, spot.casts);
+    case "thread":
+      return readThread(runtime, spot.cast, spot.only);
+    default: {
+      const unknown: never = spot;
+      throw new Error(`no read for ${JSON.stringify(unknown)}`);
+    }
   }
-  if (spot.kind === "casts") {
-    const threads = await Promise.all(spot.casts.map((c) => threadOf(runtime, c, { limit: 1 })));
-    const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
-    const casts = threads.map((t) => t.cast);
-    return { kind: "casts", casts, accounts: [...accounts.values()], parents: parentsOf(threads) };
-  }
-  const thread = await threadOf(runtime, spot.cast);
-  const stray = spot.only?.find((r) => !thread.replies.some((c) => refOf(c) === r));
-  if (stray) throw new Error(`${stray} is not a reply to ${spot.cast}`);
-  return { kind: "thread", thread, only: spot.only };
+}
+
+async function readProfile(runtime: Paircaster, fid: number, known?: Profile): Promise<Shown> {
+  const [profile, { casts, accounts }] = await Promise.all([known ?? runtime.profile(fid), runtime.casts(fid, { limit: PROFILE_CASTS })]);
+  return { kind: "profile", profile, casts, accounts };
+}
+
+async function readCasts(runtime: Paircaster, refs: readonly string[]): Promise<Shown> {
+  const threads = await Promise.all(refs.map((c) => threadOf(runtime, c, { limit: 1 })));
+  const accounts = new Map(threads.flatMap((t) => t.accounts).map((a) => [a.fid, a]));
+  const casts = threads.map((t) => t.cast);
+  return { kind: "casts", casts, accounts: [...accounts.values()], parents: parentsOf(threads) };
+}
+
+async function readThread(runtime: Paircaster, cast: string, only: string[] | null): Promise<Shown> {
+  const thread = await threadOf(runtime, cast);
+  const stray = only?.find((r) => !thread.replies.some((c) => refOf(c) === r));
+  if (stray) throw new Error(`${stray} is not a reply to ${cast}`);
+  return { kind: "thread", thread, only };
 }
 
 // The casts the spot's own read holds, drawn or folded: with `only`, the
