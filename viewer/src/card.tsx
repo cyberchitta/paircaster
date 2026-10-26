@@ -7,7 +7,7 @@ import { authorOf, type Context, type Contexts, excerpt, PARENT_EXCERPT, parentO
 import { host } from "./host";
 import { useAuthor } from "./hover";
 import { altOf, drawable, hostOf, isImage } from "./media";
-import { type Account, ago, appName, type Cast, hue, initials, refOf, segments } from "./thread";
+import { type Account, ago, appName, type Cast, hue, initials, refOf, type Segment, segments } from "./thread";
 
 export interface Tally {
   likes: number;
@@ -151,19 +151,9 @@ function Text({ cast, clamp }: { cast: Cast; clamp: boolean }) {
   return (
     <>
       <p class={`text${open || !long ? "" : " clamped"}`}>
-        {segments(cast).map((s, i) =>
-          s.kind === "link" ? (
-            <Link key={i} url={s.url}>
-              {s.text}
-            </Link>
-          ) : s.kind === "mention" ? (
-            <span key={i} class="mention">
-              {s.text}
-            </span>
-          ) : (
-            s.text
-          ),
-        )}
+        {segments(cast).map((s, i) => (
+          <Run key={i} segment={s} />
+        ))}
       </p>
       {long && !open && (
         <button
@@ -326,6 +316,22 @@ function Picture({ url }: { url: string }) {
       <img src={url} alt={altOf(url)} loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
     </Link>
   );
+}
+
+// One run of a cast's text: plain, a link, or a mention.
+function Run({ segment }: { segment: Segment }) {
+  switch (segment.kind) {
+    case "text":
+      return <>{segment.text}</>;
+    case "link":
+      return <Link url={segment.url}>{segment.text}</Link>;
+    case "mention":
+      return <span class="mention">{segment.text}</span>;
+    default: {
+      const unknown: never = segment;
+      throw new Error(`no run for ${JSON.stringify(unknown)}`);
+    }
+  }
 }
 
 function Link({ url, chip, picture, children }: { url: string; chip?: boolean; picture?: boolean; children: preact.ComponentChildren }) {

@@ -53,15 +53,26 @@ export async function reveal(project: string, load: (place: Place) => Promise<Sh
   const { spot, marks: marked } = parseAt(project, moniker);
   const marks =
     (marked.length > 0 ? `, ${marked.join(", ")} selected` : "") + (spot.caption !== undefined ? `, captioned ${JSON.stringify(spot.caption)}` : "");
-  if (shown.kind === "casts") return { ok: true, message: `${count(shown.casts.length, "cast")}${marks}, from ${node}` };
-  if (shown.kind === "profile") {
-    const what = `profile of ${nameOf(shown.profile)}, ${count(shown.casts.length, "latest cast")}`;
-    return { ok: true, message: `${what}${marks}, from ${node}` };
+  return { ok: true, message: revealed(shown, marks, node) };
+}
+
+// What a reveal says it showed.
+function revealed(shown: Shown, marks: string, node: string): string {
+  switch (shown.kind) {
+    case "casts":
+      return `${count(shown.casts.length, "cast")}${marks}, from ${node}`;
+    case "profile":
+      return `profile of ${nameOf(shown.profile)}, ${count(shown.casts.length, "latest cast")}${marks}, from ${node}`;
+    case "thread": {
+      const { thread, only } = shown;
+      const what = `thread of ${refOf(thread.cast)}${only ? `, ${only.length} of its replies` : ""}${marks}`;
+      return `${what}: ${count(thread.ancestors.length, "cast")} above, ${count(thread.replies.length, "reply", "replies")}, from ${node}`;
+    }
+    default: {
+      const unknown: never = shown;
+      throw new Error(`no message for ${JSON.stringify(unknown)}`);
+    }
   }
-  const { thread, only } = shown;
-  const what = `thread of ${refOf(thread.cast)}${only ? `, ${only.length} of its replies` : ""}${marks}`;
-  const counts = `${count(thread.ancestors.length, "cast")} above, ${count(thread.replies.length, "reply", "replies")}, from ${node}`;
-  return { ok: true, message: `${what}: ${counts}` };
 }
 
 export async function tell(now: Live, body: unknown): Promise<Answer> {
@@ -131,28 +142,36 @@ export function describe(shown: Shown, marked: string[], back: string[], opened:
   const marks = selected ? `; selected ${named(marked)}` : "";
   const folded = page.folded.map(refOf);
   const continued = page.continued.map(refOf);
-  if (shown.kind === "casts") {
-    const casts = shown.casts.map(refOf);
-    const state = { view: "casts", casts, selected, back, folded, continued };
-    return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, state];
+  switch (shown.kind) {
+    case "casts": {
+      const casts = shown.casts.map(refOf);
+      const state = { view: "casts", casts, selected, back, folded, continued };
+      return [`${count(casts.length, "cast")}: ${named(casts)}${marks}`, state];
+    }
+    case "profile": {
+      const casts = shown.casts.map(refOf);
+      const fid = shown.profile.fid;
+      const state = { view: "profile", fid, casts, selected, back, folded, continued };
+      const latest = casts.length > 0 ? `: ${named(casts)}` : "";
+      return [`the profile of ${nameOf(shown.profile)}, ${count(casts.length, "latest cast")}${latest}${marks}`, state];
+    }
+    case "thread": {
+      const { thread, only } = shown;
+      const cast = refOf(thread.cast);
+      const text =
+        `the thread of ${about(accounts, thread.cast, cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
+        count(thread.replies.length, "reply", "replies") +
+        (only ? `, picked first ${named(only)}` : "") +
+        (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
+        (continued.length > 0 ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread` : "") +
+        marks;
+      const filter = only ? { only } : {};
+      const state = { view: "thread", cast, ...filter, selected, back, folded, continued, depth: nest.depth };
+      return [text, state];
+    }
+    default: {
+      const unknown: never = shown;
+      throw new Error(`no description for ${JSON.stringify(unknown)}`);
+    }
   }
-  if (shown.kind === "profile") {
-    const casts = shown.casts.map(refOf);
-    const fid = shown.profile.fid;
-    const state = { view: "profile", fid, casts, selected, back, folded, continued };
-    const latest = casts.length > 0 ? `: ${named(casts)}` : "";
-    return [`the profile of ${nameOf(shown.profile)}, ${count(casts.length, "latest cast")}${latest}${marks}`, state];
-  }
-  const { thread, only } = shown;
-  const cast = refOf(thread.cast);
-  const text =
-    `the thread of ${about(accounts, thread.cast, cast)}, ${count(thread.ancestors.length, "cast")} above it, ` +
-    count(thread.replies.length, "reply", "replies") +
-    (only ? `, picked first ${named(only)}` : "") +
-    (folded.length > 0 ? `; ${count(folded.length, "cast")} folded` : "") +
-    (continued.length > 0 ? `; ${count(continued.length, "reply", "replies")} continuing in their own thread` : "") +
-    marks;
-  const filter = only ? { only } : {};
-  const state = { view: "thread", cast, ...filter, selected, back, folded, continued, depth: nest.depth };
-  return [text, state];
 }

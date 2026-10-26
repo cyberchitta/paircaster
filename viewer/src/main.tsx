@@ -14,9 +14,7 @@ import { makeRuntime, type Paircaster } from "./runtime";
 import { contextsOf, onScreen, reach, read, type Shown, visible } from "./shown";
 import { isKept, type Kept, type Live, type Place, placeOf, reveal, tell } from "./state";
 import { type Cast, refOf } from "./thread";
-import { ListView } from "./views/list";
-import { ProfileView } from "./views/profile";
-import { ThreadView } from "./views/thread";
+import { ShownView } from "./views/shown";
 
 // The node the CLI reads when --node is not given.
 const DEFAULT_NODE = "http://localhost:3381";
@@ -355,13 +353,7 @@ function App() {
         )}
         {view.error && <p class="error">{view.error}</p>}
         {caption !== undefined && <p class="caption">{caption}</p>}
-        {shown.kind === "thread" ? (
-          <ThreadView thread={shown.thread} only={shown.only} opened={opened} depth={depth} onUnfold={unfold} {...actions} />
-        ) : shown.kind === "profile" ? (
-          <ProfileView profile={shown.profile} casts={shown.casts} accounts={shown.accounts} {...actions} />
-        ) : (
-          <ListView casts={shown.casts} accounts={shown.accounts} {...actions} />
-        )}
+        <ShownView shown={shown} opened={opened} depth={depth} onUnfold={unfold} {...actions} />
       </main>
     </Hover>
   );
