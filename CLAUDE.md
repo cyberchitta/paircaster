@@ -81,8 +81,9 @@ keep them auditable by someone who does not read the crypto.
 
 ## Code style
 
-Rust follows the global `rust-style` skill; load it before writing Rust. What
-this repo adds:
+Code follows the global `code-style` skill, Rust also `rust-style` and the
+viewer's TypeScript also `typescript-style`; load them before writing code.
+What this repo adds:
 
 - `paircaster-core` keeps its logic pure (feed and profile assembly, signer
   attribution, message construction) and confines network access to the
