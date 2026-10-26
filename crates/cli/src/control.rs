@@ -102,24 +102,29 @@ pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
         return Ok(());
     }
     let log = dir.join(LOG);
-    let mut child = spawn(&dir, args.jobs, &log)?;
+    let child = spawn(&dir, args.jobs, &log)?;
+    await_start(&dir, child, &log).await
+}
+
+/// Waits for the spawned download to take the lock, or to exit without it.
+async fn await_start(dir: &Path, mut child: Child, log: &Path) -> Result<(), CliError> {
     for _ in 0..WAIT_TRIES {
-        if let Some(pid) = snapshot::holder(&dir)? {
+        if let Some(pid) = snapshot::holder(dir)? {
             crate::out::line(format_args!(
                 "Resumed (process {pid}). {}\nLog: {}\nCheck: {}\nPause: {}",
-                progress(&dir)?,
+                progress(dir)?,
                 log.display(),
-                invocation::node("status", &dir),
-                invocation::node("pause", &dir),
+                invocation::node("status", dir),
+                invocation::node("pause", dir),
             ));
             return Ok(());
         }
-        if child.try_wait().map_err(io_err(&log))?.is_some() {
+        if child.try_wait().map_err(io_err(log))?.is_some() {
             break;
         }
         tokio::time::sleep(WAIT_EVERY).await;
     }
-    Err(ControlError::DidNotStart(log).into())
+    Err(ControlError::DidNotStart(log.to_path_buf()).into())
 }
 
 /// `fetch-snapshot`, detached, appending its output to `log`.
@@ -132,15 +137,7 @@ fn spawn(dir: &Path, jobs: u16, log: &Path) -> Result<Child, ControlError> {
     writeln!(out, "=== resume {} --jobs {jobs}", clock::now()).map_err(io_err(log))?;
     let err: File = out.try_clone().map_err(io_err(log))?;
     let exe = std::env::current_exe().map_err(io_err(log))?;
-    let mut command = match Path::new(CAFFEINATE).exists() {
-        true => {
-            let mut c = Command::new(CAFFEINATE);
-            c.arg("-i").arg(exe);
-            c
-        }
-        false => Command::new(exe),
-    };
-    command
+    awake(exe)
         .args([
             "node",
             "fetch-snapshot",
@@ -155,6 +152,17 @@ fn spawn(dir: &Path, jobs: u16, log: &Path) -> Result<Child, ControlError> {
         .process_group(0)
         .spawn()
         .map_err(io_err(log))
+}
+
+/// `exe` under `caffeinate -i` where macOS has it, so the Mac does not sleep
+/// mid-download; `exe` alone elsewhere.
+fn awake(exe: PathBuf) -> Command {
+    if !Path::new(CAFFEINATE).exists() {
+        return Command::new(exe);
+    }
+    let mut c = Command::new(CAFFEINATE);
+    c.arg("-i").arg(exe);
+    c
 }
 
 /// One line on how far the download has got.

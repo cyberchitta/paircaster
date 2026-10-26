@@ -155,13 +155,35 @@ async fn download(
         n => client.get(url).header(RANGE, format!("bytes={n}-")),
     };
     let mut resp = request.send().await?;
-    let opened = match resp.status() {
+    let Some(mut file) = open_part(resp.status(), url, part, have).await? else {
+        return Ok(());
+    };
+    while let Some(bytes) = resp.chunk().await? {
+        file.write_all(&bytes)
+            .await
+            .map_err(SnapshotError::io(part))?;
+        progress
+            .bytes_this_run
+            .fetch_add(bytes.len() as u64, Ordering::Relaxed);
+    }
+    file.flush().await.map_err(SnapshotError::io(part))
+}
+
+/// `part` opened for what the response to its request carries: appended to
+/// for the rest of it, created for all of it, `None` when it was already whole.
+async fn open_part(
+    status: StatusCode,
+    url: &str,
+    part: &Path,
+    have: u64,
+) -> Result<Option<tokio::fs::File>, SnapshotError> {
+    let opened = match status {
         StatusCode::PARTIAL_CONTENT => {
             eprintln!("resuming {} at {:.1} MB", part.display(), have as f64 / 1e6);
             tokio::fs::OpenOptions::new().append(true).open(part).await
         }
         StatusCode::OK => tokio::fs::File::create(part).await,
-        StatusCode::RANGE_NOT_SATISFIABLE => return Ok(()),
+        StatusCode::RANGE_NOT_SATISFIABLE => return Ok(None),
         StatusCode::NOT_FOUND => {
             return Err(SnapshotError::Gone {
                 url: url.to_owned(),
@@ -174,16 +196,7 @@ async fn download(
             });
         }
     };
-    let mut file = opened.map_err(SnapshotError::io(part))?;
-    while let Some(bytes) = resp.chunk().await? {
-        file.write_all(&bytes)
-            .await
-            .map_err(SnapshotError::io(part))?;
-        progress
-            .bytes_this_run
-            .fetch_add(bytes.len() as u64, Ordering::Relaxed);
-    }
-    file.flush().await.map_err(SnapshotError::io(part))
+    opened.map(Some).map_err(SnapshotError::io(part))
 }
 
 async fn existing_len(path: &Path) -> Result<u64, SnapshotError> {

@@ -82,20 +82,8 @@ enum Phase {
     NotStarted {
         running: bool,
     },
-    Downloading {
-        running: bool,
-        chunks_done: usize,
-        chunks_total: usize,
-        bytes_per_second: Option<u64>,
-        eta_seconds: Option<u64>,
-        seconds_since_write: Option<u64>,
-    },
-    Unpacking {
-        running: bool,
-        shards_done: usize,
-        shards_total: usize,
-        seconds_since_write: Option<u64>,
-    },
+    Downloading(DownloadingV1),
+    Unpacking(UnpackingV1),
     NodeStopped,
     Syncing {
         node_version: String,
@@ -105,6 +93,24 @@ enum Phase {
         node_version: String,
         shards: Vec<ShardV1>,
     },
+}
+
+#[derive(Debug, Serialize)]
+struct DownloadingV1 {
+    running: bool,
+    chunks_done: usize,
+    chunks_total: usize,
+    bytes_per_second: Option<u64>,
+    eta_seconds: Option<u64>,
+    seconds_since_write: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+struct UnpackingV1 {
+    running: bool,
+    shards_done: usize,
+    shards_total: usize,
+    seconds_since_write: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -136,24 +142,9 @@ pub fn target<'a>(named: Option<&'a str>, default: &'a str) -> Target<'a> {
 pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(), CliError> {
     let dir = snapshot::install_dir(args.dir)?;
     let (node_url, local) = (target.url, target.here);
-    let phase = match Node::new(node_url)?.sync_state().await {
-        Ok(state) => synced(state),
-        Err(paircaster_core::Error::Transport(e)) if denied(&e) => {
-            return Err(StatusError::NetworkDenied(node_url.to_owned()).into());
-        }
-        Err(paircaster_core::Error::Transport(_)) if local => on_disk(
-            snapshot::observe(&dir)?,
-            snapshot::holder(&dir)?.is_some(),
-            SystemTime::now(),
-        ),
-        Err(e) => return Err(e.into()),
-    };
+    let phase = phase(&target, &dir).await?;
     let disk = match local {
-        true => snapshot::disk(&dir)?.map(|d| DiskV1 {
-            free_bytes: d.free,
-            total_bytes: d.total,
-            low: is_low(d.free, d.total),
-        }),
+        true => local_disk(&dir)?,
         false => None,
     };
     let out = match json {
@@ -173,6 +164,31 @@ pub async fn run(target: Target<'_>, args: StatusArgs, json: bool) -> Result<(),
     };
     crate::out::line(format_args!("{out}"));
     Ok(())
+}
+
+/// The node's own answer; when this machine's node does not answer, what its
+/// install directory shows.
+async fn phase(target: &Target<'_>, dir: &Path) -> Result<Phase, CliError> {
+    match Node::new(target.url)?.sync_state().await {
+        Ok(state) => Ok(synced(state)),
+        Err(paircaster_core::Error::Transport(e)) if denied(&e) => {
+            Err(StatusError::NetworkDenied(target.url.to_owned()).into())
+        }
+        Err(paircaster_core::Error::Transport(_)) if target.here => Ok(on_disk(
+            snapshot::observe(dir)?,
+            snapshot::holder(dir)?.is_some(),
+            SystemTime::now(),
+        )),
+        Err(e) => Err(e.into()),
+    }
+}
+
+fn local_disk(dir: &Path) -> Result<Option<DiskV1>, CliError> {
+    Ok(snapshot::disk(dir)?.map(|d| DiskV1 {
+        free_bytes: d.free,
+        total_bytes: d.total,
+        low: is_low(d.free, d.total),
+    }))
 }
 
 /// `node status` could not learn the node's state.
@@ -257,23 +273,23 @@ fn on_disk(observed: Observed, locked: bool, now: SystemTime) -> Phase {
 fn downloading(d: &Download, now: SystemTime) -> Phase {
     let rate = bytes_per_second(&d.chunks, now).filter(|_| d.running);
     let eta = rate.and_then(|r| eta_seconds(&d.chunks, d.chunks_total - d.chunks_done, r));
-    Phase::Downloading {
+    Phase::Downloading(DownloadingV1 {
         running: d.running,
         chunks_done: d.chunks_done,
         chunks_total: d.chunks_total,
         bytes_per_second: rate.map(|r| r as u64),
         eta_seconds: eta,
         seconds_since_write: d.last_write.map(|t| age(now, t).as_secs()),
-    }
+    })
 }
 
 fn unpacking(u: &Unpack, now: SystemTime) -> Phase {
-    Phase::Unpacking {
+    Phase::Unpacking(UnpackingV1 {
         running: u.running,
         shards_done: u.shards_done,
         shards_total: u.shards_total,
         seconds_since_write: u.last_write.map(|t| age(now, t).as_secs()),
-    }
+    })
 }
 
 /// Bytes per second over the chunks finished within `RATE_WINDOW` of `now`:
@@ -326,40 +342,8 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path, installed: bool) -> Strin
             invocation::node("status", dir)
         ),
         Phase::NotStarted { running: false } => not_started(node_url, dir, installed),
-        Phase::Downloading {
-            running,
-            chunks_done,
-            chunks_total,
-            bytes_per_second,
-            eta_seconds,
-            seconds_since_write,
-        } => {
-            let pct = chunks_done * 100 / chunks_total;
-            let head = format!(
-                "Downloading the snapshot: {chunks_done} of {chunks_total} chunks ({pct}%)."
-            );
-            let tail = match running {
-                true => download_tail(*bytes_per_second, *eta_seconds, *seconds_since_write),
-                false => format!("Paused. To resume: {}", invocation::node("resume", dir)),
-            };
-            format!("{head}\n{tail}")
-        }
-        Phase::Unpacking {
-            running,
-            shards_done,
-            shards_total,
-            ..
-        } => {
-            let head =
-                format!("Unpacking the snapshot: {shards_done} of {shards_total} shards done.");
-            match running {
-                true => head,
-                false => format!(
-                    "{head}\nInterrupted. To finish (the current shard starts over): {}",
-                    invocation::node("resume", dir)
-                ),
-            }
-        }
+        Phase::Downloading(d) => describe_download(d, dir),
+        Phase::Unpacking(u) => describe_unpack(u, dir),
         Phase::NodeStopped => format!(
             "The snapshot is in place, but no node answers at {node_url}.\n\
              Start it: cd {} && ./snapchain.sh up (it can take a minute to answer)",
@@ -378,6 +362,29 @@ fn describe(phase: &Phase, node_url: &str, dir: &Path, installed: bool) -> Strin
         } => format!(
             "Ready (Snapchain {node_version}): every shard within a minute of its newest block.\n{}",
             shard_lines(shards)
+        ),
+    }
+}
+
+fn describe_download(d: &DownloadingV1, dir: &Path) -> String {
+    let (done, total) = (d.chunks_done, d.chunks_total);
+    let pct = done * 100 / total;
+    let head = format!("Downloading the snapshot: {done} of {total} chunks ({pct}%).");
+    let tail = match d.running {
+        true => download_tail(d.bytes_per_second, d.eta_seconds, d.seconds_since_write),
+        false => format!("Paused. To resume: {}", invocation::node("resume", dir)),
+    };
+    format!("{head}\n{tail}")
+}
+
+fn describe_unpack(u: &UnpackingV1, dir: &Path) -> String {
+    let (done, total) = (u.shards_done, u.shards_total);
+    let head = format!("Unpacking the snapshot: {done} of {total} shards done.");
+    match u.running {
+        true => head,
+        false => format!(
+            "{head}\nInterrupted. To finish (the current shard starts over): {}",
+            invocation::node("resume", dir)
         ),
     }
 }
@@ -455,11 +462,45 @@ mod tests {
     use paircaster_core::node::{ShardSync, SyncState};
 
     use super::{
-        Chunk, Observed, Phase, ShardV1, Target, bytes_per_second, denied, duration, eta_seconds,
-        is_low, not_started, on_disk, synced, syncing_head, target,
+        Chunk, Download, Observed, Phase, ShardV1, StatusV1, Target, Unpack, bytes_per_second,
+        denied, duration, eta_seconds, is_low, not_started, on_disk, synced, syncing_head, target,
     };
 
     const MB: u64 = 1_000_000;
+
+    #[test]
+    fn json_keeps_its_shape_for_each_snapshot_phase() {
+        let now = SystemTime::now();
+        let download = Download {
+            running: true,
+            chunks_done: 2,
+            chunks_total: 5,
+            chunks: vec![],
+            last_write: Some(now),
+        };
+        let unpack = Unpack {
+            running: false,
+            shards_done: 1,
+            shards_total: 3,
+            last_write: None,
+        };
+        let json = |phase| {
+            serde_json::to_string(&StatusV1 {
+                version: 1,
+                phase,
+                disk: None,
+            })
+            .expect("serialises")
+        };
+        assert_eq!(
+            json(on_disk(Observed::Downloading(download), true, now)),
+            r#"{"version":1,"phase":"downloading","running":true,"chunks_done":2,"chunks_total":5,"bytes_per_second":null,"eta_seconds":null,"seconds_since_write":0,"disk":null}"#
+        );
+        assert_eq!(
+            json(on_disk(Observed::Unpacking(unpack), false, now)),
+            r#"{"version":1,"phase":"unpacking","running":false,"shards_done":1,"shards_total":3,"seconds_since_write":null,"disk":null}"#
+        );
+    }
 
     #[test]
     fn not_started_without_an_install_says_to_install_snapchain_first() {

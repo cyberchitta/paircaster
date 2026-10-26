@@ -127,6 +127,40 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
     let mut tty = Tty::open().map_err(KeyAddCliError::from)?;
     let custody = custody_key(&mut tty)?;
     let address = custody.address();
+    let account = account(node, address).await?;
+    let fid = account.fid;
+    let app = new_app_key()?;
+    let now = clock::now();
+    let request = key_request(fid, app.public(), account.nonce, now);
+    let key_file = store.key_path(fid, &request.key);
+    let terms = confirmation(&request, &address, account.username.as_deref(), &key_file);
+    confirm(&mut tty, &terms)?;
+    let body = authorize(&custody, &request).map_err(KeyAddCliError::from)?;
+    drop(custody);
+    let envelope = Envelope {
+        fid,
+        network: FarcasterNetwork::Mainnet,
+        timestamp: now,
+    };
+    let action = Action::KeyAdd(body);
+    let key_file = sign_save_send(node, store, &app, &envelope, &action, &request.key).await?;
+    Ok(Outcome {
+        status: Status::Added,
+        fid,
+        key: request.key,
+        key_file,
+    })
+}
+
+/// The account a custody address owns, as `key add` needs it.
+struct Account {
+    fid: u64,
+    username: Option<String>,
+    /// The nonce the custody key's next signature uses.
+    nonce: u32,
+}
+
+async fn account(node: &Node, address: EthAddress) -> Result<Account, CliError> {
     let fid = node
         .fid_of_custody(&address)
         .await?
@@ -143,51 +177,51 @@ async fn add(node: &Node, store: &KeyStore) -> Result<Outcome, CliError> {
         .await?
         .checked_add(1)
         .ok_or(KeyAddCliError::NonceExhausted)?;
-    let app = new_app_key()?;
-    let now = clock::now();
-    let request = KeyRequest {
+    Ok(Account {
         fid,
-        key: app.public(),
+        username,
+        nonce,
+    })
+}
+
+fn key_request(fid: u64, key: SignerKey, nonce: u32, now: Timestamp) -> KeyRequest {
+    KeyRequest {
+        fid,
+        key,
         scopes: SCOPES.to_vec(),
         ttl_secs: MAX_TTL_SECS,
         nonce,
         deadline: Timestamp::from_unix(now.unix_seconds() + DEADLINE.as_secs()),
-    };
-    let key_file = store.key_path(fid, &request.key);
-    tty.say(&confirmation(
-        &request,
-        &address,
-        username.as_deref(),
-        &key_file,
-    ))
-    .map_err(KeyAddCliError::from)?;
-    if tty
-        .ask("Type yes to sign and send: ")
-        .map_err(KeyAddCliError::from)?
-        .trim()
-        != "yes"
-    {
-        return Err(KeyAddCliError::Declined.into());
     }
-    let body = authorize(&custody, &request).map_err(KeyAddCliError::from)?;
-    drop(custody);
-    let envelope = Envelope {
-        fid,
-        network: FarcasterNetwork::Mainnet,
-        timestamp: now,
-    };
-    let signed = sign(&app, &envelope, &Action::KeyAdd(body)).map_err(KeyAddCliError::from)?;
-    let key_file = store.save_key(fid, &app).map_err(KeyAddCliError::from)?;
+}
+
+/// Shows `terms` and goes on only on a typed `yes`.
+fn confirm(tty: &mut Tty, terms: &str) -> Result<(), KeyAddCliError> {
+    tty.say(terms)?;
+    match tty.ask("Type yes to sign and send: ")?.trim() {
+        "yes" => Ok(()),
+        _ => Err(KeyAddCliError::Declined),
+    }
+}
+
+/// Signs `action` with the new app key, saves the key and the signed message,
+/// then sends it and waits for the node to list the key. Returns the key file.
+async fn sign_save_send(
+    node: &Node,
+    store: &KeyStore,
+    app: &AppKey,
+    envelope: &Envelope,
+    action: &Action,
+    key: &SignerKey,
+) -> Result<PathBuf, CliError> {
+    let fid = envelope.fid;
+    let signed = sign(app, envelope, action).map_err(KeyAddCliError::from)?;
+    let key_file = store.save_key(fid, app).map_err(KeyAddCliError::from)?;
     let pending = store
-        .save_pending(fid, &request.key, &signed.encode())
+        .save_pending(fid, key, &signed.encode())
         .map_err(KeyAddCliError::from)?;
     send_and_confirm(node, &signed, fid, &pending, &key_file).await?;
-    Ok(Outcome {
-        status: Status::Added,
-        fid,
-        key: request.key,
-        key_file,
-    })
+    Ok(key_file)
 }
 
 fn custody_key(tty: &mut Tty) -> Result<CustodyKey, KeyAddCliError> {

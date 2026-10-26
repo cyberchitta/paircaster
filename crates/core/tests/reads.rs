@@ -41,6 +41,22 @@ fn signers_of(fid: u64) -> Vec<Signer> {
         .items
 }
 
+fn user_data_fixture_has_a_username_and_an_empty_value(raw: &serde_json::Value) {
+    assert!(
+        newest_set_value(raw, "USER_DATA_TYPE_USERNAME").is_some(),
+        "fixture has a username"
+    );
+    let has_empty = raw["messages"]
+        .as_array()
+        .expect("messages")
+        .iter()
+        .any(|m| m["data"]["userDataBody"]["value"] == "");
+    assert!(
+        has_empty,
+        "fixture has an empty value, which must read as unset"
+    );
+}
+
 #[test]
 #[ignore = "needs PAIRCASTER_FIXTURES"]
 fn profile_takes_user_data_and_counts_follows() {
@@ -60,20 +76,8 @@ fn profile_takes_user_data_and_counts_follows() {
     );
 
     let raw = fixture("userDataByFid-3.json");
+    user_data_fixture_has_a_username_and_an_empty_value(&raw);
     let expect = |kind: &str| newest_set_value(&raw, kind);
-    assert!(
-        expect("USER_DATA_TYPE_USERNAME").is_some(),
-        "fixture has a username"
-    );
-    let has_empty = raw["messages"]
-        .as_array()
-        .expect("messages")
-        .iter()
-        .any(|m| m["data"]["userDataBody"]["value"] == "");
-    assert!(
-        has_empty,
-        "fixture has an empty value, which must read as unset"
-    );
     assert_eq!(profile.username, expect("USER_DATA_TYPE_USERNAME"));
     assert_eq!(profile.display_name, expect("USER_DATA_TYPE_DISPLAY"));
     assert_eq!(profile.bio, expect("USER_DATA_TYPE_BIO"));
@@ -694,6 +698,27 @@ fn events_page() -> Vec<PageEvent> {
     parse::events(fixture("events-1-49115416.json")).expect("events parse")
 }
 
+fn count_bodies(page: &[PageEvent], f: fn(&EventBody) -> bool) -> usize {
+    page.iter()
+        .filter(|e| matches!(e, PageEvent::Event { body, .. } if f(body)))
+        .count()
+}
+
+fn message_contents(page: &[PageEvent]) -> Vec<&Content> {
+    page.iter()
+        .filter_map(|e| match e {
+            PageEvent::Event {
+                body:
+                    EventBody::Message {
+                        content: Some(c), ..
+                    },
+                ..
+            } => Some(c),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
 #[ignore = "needs PAIRCASTER_FIXTURES"]
 fn an_events_page_reads_every_kind_of_event() {
@@ -704,9 +729,7 @@ fn an_events_page_reads_every_kind_of_event() {
     assert_eq!(count(&change(Change::Merge)), 2_850);
     assert_eq!(count(&change(Change::Prune)), 1_458);
     assert_eq!(count(&change(Change::Revoke)), 2);
-    let body = |f: fn(&EventBody) -> bool| {
-        count(&|e| matches!(e, PageEvent::Event { body, .. } if f(body)))
-    };
+    let body = |f: fn(&EventBody) -> bool| count_bodies(&page, f);
     assert_eq!(body(|b| matches!(b, EventBody::OnChain { .. })), 69);
     assert_eq!(body(|b| matches!(b, EventBody::UsernameProof { .. })), 21);
     assert_eq!(body(|b| matches!(b, EventBody::Other { .. })), 0);
@@ -714,6 +737,11 @@ fn an_events_page_reads_every_kind_of_event() {
         |b| matches!(b, EventBody::Message { change: Change::Merge, kind, .. } if kind == "cast_add"),
     );
     assert_eq!(casts, 799);
+}
+
+#[test]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
+fn an_events_page_has_content_for_the_messages_it_reads() {
     let content_or_not = |b: &EventBody| match b {
         EventBody::Message { kind, content, .. } => {
             let read = [
@@ -727,20 +755,17 @@ fn an_events_page_reads_every_kind_of_event() {
         }
         _ => true,
     };
-    assert_eq!(body(content_or_not), 2_850 + 1_458 + 2 + 69 + 21);
-    let contents: Vec<&Content> = page
-        .iter()
-        .filter_map(|e| match e {
-            PageEvent::Event {
-                body:
-                    EventBody::Message {
-                        content: Some(c), ..
-                    },
-                ..
-            } => Some(c),
-            _ => None,
-        })
-        .collect();
+    assert_eq!(
+        count_bodies(&events_page(), content_or_not),
+        2_850 + 1_458 + 2 + 69 + 21
+    );
+}
+
+#[test]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
+fn an_events_page_reads_every_kind_of_content() {
+    let page = events_page();
+    let contents = message_contents(&page);
     let of = |f: fn(&Content) -> bool| contents.iter().filter(|c| f(c)).count();
     assert_eq!(of(|c| matches!(c, Content::Cast(_))), 1_115);
     assert_eq!(of(|c| matches!(c, Content::Reaction { .. })), 2_613 + 25);
@@ -752,7 +777,13 @@ fn an_events_page_reads_every_kind_of_event() {
         Content::Reaction { kind: ReactionType::Like, target } if *target == liked)));
     assert!(contents.iter().any(|c| matches!(c,
         Content::Link { kind, target_fid: 2_726_056 } if kind == "follow")));
-    let first = contents.iter().find_map(|c| match c {
+}
+
+#[test]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
+fn an_events_page_keeps_a_casts_text() {
+    let page = events_page();
+    let first = message_contents(&page).into_iter().find_map(|c| match c {
         Content::Cast(c) => Some(c),
         _ => None,
     });
@@ -889,15 +920,13 @@ fn addresses_of(fid: u64) -> Vec<address::Address> {
 #[test]
 #[ignore = "needs PAIRCASTER_FIXTURES"]
 fn primary_addresses_are_marked_ignoring_ethereum_case() {
-    let summary = |fid| -> Vec<(String, Protocol, bool)> {
-        addresses_of(fid)
-            .into_iter()
-            .map(|a| (a.verification.address, a.verification.protocol, a.primary))
-            .collect()
-    };
+    let summary: Vec<(String, Protocol, bool)> = addresses_of(5650)
+        .into_iter()
+        .map(|a| (a.verification.address, a.verification.protocol, a.primary))
+        .collect();
     let s = |a: &str, p, primary| (a.to_owned(), p, primary);
     assert_eq!(
-        summary(5650),
+        summary,
         [
             s(
                 "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
@@ -921,6 +950,11 @@ fn primary_addresses_are_marked_ignoring_ethereum_case() {
             ),
         ]
     );
+}
+
+#[test]
+#[ignore = "needs PAIRCASTER_FIXTURES"]
+fn fid_3_has_two_primary_addresses_in_time_order() {
     let dwr = addresses_of(3);
     assert_eq!(dwr.iter().filter(|a| a.primary).count(), 2);
     assert!(dwr.is_sorted_by_key(|a| a.verification.timestamp));

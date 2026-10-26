@@ -153,7 +153,7 @@ impl TryFrom<JsonData> for MessageData {
     }
 }
 
-fn body_for(json: &JsonData, message_type: MessageType) -> Result<Body, Error> {
+fn one_body(json: &JsonData) -> Result<(), Error> {
     let present = [
         json.cast_add_body.is_some(),
         json.cast_remove_body.is_some(),
@@ -164,6 +164,11 @@ fn body_for(json: &JsonData, message_type: MessageType) -> Result<Body, Error> {
     if present.iter().filter(|p| **p).count() != 1 {
         return Err(bad("message must have exactly one body"));
     }
+    Ok(())
+}
+
+fn body_for(json: &JsonData, message_type: MessageType) -> Result<Body, Error> {
+    one_body(json)?;
     let missing = || bad(&format!("{message_type:?} message without its body"));
     match message_type {
         MessageType::CastAdd => json

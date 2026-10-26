@@ -121,25 +121,15 @@ pub async fn run(args: FetchArgs) -> Result<(), SnapshotError> {
     refuse_if_db_present(&paths.db)?;
     refuse_if_node_running(&paths.dir)?;
     let _lock = lock::acquire(&paths.dir)?;
-    if args.fresh {
-        remove_dir_if_present(&paths.work)?;
-        remove_dir_if_present(&paths.partial)?;
-    }
-    std::fs::create_dir_all(&paths.work).map_err(SnapshotError::io(&paths.work))?;
-    if !args.skip_disk_check && args.max_chunks.is_none() {
-        refuse_if_disk_small(&paths)?;
-    }
+    let check_disk = !args.skip_disk_check && args.max_chunks.is_none();
+    prepare_work(&paths, args.fresh, check_disk)?;
     let client = http_client()?;
     let mut index =
         index::load_or_fetch(&client, &args.url, &paths.work.join("index.json")).await?;
     if let Some(n) = args.max_chunks {
         index.shards.iter_mut().for_each(|s| s.truncate(n));
     }
-    let todo: Vec<&Shard> = index
-        .shards
-        .iter()
-        .filter(|s| !paths.marker(s).exists())
-        .collect();
+    let todo = not_unpacked(&index, &paths);
     fetch::fetch_all(&client, &index, &todo, &paths.work, args.jobs.into()).await?;
     if args.max_chunks.is_some() {
         eprintln!("stopped before unpacking (--max-chunks)");
@@ -150,6 +140,28 @@ pub async fn run(args: FetchArgs) -> Result<(), SnapshotError> {
         .await
         .expect("unpack task does not panic")
         .map(|paths| report_done(&paths, index_total))
+}
+
+/// Clears the work directory when `fresh`, creates it, and checks the disk
+/// has room when `check_disk`.
+fn prepare_work(paths: &Paths, fresh: bool, check_disk: bool) -> Result<(), SnapshotError> {
+    if fresh {
+        remove_dir_if_present(&paths.work)?;
+        remove_dir_if_present(&paths.partial)?;
+    }
+    std::fs::create_dir_all(&paths.work).map_err(SnapshotError::io(&paths.work))?;
+    if check_disk {
+        refuse_if_disk_small(paths)?;
+    }
+    Ok(())
+}
+
+fn not_unpacked<'a>(index: &'a Index, paths: &Paths) -> Vec<&'a Shard> {
+    index
+        .shards
+        .iter()
+        .filter(|s| !paths.marker(s).exists())
+        .collect()
 }
 
 /// The snapshot state in the install directory `dir`.

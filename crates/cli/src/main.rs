@@ -156,20 +156,22 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> Result<(), CliError> {
     let named = cli.node.as_deref();
-    let node = named.unwrap_or(DEFAULT_NODE);
-    let conn = Node::new(node)?;
+    let conn = Node::new(named.unwrap_or(DEFAULT_NODE))?;
     let result = dispatch(&conn, named, cli.command, cli.json).await;
     note_skipped(&conn);
     result
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per subcommand; split, the match would lose its exhaustiveness check"
+)]
 async fn dispatch(
     conn: &Node,
     named: Option<&str>,
     command: Command,
     json: bool,
 ) -> Result<(), CliError> {
-    let node = named.unwrap_or(DEFAULT_NODE);
     match command {
         Command::Info => print(&conn.info().await?, json),
         Command::Profile {
@@ -194,14 +196,25 @@ async fn dispatch(
         Command::Follow(args) => follow(conn, args, false, json).await?,
         Command::Unfollow(args) => follow(conn, args, true, json).await?,
         Command::Resend => write::resend(conn, json).await?,
-        Command::Viewer(command) => viewer::run(&command, node).await?,
+        Command::Viewer(command) => viewer::run(&command, named.unwrap_or(DEFAULT_NODE)).await?,
         Command::Key(KeyCommand::Add) => key_add::run(conn, json).await?,
-        Command::Node(NodeCommand::FetchSnapshot(args)) => snapshot::run(args).await?,
-        Command::Node(NodeCommand::Status(args)) => {
+        Command::Node(command) => node_command(command, named, json).await?,
+    }
+    Ok(())
+}
+
+async fn node_command(
+    command: NodeCommand,
+    named: Option<&str>,
+    json: bool,
+) -> Result<(), CliError> {
+    match command {
+        NodeCommand::FetchSnapshot(args) => snapshot::run(args).await?,
+        NodeCommand::Status(args) => {
             status::run(status::target(named, DEFAULT_NODE), args, json).await?
         }
-        Command::Node(NodeCommand::Pause(args)) => control::pause(args).await?,
-        Command::Node(NodeCommand::Resume(args)) => control::resume(args).await?,
+        NodeCommand::Pause(args) => control::pause(args).await?,
+        NodeCommand::Resume(args) => control::resume(args).await?,
     }
     Ok(())
 }

@@ -177,24 +177,33 @@ fn event(body: EventBody) -> Event {
     }
 }
 
+const EVENT_HEAD: &str =
+    r#"{"version":1,"shard":1,"id":81922,"block":5,"block_time":"2021-01-01T00:00:10Z""#;
+
+fn event_hash() -> String {
+    format!("0x{}", "ab".repeat(20))
+}
+
+fn message_event(change: Change, kind: &str, content: Option<Content>) -> Event {
+    event(EventBody::Message {
+        change,
+        kind: kind.to_owned(),
+        fid: 2,
+        hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
+        timestamp: Timestamp::from_farcaster(9),
+        signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
+        content,
+    })
+}
+
+fn message_fields() -> String {
+    let (h, signer) = (event_hash(), format!("0x{}", "01".repeat(32)));
+    format!(r#""fid":2,"hash":"{h}","timestamp":"2021-01-01T00:00:09Z","signer":"{signer}""#)
+}
+
 #[test]
-fn event_lines_keep_their_shape() {
-    let h = format!("0x{}", "ab".repeat(20));
-    let signer = format!("0x{}", "01".repeat(32));
-    let head = r#"{"version":1,"shard":1,"id":81922,"block":5,"block_time":"2021-01-01T00:00:10Z""#;
-    let message = |change, kind: &str, content| {
-        event(EventBody::Message {
-            change,
-            kind: kind.to_owned(),
-            fid: 2,
-            hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
-            timestamp: Timestamp::from_farcaster(9),
-            signer: SignerKey::from_bytes(&[1; 32]).expect("32 bytes"),
-            content,
-        })
-    };
-    let fields =
-        format!(r#""fid":2,"hash":"{h}","timestamp":"2021-01-01T00:00:09Z","signer":"{signer}""#);
+fn cast_event_lines_keep_their_shape() {
+    let (head, fields, h) = (EVENT_HEAD, message_fields(), event_hash());
     let cast = format!(
         r#","text":"hi ","mentions":[{{"fid":9,"position":3}}],"embeds":[{{"url":"https://e"}}],"parent":{{"cast":{{"fid":17,"hash":"{h}"}}}}"#
     );
@@ -206,7 +215,7 @@ fn event_lines_keep_their_shape() {
     .iter()
     .for_each(|(c, name)| {
         assert_eq!(
-            output::event_json(&message(
+            output::event_json(&message_event(
                 *c,
                 "cast_add",
                 Some(Content::Cast(Box::new(item().cast)))
@@ -214,13 +223,22 @@ fn event_lines_keep_their_shape() {
             format!(r#"{head},"event":"{name}","type":"cast_add",{fields}{cast}}}"#)
         );
     });
-    let like = Content::Reaction {
+}
+
+fn liked() -> Content {
+    Content::Reaction {
         kind: ReactionType::Like,
         target: Target::Cast(CastRef {
             fid: 37,
             hash: MessageHash::from_bytes(&[0xab; 20]).expect("20 bytes"),
         }),
-    };
+    }
+}
+
+#[test]
+fn other_message_event_lines_keep_their_shape() {
+    let (head, fields, h) = (EVENT_HEAD, message_fields(), event_hash());
+    let like = liked();
     let follow = Content::Link {
         kind: "follow".to_owned(),
         target_fid: 3,
@@ -241,10 +259,14 @@ fn event_lines_keep_their_shape() {
     .into_iter()
     .for_each(|(kind, content, rest)| {
         assert_eq!(
-            output::event_json(&message(Change::Merge, kind, content)),
+            output::event_json(&message_event(Change::Merge, kind, content)),
             format!(r#"{head},"event":"merge","type":"{kind}",{fields}{rest}}}"#)
         );
     });
+}
+
+#[test]
+fn non_message_event_lines_keep_their_shape() {
     let others = [
         (
             EventBody::UsernameProof {
@@ -269,7 +291,10 @@ fn event_lines_keep_their_shape() {
         ),
     ];
     others.into_iter().for_each(|(body, rest)| {
-        assert_eq!(output::event_json(&event(body)), format!("{head},{rest}"));
+        assert_eq!(
+            output::event_json(&event(body)),
+            format!("{EVENT_HEAD},{rest}")
+        );
     });
 }
 

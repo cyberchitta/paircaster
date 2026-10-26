@@ -202,11 +202,7 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
                 signer: signer.to_string(),
                 content: content.as_ref().map(event_content_v1),
             };
-            match change {
-                Change::Merge => EventBodyV1::Merge(m),
-                Change::Prune => EventBodyV1::Prune(m),
-                Change::Revoke => EventBodyV1::Revoke(m),
-            }
+            changed(*change, m)
         }
         EventBody::UsernameProof { fid, name, kind } => EventBodyV1::UsernameProof {
             kind,
@@ -215,6 +211,14 @@ fn event_body_v1(body: &EventBody) -> EventBodyV1<'_> {
         },
         EventBody::OnChain { fid, kind } => EventBodyV1::Onchain { kind, fid: *fid },
         EventBody::Other { node_type } => EventBodyV1::Other { kind: node_type },
+    }
+}
+
+fn changed(change: Change, m: EventMessageV1<'_>) -> EventBodyV1<'_> {
+    match change {
+        Change::Merge => EventBodyV1::Merge(m),
+        Change::Prune => EventBodyV1::Prune(m),
+        Change::Revoke => EventBodyV1::Revoke(m),
     }
 }
 

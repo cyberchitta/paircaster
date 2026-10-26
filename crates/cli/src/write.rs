@@ -24,8 +24,8 @@ use paircaster_core::cast::{CastRef, MessageHash, ParseRefError, Target};
 use paircaster_core::node::{ShardSync, SyncState};
 use paircaster_core::profile::{Followers, Profile};
 use paircaster_core::proto::{
-    Body, CastParent, CastType, Embed, EmbedTarget, FarcasterNetwork, LinkTarget, MessageData,
-    MessageType, ReactionTarget, ReactionType,
+    Body, CastAddBody, CastParent, CastType, Embed, EmbedTarget, FarcasterNetwork, LinkTarget,
+    MessageData, MessageType, ReactionBody, ReactionTarget, ReactionType,
 };
 use paircaster_core::time::Timestamp;
 use prost::Message as _;
@@ -410,6 +410,11 @@ pub async fn resend(node: &Node, json: bool) -> Result<(), CliError> {
         deliver(node, &signed, &data, &what, &path).await?;
         sent.push(entry(Status::Sent, &what, data.fid, signed.hash()));
     }
+    report_resent(sent, json);
+    Ok(())
+}
+
+fn report_resent(sent: Vec<WriteV1>, json: bool) {
     match json {
         true => crate::out::line(format_args!(
             "{}",
@@ -425,7 +430,6 @@ pub async fn resend(node: &Node, json: bool) -> Result<(), CliError> {
             sent.len()
         )),
     }
-    Ok(())
 }
 
 async fn refuse_if_unsent(node: &Node, outbox: &Outbox) -> Result<(), CliError> {
@@ -485,26 +489,11 @@ fn what(data: &MessageData) -> Result<What, WriteError> {
         .map(i32::from)
         .contains(&data.r#type);
     match data.body.as_ref() {
-        Some(Body::CastAdd(add)) => Ok(What::Cast {
-            text: add.text.clone(),
-            parent: add.parent.as_ref().map(parent_target).transpose()?,
-            embeds: add
-                .embeds
-                .iter()
-                .map(embed_target)
-                .collect::<Result<_, _>>()?,
-        }),
+        Some(Body::CastAdd(add)) => cast_what(add),
         Some(Body::CastRemove(remove)) => MessageHash::from_bytes(&remove.target_hash)
             .map(What::Delete)
             .ok_or_else(|| unknown("a delete with a bad hash")),
-        Some(Body::Reaction(r)) => Ok(What::React {
-            undo,
-            kind: ReactionType::try_from(r.r#type).map_err(|_| unknown("a reaction"))?,
-            cast: match &r.target {
-                Some(ReactionTarget::CastId(id)) => cast_ref(id.fid, &id.hash)?,
-                _ => return Err(unknown("a reaction to a URL")),
-            },
-        }),
+        Some(Body::Reaction(r)) => react_what(r, undo),
         Some(Body::Link(link)) => match (&link.target, link.r#type.as_str()) {
             (Some(LinkTarget::Fid(account)), "follow") => Ok(What::Follow {
                 undo,
@@ -514,6 +503,29 @@ fn what(data: &MessageData) -> Result<What, WriteError> {
         },
         _ => Err(unknown("this message type")),
     }
+}
+
+fn cast_what(add: &CastAddBody) -> Result<What, WriteError> {
+    Ok(What::Cast {
+        text: add.text.clone(),
+        parent: add.parent.as_ref().map(parent_target).transpose()?,
+        embeds: add
+            .embeds
+            .iter()
+            .map(embed_target)
+            .collect::<Result<_, _>>()?,
+    })
+}
+
+fn react_what(r: &ReactionBody, undo: bool) -> Result<What, WriteError> {
+    Ok(What::React {
+        undo,
+        kind: ReactionType::try_from(r.r#type).map_err(|_| unknown("a reaction"))?,
+        cast: match &r.target {
+            Some(ReactionTarget::CastId(id)) => cast_ref(id.fid, &id.hash)?,
+            _ => return Err(unknown("a reaction to a URL")),
+        },
+    })
 }
 
 fn unknown(what: &str) -> WriteError {
@@ -803,58 +815,46 @@ mod tests {
         })
     }
 
+    fn decodes_to(action: &Action, expected: &What, kind: &str) {
+        let decoded = what(&signed(action).1).expect("known");
+        assert_eq!(&decoded, expected);
+        assert_eq!(kind_name(&decoded), kind);
+    }
+
     #[test]
-    fn every_message_decodes_back_to_what_was_asked() {
+    fn deletes_and_follows_decode_back_to_what_was_asked() {
+        let delete = What::Delete(hash(0xcc));
+        decodes_to(&Action::CastRemove(hash(0xcc)), &delete, "delete");
+        let follow = |undo| What::Follow { undo, account: 3 };
+        decodes_to(&Action::FollowAdd(3), &follow(false), "follow");
+        decodes_to(&Action::FollowRemove(3), &follow(true), "unfollow");
+    }
+
+    #[test]
+    fn reactions_decode_back_to_what_was_asked() {
         let to = CastRef {
             fid: 3,
             hash: hash(0xaa),
         };
-        let cases = [
-            (
-                Action::CastRemove(hash(0xcc)),
-                What::Delete(hash(0xcc)),
-                "delete",
-            ),
-            (
-                Action::ReactionAdd(ReactionType::Like, Target::Cast(to)),
-                What::React {
-                    undo: false,
-                    kind: ReactionType::Like,
-                    cast: to,
-                },
-                "like",
-            ),
-            (
-                Action::ReactionRemove(ReactionType::Recast, Target::Cast(to)),
-                What::React {
-                    undo: true,
-                    kind: ReactionType::Recast,
-                    cast: to,
-                },
-                "unrecast",
-            ),
-            (
-                Action::FollowAdd(3),
-                What::Follow {
-                    undo: false,
-                    account: 3,
-                },
-                "follow",
-            ),
-            (
-                Action::FollowRemove(3),
-                What::Follow {
-                    undo: true,
-                    account: 3,
-                },
-                "unfollow",
-            ),
-        ];
-        for (action, expected, kind) in cases {
-            let decoded = what(&signed(&action).1).expect("known");
-            assert_eq!(decoded, expected);
-            assert_eq!(kind_name(&decoded), kind);
-        }
+        let react = |undo, kind| What::React {
+            undo,
+            kind,
+            cast: to,
+        };
+        decodes_to(
+            &Action::ReactionAdd(ReactionType::Like, Target::Cast(to)),
+            &react(false, ReactionType::Like),
+            "like",
+        );
+        decodes_to(
+            &Action::ReactionRemove(ReactionType::Recast, Target::Cast(to)),
+            &react(true, ReactionType::Recast),
+            "unrecast",
+        );
+    }
+
+    #[test]
+    fn a_cast_decodes_back_to_what_was_asked() {
         let decoded = what(&signed(&cast("hi")).1).expect("known");
         assert!(
             matches!(&decoded, What::Cast { text, embeds, parent: Some(_) }
