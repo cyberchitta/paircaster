@@ -6,9 +6,9 @@ Every read below goes to your own node's HTTP API and nowhere else. The examples
 
 ## Where to run paircaster
 
-`paircaster node fetch-snapshot`, `pause`, `resume` and `status` are about the Snapchain installed on the machine you run them on: they read its install directory. Everything else, reads, writes and `key add`, only talks to a node's HTTP API, so it can run anywhere that reaches one. Without `--node`, that is the node on this machine, at `http://localhost:3381`.
+`paircaster-node` is about the Snapchain installed on the machine you run it on: it reads its install directory. `paircaster`, reads, writes, `key add` and `node status`, only talks to a node's HTTP API, so it can run anywhere that reaches one. Without `--node`, that is the node on this machine, at `http://localhost:3381`.
 
-If the node is on a server, keep its API on the server's loopback (see [Ports](node.md#ports,-and-who-can-reach-your-node)) and reach it from your own machine through SSH: `ssh -N -L 3381:localhost:3381 you@your-server` makes the server's API answer at `localhost:3381` on your machine for as long as it runs. Reads and writes then work as they do on the server, and your app key stays on your own machine; the server holds no key. To ask how that node is doing from your machine, name it: `paircaster node status --node http://localhost:3381`. With `--node`, `status` reports only the node named, with no disk; without it, `status` describes this machine's own install. The server's download and disk are reported by `paircaster node status` run on the server.
+If the node is on a server, keep its API on the server's loopback (see [Ports](node.md#ports,-and-who-can-reach-your-node)) and reach it from your own machine through SSH: `ssh -N -L 3381:localhost:3381 you@your-server` makes the server's API answer at `localhost:3381` on your machine for as long as it runs. Reads and writes then work as they do on the server, and your app key stays on your own machine; the server holds no key. To ask how that node is doing from your machine, name it: `paircaster node status --node http://localhost:3381`. `paircaster node status` reports only whether a node answers and how far behind it is, with no disk. The server's download and disk are reported by `paircaster-node status` run on the server.
 
 ```run
 ssh -N -L 3381:localhost:3381 you@your-server
@@ -22,7 +22,7 @@ Syncing (Snapchain 0.14.3): 8h31m behind at most.
   shard 2: height 49038286, 8h31m behind
 ```
 
-Reads work the same way through the tunnel. If the node behind it does not answer, `node status --node` says it could not reach the node.
+Reads work the same way through the tunnel. If the node behind it does not answer, `node status --node` says no node answers there.
 
 The [viewer](agent.md#looking-at-a-thread-together) goes on your own machine too, beside your browser and your agent: the page in your browser reads the node itself, at `localhost:3381` through the same tunnel, and your agent talks to the page through a socket on the machine it runs on. [Build it](agent.md#building-the-viewer) there, in a clone made as in the [quickstart](index.md#1.-install-paircaster)'s step 1, then run `paircaster viewer serve` there while the tunnel is up. The server needs no viewer, and nothing about the viewer is installed on it. If your agent runs on the server instead, it uses the command line only: the viewer picks a new port on each run, so your browser would need a new tunnel every time. If you want the viewer that way, [open an issue](https://github.com/cyberchitta/paircaster/issues) and say so.
 

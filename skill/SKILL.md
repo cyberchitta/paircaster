@@ -7,7 +7,8 @@ description: Use the paircaster CLI to run the user's own Snapchain (Farcaster) 
 
 `paircaster` is a command-line client for Farcaster that talks to the user's
 own Snapchain node, by default at `http://localhost:3381`. No API keys, no
-hosted service.
+hosted service. `paircaster-node`, a second program, sets up and watches
+the node itself, on the machine the node runs on.
 
 ## How to call it
 
@@ -41,22 +42,23 @@ hosted service.
 
 When the user asks you to install Paircaster or set it up. Work in the
 clone: the directory with `Cargo.toml`, `crates/` and `skill/`. There is no
-release binary; `paircaster` is built from this source. Before each step,
-say what it installs and where. Run only the steps not yet done: to add
-the viewer to a working install, step 2's viewer build is all it takes,
-and `node status` (step 3) shows whether steps 4 and 5 are.
+release binary; `paircaster` and `paircaster-node` are built from this
+source. Before each step, say what it installs and where. Run only the
+steps not yet done: to add the viewer to a working install, step 2's viewer
+build is all it takes, and `paircaster-node status` (step 3) shows whether
+steps 4 and 5 are.
 
 **Ask where the node will run** before step 1, unless the user has said.
 The steps below put everything on this machine. If the node is to run on
 a server and you are on the user's own machine:
 
-- Steps 1, 4 and 5 are the server's, and so is a second `paircaster`
-  build (step 2, without the viewer), because `node resume` and
-  `node status` read the server's install directory. Give the user those
-  steps to run there, over their own SSH session; do not run them here
-  through `ssh`.
-- Here, only check `cargo` and build `paircaster` (step 2), with the viewer
-  if wanted. The app key is added here and stays here; the server holds no
+- Steps 1, 3, 4 and 5 are the server's, and so is step 2's
+  `paircaster-node` build, because it reads the server's install
+  directory. The server needs no `paircaster`. Give the user those steps
+  to run there, over their own SSH session; do not run them here through
+  `ssh`.
+- Here, only check `cargo` and build `paircaster` (step 2, without
+  `paircaster-node`), with the viewer if wanted. The app key is added here and stays here; the server holds no
   key.
 - The user reaches the node with a tunnel, run in a terminal of their own
   because it runs until stopped:
@@ -83,13 +85,15 @@ repository's issues.
    that answers, Rust is installed: put `~/.cargo/bin` on your own
    shell's path and go on.
 2. **Build `paircaster`**, with the viewer if the user wants to look at
-   threads with you (it needs three more tools), else without:
+   threads with you (it needs three more tools), else without, and
+   `paircaster-node` where the node runs:
 
    ```
    cargo install --path crates/cli --locked
+   cargo install --path crates/node --locked
    ```
 
-   With the viewer, instead:
+   With the viewer, instead of the first line:
 
    ```
    grep -A1 'name = "wasm-bindgen"' Cargo.lock    # its version, for the second line
@@ -105,7 +109,7 @@ repository's issues.
    it, and then put `~/.bun/bin` on the path of your own shell, which the
    profile does not reach. `bun build.ts` prints one line,
    `dist/: index.html …`.
-3. **Check it:** `paircaster node status --json`. Before Snapchain is
+3. **Check it:** `paircaster-node status --json`. Before Snapchain is
    installed, it gives `"phase":"not_started"` and `"disk":null`.
 4. **Snapchain is the user's to install.** Its installer asks two questions
    at the terminal, which your shell cannot answer, and it starts a node.
@@ -122,8 +126,8 @@ repository's issues.
    the installer started, whose own snapshot download cannot resume after an
    interruption.
 5. **The snapshot:** once the user says the node is stopped, start the
-   download with `paircaster node resume` (*Node*, below). It takes about
-   12 hours. When `node status` shows `node_stopped`, the user starts the
+   download with `paircaster-node resume` (*Node*, below). It takes about
+   12 hours. When `paircaster-node status` shows `node_stopped`, the user starts the
    node with `cd ~/snapchain && ./snapchain.sh up`, and it catches up with
    the network, which took a day or more on the test machine.
 
@@ -136,11 +140,16 @@ thousands of chunks, so the download takes hours. After the snapshot is
 unpacked, the user starts the node and it syncs to the network's newest
 blocks.
 
-`--dir <path>` (or `SNAPCHAIN_DIR`) is the Snapchain install directory,
-`~/snapchain` by default. Pass it to every `node` command when the user's
-install is elsewhere.
+Setting up and watching the node is `paircaster-node`'s, run on the
+machine the node runs on. `paircaster node status` is the client's: it asks
+a node's API, from anywhere, whether it answers and how far behind it is
+(*Check the node first*, below).
 
-### Checking: `paircaster node status --json`
+`--dir <path>` (or `SNAPCHAIN_DIR`) is the Snapchain install directory,
+`~/snapchain` by default. Pass it to every `paircaster-node` command when
+the user's install is elsewhere.
+
+### Checking: `paircaster-node status --json`
 
 Read-only. Use it whenever the user asks how the node is doing, and after
 every `pause` or `resume`. Do not watch the download with `ps`, `du` or the
@@ -148,12 +157,12 @@ log file: `status` reads the same state. The download takes hours, so do not
 poll it in a loop. Check when the user asks, or at long intervals if they
 asked you to keep an eye on it.
 
-Without `--node`, `status` reports the node installed on this machine: it
-asks the node first, and reads the download from the install directory only
-when no node answers. With `--node`, it reports that node only, wherever it
-is, with no download and `disk: null`; if that node does not answer, it is
-an error. Use `--node` for a node reached through an SSH tunnel too: its
-address is `localhost`, but it is not this machine's node.
+`paircaster-node status` reports the node installed on this machine: it
+asks the node first (at `--node`, by default `localhost:3381`), and reads
+the download from the install directory only when no node answers. From
+another machine, through an SSH tunnel, use `paircaster node status --node
+http://localhost:3381` instead: it reports `syncing` and `ready` only, with
+`disk: null`, and a node that does not answer is an error.
 
 If `status` fails with `not permitted to connect`, your shell's sandbox is
 blocking network access, so nothing is known about the node: say so, and
@@ -167,16 +176,16 @@ asked for that outcome ("resume it", "fix it").
 
 | `phase` | Fields | What it means, and what to offer |
 |---|---|---|
-| `not_started` | `running` | Nothing saved yet. `running: true`: a download has just started; check again shortly. `running: false`: offer to start it with `node resume`, unless `disk` is `null`: then Snapchain is not installed in the install directory (*Install*, step 4, comes first), or it is installed elsewhere and needs `--dir`. |
-| `downloading` | `running`, `chunks_done`, `chunks_total`, `bytes_per_second`, `eta_seconds`, `seconds_since_write` | `running: false`: paused or interrupted; offer `node resume`. `running: true` with `seconds_since_write` over 90: waiting for the network; the download carries on when it returns. `bytes_per_second` and `eta_seconds` are `null` until a few chunks have finished, and while not running. While not running, `seconds_since_write` is only how long ago it stopped. |
-| `unpacking` | `running`, `shards_done`, `shards_total`, `seconds_since_write` | Local work after the download; it cannot be paused. `running: false`: interrupted; `node resume` finishes it, and the shard in progress starts over. |
+| `not_started` | `running` | Nothing saved yet. `running: true`: a download has just started; check again shortly. `running: false`: offer to start it with `paircaster-node resume`, unless `disk` is `null`: then Snapchain is not installed in the install directory (*Install*, step 4, comes first), or it is installed elsewhere and needs `--dir`. |
+| `downloading` | `running`, `chunks_done`, `chunks_total`, `bytes_per_second`, `eta_seconds`, `seconds_since_write` | `running: false`: paused or interrupted; offer `paircaster-node resume`. `running: true` with `seconds_since_write` over 90: waiting for the network; the download carries on when it returns. `bytes_per_second` and `eta_seconds` are `null` until a few chunks have finished, and while not running. While not running, `seconds_since_write` is only how long ago it stopped. |
+| `unpacking` | `running`, `shards_done`, `shards_total`, `seconds_since_write` | Local work after the download; it cannot be paused. `running: false`: interrupted; `paircaster-node resume` finishes it, and the shard in progress starts over. |
 | `node_stopped` | (none) | The snapshot is in place but no node answers. The node is started with Snapchain's own script, `cd <dir> && ./snapchain.sh up`, which can take a minute to answer. |
 | `syncing` | `node_version`, `shards` | The node is running and catching up. Each shard has `id`, `height` and `seconds_behind`. Shard 0 holds the blocks, not accounts' messages: when it is the only one behind, reads are as current as on a ready node. |
 | `ready` | `node_version`, `shards` | Every shard is within 60 seconds of its newest block. |
 
 `disk` is `{ "free_bytes", "total_bytes", "low" }` for the filesystem
 holding the install directory, or `null` if that directory does not exist
-here or `--node` named a node. When `low` is `true` (under 15% free), tell
+here. `paircaster node status` always gives `null`. When `low` is `true` (under 15% free), tell
 the user: the snapshot still to come and the node's growing database both
 need room.
 
@@ -190,39 +199,39 @@ When you report, give the user the numbers that matter: the phase, how far
 along (chunks or shards, as a percentage), the speed in MB/s
 (`bytes_per_second` / 1,000,000) and the time left, and anything to act on.
 
-### Pausing and resuming: `paircaster node pause`, `paircaster node resume`
+### Pausing and resuming: `paircaster-node pause`, `paircaster-node resume`
 
 These change what runs on the user's machine. Run them only when the user
 asks. Both print a line of plain text, not JSON. Follow either with
-`node status --json` to see the result.
+`paircaster-node status --json` to see the result.
 
-- `node resume` starts the download in the background, or picks it up where
+- `paircaster-node resume` starts the download in the background, or picks it up where
   it stopped, and prints the process ID and the log path,
   `<dir>/paircaster-fetch.log`. It also finishes an interrupted unpack. If a
   download is already running, or the snapshot is already unpacked, it says
   so and changes nothing (exit 0). `--jobs <n>` sets how many chunks download
   at once (default 4).
-- `node pause` stops the download. Everything downloaded stays on disk,
+- `paircaster-node pause` stops the download. Everything downloaded stays on disk,
   including the part of each chunk in flight. With nothing running it says
   so (exit 0). During an unpack it refuses with an error.
 - Only one download runs per install directory. A second `resume` or
   `fetch-snapshot` is refused while one runs.
 
-**Limit:** whether a download started by `node resume` keeps running after
+**Limit:** whether a download started by `paircaster-node resume` keeps running after
 the terminal or agent session that started it closes has not been tested.
-In a new session, check with `node status`, and offer `node resume` if it
+In a new session, check with `paircaster-node status`, and offer `paircaster-node resume` if it
 shows `running: false`.
 
 ### Do not run
 
-- `paircaster node fetch-snapshot`. It is the same download in the
-  foreground, and it runs for hours. Use `node resume`.
+- `paircaster-node fetch-snapshot`. It is the same download in the
+  foreground, and it runs for hours. Use `paircaster-node resume`.
 - `fetch-snapshot --fresh`. It discards every chunk downloaded so far and
   starts from the newest snapshot. If the user wants to start over, say
   what it discards (a slow download is usually the network, which starting
   over does not fix), and give them the command to run in their own
-  terminal: `paircaster node pause`, then `paircaster node fetch-snapshot
-  --fresh`. To continue it later, use `node resume`, not `--fresh` again,
+  terminal: `paircaster-node pause`, then `paircaster-node fetch-snapshot
+  --fresh`. To continue it later, use `paircaster-node resume`, not `--fresh` again,
   which starts over each time.
 - `./snapchain.sh up`, or anything else that starts or stops the node,
   unless the user asks. Tell them the command instead.
@@ -249,15 +258,17 @@ example "from your node, which is about 46 hours behind". Example, from a
 node catching up:
 
 ```json
-{"version":1,"phase":"syncing","node_version":"0.14.3","shards":[{"id":0,"height":48401912,"seconds_behind":80369},{"id":1,"height":49013085,"seconds_behind":145673},{"id":2,"height":48830242,"seconds_behind":164323}],"disk":{"free_bytes":3164618342400,"total_bytes":3996276899840,"low":false}}
+{"version":1,"phase":"syncing","node_version":"0.14.3","shards":[{"id":0,"height":48401912,"seconds_behind":80369},{"id":1,"height":49013085,"seconds_behind":145673},{"id":2,"height":48830242,"seconds_behind":164323}],"disk":null}
 ```
 
 An account's casts, reactions, follows and profile live on one of the
 shards numbered from 1, and the CLI does not say which, so quote the
 largest `seconds_behind` among those. Leave out shard 0: it holds the
 blocks, not accounts' messages, so its lag does not make a read stale.
-When every shard but 0 is within a minute, say the reads are current. In
-any other phase there is no node to read from: report the phase instead.
+When every shard but 0 is within a minute, say the reads are current. If
+no node answers, it exits 1 (`no node answers at …`): there is no node to
+read from, so say so. If the node is on this machine, `paircaster-node
+status` shows whether it is still being set up.
 
 ### `paircaster profile <account> --json`
 

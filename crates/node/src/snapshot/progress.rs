@@ -1,4 +1,4 @@
-//! What a snapshot download has left on disk, read for `paircaster node status`
+//! What a snapshot download has left on disk, read for `paircaster-node status`
 //! without touching anything `fetch-snapshot` writes. A chunk is renamed from
 //! `.part` only once complete, so its modification time is when it finished.
 

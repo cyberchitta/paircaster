@@ -1761,7 +1761,6 @@ name = "paircaster"
 version = "0.0.1"
 dependencies = [
  "clap",
- "flate2",
  "getrandom 0.4.3",
  "hex",
  "pair-ui",
@@ -1771,7 +1770,6 @@ dependencies = [
  "rustix",
  "serde",
  "serde_json",
- "tar",
  "thiserror",
  "tokio",
  "zeroize",
@@ -1800,6 +1798,22 @@ dependencies = [
  "sha2",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "paircaster-node"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "flate2",
+ "paircaster-core",
+ "reqwest",
+ "rustix",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

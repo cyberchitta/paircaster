@@ -1,5 +1,4 @@
 mod clock;
-mod control;
 mod events;
 mod invocation;
 mod key_add;
@@ -7,7 +6,6 @@ mod keystore;
 mod out;
 mod outbox;
 mod reads;
-mod snapshot;
 mod status;
 mod tty;
 mod viewer;
@@ -97,7 +95,7 @@ enum Command {
     /// Manage the account's app keys.
     #[command(subcommand)]
     Key(KeyCommand),
-    /// Set up and manage the Snapchain node itself.
+    /// Check the node: whether it answers, and how far behind it is.
     #[command(subcommand)]
     Node(NodeCommand),
 }
@@ -111,17 +109,9 @@ enum KeyCommand {
 
 #[derive(Subcommand)]
 enum NodeCommand {
-    /// Download the mainnet snapshot so the node can start from it.
-    /// Pausable: stop with Ctrl-C and run again to resume.
-    FetchSnapshot(snapshot::FetchArgs),
-    /// Show which phase the node is in (downloading the snapshot, unpacking,
-    /// stopped, syncing, ready) and how far along it is.
-    Status(status::StatusArgs),
-    /// Pause the snapshot download. Everything downloaded stays on disk.
-    Pause(control::PauseArgs),
-    /// Resume the snapshot download in the background, logging to
-    /// paircaster-fetch.log in the install directory.
-    Resume(control::ResumeArgs),
+    /// Show whether the node answers, and if so how far behind each shard
+    /// is (syncing or ready). Setting the node up is `paircaster-node`'s.
+    Status,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -129,11 +119,7 @@ enum CliError {
     #[error(transparent)]
     Core(#[from] paircaster_core::Error),
     #[error(transparent)]
-    Snapshot(#[from] snapshot::SnapshotError),
-    #[error(transparent)]
     KeyAdd(#[from] key_add::KeyAddCliError),
-    #[error(transparent)]
-    Control(#[from] control::ControlError),
     #[error(transparent)]
     Write(#[from] write::WriteError),
     #[error(transparent)]
@@ -155,9 +141,9 @@ async fn main() -> ExitCode {
 }
 
 async fn run(cli: Cli) -> Result<(), CliError> {
-    let named = cli.node.as_deref();
-    let conn = Node::new(named.unwrap_or(DEFAULT_NODE))?;
-    let result = dispatch(&conn, named, cli.command, cli.json).await;
+    let url = cli.node.as_deref().unwrap_or(DEFAULT_NODE);
+    let conn = Node::new(url)?;
+    let result = dispatch(&conn, url, cli.command, cli.json).await;
     note_skipped(&conn);
     result
 }
@@ -166,12 +152,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
     clippy::too_many_lines,
     reason = "one arm per subcommand; split, the match would lose its exhaustiveness check"
 )]
-async fn dispatch(
-    conn: &Node,
-    named: Option<&str>,
-    command: Command,
-    json: bool,
-) -> Result<(), CliError> {
+async fn dispatch(conn: &Node, url: &str, command: Command, json: bool) -> Result<(), CliError> {
     match command {
         Command::Info => print(&conn.info().await?, json),
         Command::Profile {
@@ -196,25 +177,9 @@ async fn dispatch(
         Command::Follow(args) => follow(conn, args, false, json).await?,
         Command::Unfollow(args) => follow(conn, args, true, json).await?,
         Command::Resend => write::resend(conn, json).await?,
-        Command::Viewer(command) => viewer::run(&command, named.unwrap_or(DEFAULT_NODE)).await?,
+        Command::Viewer(command) => viewer::run(&command, url).await?,
         Command::Key(KeyCommand::Add) => key_add::run(conn, json).await?,
-        Command::Node(command) => node_command(command, named, json).await?,
-    }
-    Ok(())
-}
-
-async fn node_command(
-    command: NodeCommand,
-    named: Option<&str>,
-    json: bool,
-) -> Result<(), CliError> {
-    match command {
-        NodeCommand::FetchSnapshot(args) => snapshot::run(args).await?,
-        NodeCommand::Status(args) => {
-            status::run(status::target(named, DEFAULT_NODE), args, json).await?
-        }
-        NodeCommand::Pause(args) => control::pause(args).await?,
-        NodeCommand::Resume(args) => control::resume(args).await?,
+        Command::Node(NodeCommand::Status) => status::run(conn, url, json).await?,
     }
     Ok(())
 }

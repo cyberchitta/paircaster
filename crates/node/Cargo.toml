@@ -1,0 +1,27 @@
+[package]
+name = "paircaster-node"
+description = "Set up and watch your own Snapchain node: a resumable snapshot download, and its status"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "paircaster-node"
+path = "src/main.rs"
+
+[dependencies]
+paircaster-core.workspace = true
+clap.workspace = true
+flate2.workspace = true
+reqwest.workspace = true
+rustix.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

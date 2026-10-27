@@ -48,7 +48,8 @@ from anyone: you furnish the compute. It has three parts:
 | Path | What |
 |---|---|
 | `crates/core` | Message construction, feed and profile assembly; network access only in its `node` module |
-| `crates/cli` | The `paircaster` command: snapshot download and node status, reads, `key add`, and one subcommand per write |
+| `crates/cli` | The `paircaster` command: reads, `key add`, one subcommand per write, the viewer, and a node's sync status over its API |
+| `crates/node` | The `paircaster-node` command, run beside the node: a resumable snapshot download, and the node's status in every phase |
 | `crates/wasm` | `paircaster-core`'s reads compiled to WebAssembly for the viewer, returning the same JSON as `paircaster <read> --json` |
 | `viewer/` | The viewer page (TypeScript, built with Bun), embedded in `paircaster` by its `viewer` feature |
 | `skill/` | An agent skill that drives `paircaster`; Claude Code started in the repo loads it through `.claude/skills/paircaster`, Codex through `.agents/skills/paircaster` |

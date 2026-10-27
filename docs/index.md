@@ -48,7 +48,7 @@ cd paircaster
 claude
 ```
 
-Then ask it: “Install Paircaster here, with the viewer.” It loads Paircaster's [skill](agent.md#the-skill) from the clone, checks what your machine already has, and builds `paircaster` with the [viewer](agent.md#building-the-viewer). Snapchain's installer asks questions at the terminal, so the skill has the agent give you steps 2 and 4 below to run yourself, with the answers, and start step 3's download for you.
+Then ask it: “Install Paircaster here, with the viewer.” It loads Paircaster's [skill](agent.md#the-skill) from the clone, checks what your machine already has, and builds `paircaster` with the [viewer](agent.md#building-the-viewer), and `paircaster-node`. Snapchain's installer asks questions at the terminal, so the skill has the agent give you steps 2 and 4 below to run yourself, with the answers, and start step 3's download for you.
 
 The same steps by hand follow. Each is explained in [Running the node](node.md).
 
@@ -58,7 +58,10 @@ The same steps by hand follow. Each is explained in [Running the node](node.md).
 git clone https://github.com/cyberchitta/paircaster
 cd paircaster
 cargo install --path crates/cli --locked
+cargo install --path crates/node --locked
 ```
+
+`paircaster` reads and writes. `paircaster-node` sets up and watches the node, on the machine the node runs on.
 
 ### 2. Install Snapchain, then stop it
 
@@ -67,18 +70,18 @@ mkdir -p ~/snapchain && echo SKIP_CRONTAB=true >> ~/snapchain/.env
 curl -sSL https://raw.githubusercontent.com/farcasterxyz/snapchain/refs/heads/main/scripts/snapchain-bootstrap.sh | bash
 ```
 
-The script asks two questions. Agree to the first, that a read node earns no rewards. Leave the second, an operator FID, blank: the first command made that safe, and upgrades then happen [by hand](node.md#upgrades). It installs to `~/snapchain` and starts the node, which begins its own snapshot download. That download cannot resume after an interruption ([why](node.md#the-snapshot)), so stop it and let `paircaster` download instead:
+The script asks two questions. Agree to the first, that a read node earns no rewards. Leave the second, an operator FID, blank: the first command made that safe, and upgrades then happen [by hand](node.md#upgrades). It installs to `~/snapchain` and starts the node, which begins its own snapshot download. That download cannot resume after an interruption ([why](node.md#the-snapshot)), so stop it and let `paircaster-node` download instead:
 
 ```run
 cd ~/snapchain && ./snapchain.sh down
 ```
 
-`paircaster node fetch-snapshot` refuses to start while the node's container is running, and names this command.
+`paircaster-node fetch-snapshot` refuses to start while the node's container is running, and names this command.
 
 ### 3. Download the snapshot
 
 ```run
-paircaster node fetch-snapshot
+paircaster-node fetch-snapshot
 ```
 
 The download and unpack took about 12 h 15 min of wall-clock time on the test machine, pauses included, at 8 to 41 MB/s.
@@ -92,7 +95,7 @@ cd ~/snapchain && ./snapchain.sh up
 This starts the node and then follows its log; Ctrl-C stops following the log and leaves the node running. The node has to catch up from the snapshot's date to now. Check on it from any terminal:
 
 ```run
-paircaster node status
+paircaster-node status
 ```
 
 Four hours after starting, the test node was [still catching up](node.md#why-sync-is-slow):
@@ -107,7 +110,7 @@ Disk: 3165 GB free of 3996 GB.
 
 ### 5. Read from your node
 
-You are done when `paircaster node status` says `Ready`:
+You are done when `paircaster-node status` says `Ready`:
 
 ```output
 Ready (Snapchain 0.14.3): every shard within a minute of its newest block.
@@ -150,7 +153,7 @@ Ready (Snapchain 0.14.3): every shard within a minute of its newest block.
   shard 2: height 49153538, 0s behind
 ```
 
-If nothing answers at that address, it says `could not reach node` and exits 1. Without `--node`, reads and writes both go to your own node; some of the guide's writes were sent through Farcaster's public node instead, by naming it with `--node`, because the test node had not yet synced the new test account, and a node accepts writes only from accounts it has seen ([Writing](client.md#writing:-casts,-reactions,-follows)).
+If nothing answers at that address, it says `no node answers at` that address and exits 1. Without `--node`, reads and writes both go to your own node; some of the guide's writes were sent through Farcaster's public node instead, by naming it with `--node`, because the test node had not yet synced the new test account, and a node accepts writes only from accounts it has seen ([Writing](client.md#writing:-casts,-reactions,-follows)).
 
 ## What you just did
 
@@ -190,7 +193,7 @@ Each idea is explained where the guide first uses it.
 - A shutdown or logout with the node running; a restart with Docker other than OrbStack.
 - The viewer in browsers other than Chrome.
 - The agent's install where it installs the node: its hand-over of Snapchain's installer and the snapshot download has not been seen. Also the install where Rust or Bun is missing, and through Codex.
-- For a node installed some other way than this guide's: reaching its API through a web proxy, and pointing `node status` at its install directory.
+- For a node installed some other way than this guide's: reaching its API through a web proxy, and pointing `paircaster-node status` at its install directory.
 
 ## Going further
 

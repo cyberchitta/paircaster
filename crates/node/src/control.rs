@@ -1,4 +1,4 @@
-//! `paircaster node pause` and `paircaster node resume`: stop and restart the
+//! `paircaster-node pause` and `paircaster-node resume`: stop and restart the
 //! snapshot download without finding its process by hand.
 //!
 //! The running download is the process holding the download lock
@@ -21,7 +21,7 @@ use std::time::Duration;
 use rustix::process::{Pid, Signal, kill_process};
 use std::io::Write;
 
-use crate::CliError;
+use crate::NodeError;
 use crate::clock;
 use crate::invocation;
 use crate::snapshot::{self, Observed};
@@ -68,7 +68,7 @@ pub enum ControlError {
     DidNotStart(PathBuf),
 }
 
-pub async fn pause(args: PauseArgs) -> Result<(), CliError> {
+pub async fn pause(args: PauseArgs) -> Result<(), NodeError> {
     let dir = snapshot::install_dir(args.dir)?;
     if let Observed::Unpacking(_) = snapshot::observe(&dir)? {
         return Err(ControlError::Unpacking.into());
@@ -89,7 +89,7 @@ pub async fn pause(args: PauseArgs) -> Result<(), CliError> {
     Err(ControlError::DidNotStop(pid).into())
 }
 
-pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
+pub async fn resume(args: ResumeArgs) -> Result<(), NodeError> {
     let dir = snapshot::install_dir(args.dir)?;
     if let Some(pid) = snapshot::holder(&dir)? {
         crate::out::line(format_args!("Already running (process {pid})."));
@@ -107,7 +107,7 @@ pub async fn resume(args: ResumeArgs) -> Result<(), CliError> {
 }
 
 /// Waits for the spawned download to take the lock, or to exit without it.
-async fn await_start(dir: &Path, mut child: Child, log: &Path) -> Result<(), CliError> {
+async fn await_start(dir: &Path, mut child: Child, log: &Path) -> Result<(), NodeError> {
     for _ in 0..WAIT_TRIES {
         if let Some(pid) = snapshot::holder(dir)? {
             crate::out::line(format_args!(
@@ -138,13 +138,7 @@ fn spawn(dir: &Path, jobs: u16, log: &Path) -> Result<Child, ControlError> {
     let err: File = out.try_clone().map_err(io_err(log))?;
     let exe = std::env::current_exe().map_err(io_err(log))?;
     awake(exe)
-        .args([
-            "node",
-            "fetch-snapshot",
-            "--jobs",
-            &jobs.to_string(),
-            "--dir",
-        ])
+        .args(["fetch-snapshot", "--jobs", &jobs.to_string(), "--dir"])
         .arg(dir)
         .stdin(Stdio::null())
         .stdout(out)
@@ -166,7 +160,7 @@ fn awake(exe: PathBuf) -> Command {
 }
 
 /// One line on how far the download has got.
-fn progress(dir: &Path) -> Result<String, CliError> {
+fn progress(dir: &Path) -> Result<String, NodeError> {
     Ok(match snapshot::observe(dir)? {
         Observed::Downloading(d) => {
             format!("{} of {} chunks on disk.", d.chunks_done, d.chunks_total)

@@ -1,4 +1,4 @@
-//! `paircaster node fetch-snapshot`: a pausable, resumable replacement for the
+//! `paircaster-node fetch-snapshot`: a pausable, resumable replacement for the
 //! snapshot download Snapchain does on first start. Snapchain's own download
 //! cannot resume and, if interrupted after the first shard unpacks, leaves a
 //! database it then treats as complete. This one downloads every chunk first,

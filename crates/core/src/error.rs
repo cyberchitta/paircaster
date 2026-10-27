@@ -34,10 +34,43 @@ pub enum Error {
     NoShard(u32),
 }
 
+impl Error {
+    /// Whether this process was not permitted to connect, as an agent's
+    /// sandbox denies it, rather than refused by the other end, as a
+    /// stopped node is. Nothing is known about the node then.
+    pub fn is_denied(&self) -> bool {
+        matches!(self, Self::Transport(e) if denied(e))
+    }
+}
+
+fn denied(e: &(dyn std::error::Error + 'static)) -> bool {
+    std::iter::successors(Some(e), |e| e.source())
+        .filter_map(|e| e.downcast_ref::<std::io::Error>())
+        .any(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
+}
+
 /// The JSON error body Snapchain returns for failed lookups. Query-parsing
 /// errors come back as plain text instead and land in `UnexpectedResponse`.
 #[derive(Debug, Deserialize)]
 pub(crate) struct NodeErrorBody {
     pub error: String,
     pub error_detail: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::denied;
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("connect")]
+    struct Connect(#[source] std::io::Error);
+
+    #[test]
+    fn only_a_connection_not_permitted_is_denied() {
+        use std::io::{Error, ErrorKind};
+        let denied_by = |kind| denied(&Connect(Error::from(kind)));
+        assert!(denied_by(ErrorKind::PermissionDenied));
+        assert!(!denied_by(ErrorKind::ConnectionRefused));
+        assert!(!denied(&Error::from(ErrorKind::TimedOut)));
+    }
 }

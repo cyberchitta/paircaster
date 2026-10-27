@@ -36,8 +36,8 @@ use crate::clock;
 use crate::invocation;
 use crate::keystore::{KeyStore, KeyStoreError, LoadedKey};
 use crate::outbox::{self, Outbox, OutboxError};
-use crate::status;
 use crate::tty::{Tty, TtyError};
+use paircaster_core::status;
 
 /// How long to wait for the node to show a sent message.
 const CONFIRM_TRIES: u32 = 30;

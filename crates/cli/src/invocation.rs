@@ -3,13 +3,10 @@
 //! A bare `paircaster` in a hint fails when the binary is not on `PATH`, which
 //! is the usual case while trying it from a checkout. So a hint names the
 //! binary the way it was run: `paircaster` if it was found on `PATH`, else its
-//! absolute path, which still works from another directory. A `node` hint
-//! also names `--dir` when the install is not the default one.
+//! absolute path, which still works from another directory.
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-
-use crate::snapshot;
 
 /// The command that runs this binary, ready to paste into a shell.
 pub fn paircaster() -> String {
@@ -17,23 +14,9 @@ pub fn paircaster() -> String {
     command(argv0.as_deref(), std::env::current_exe().ok().as_deref())
 }
 
-/// `paircaster node <sub>` for the install at `dir`.
-pub fn node(sub: &str, dir: &Path) -> String {
-    let default = snapshot::install_dir(None).ok();
-    node_command(&paircaster(), sub, dir, default.as_deref())
-}
-
 /// `path`, ready to paste into a shell.
-pub fn path(path: &Path) -> String {
+fn path(path: &Path) -> String {
     quote(&path.to_string_lossy())
-}
-
-fn node_command(paircaster: &str, sub: &str, dir: &Path, default: Option<&Path>) -> String {
-    let dir = std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf());
-    match default == Some(dir.as_path()) {
-        true => format!("{paircaster} node {sub}"),
-        false => format!("{paircaster} node {sub} --dir {}", path(&dir)),
-    }
 }
 
 fn command(argv0: Option<&OsStr>, exe: Option<&Path>) -> String {
@@ -90,38 +73,6 @@ mod tests {
     fn no_argv0_falls_back_to_the_name() {
         assert_eq!(command(None, Some(Path::new(EXE))), EXE);
         assert_eq!(command(None, None), "paircaster");
-    }
-
-    #[test]
-    fn the_default_install_needs_no_dir() {
-        let home = Path::new("/Users/a/snapchain");
-        assert_eq!(
-            node_command(
-                "paircaster",
-                "resume",
-                Path::new("/Users/a/snapchain/"),
-                Some(home)
-            ),
-            "paircaster node resume"
-        );
-    }
-
-    #[test]
-    fn another_install_is_named_and_quoted() {
-        let home = Path::new("/Users/a/snapchain");
-        assert_eq!(
-            node_command(
-                "paircaster",
-                "pause",
-                Path::new("/Volumes/Big Disk/sc"),
-                Some(home)
-            ),
-            "paircaster node pause --dir '/Volumes/Big Disk/sc'"
-        );
-        assert_eq!(
-            node_command("paircaster", "status", Path::new("/data/sc"), None),
-            "paircaster node status --dir /data/sc"
-        );
     }
 
     #[test]
