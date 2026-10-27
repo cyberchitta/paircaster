@@ -1,9 +1,10 @@
 # Paircaster: working context
 
 Paircaster is a Farcaster read node plus an agent-ready client, run on your own
-infrastructure with no API keys from anyone: a provision script, a wrapper
-around the Snapchain bootstrap, a Rust library and CLI over the node's HTTP
-API, an agent skill that calls the CLI, and a microsite that teaches it.
+infrastructure with no API keys from anyone: a Rust library over the node's
+HTTP API, two commands on it (`paircaster`, the client, and `paircaster-node`,
+which downloads Snapchain's snapshot and reports the node's progress), a viewer
+page, an agent skill that calls the CLI, and a microsite that teaches it.
 
 The project publishes code and a static site only. It runs no service, holds
 no one's keys, and has no default endpoint pointing at a server it runs or at

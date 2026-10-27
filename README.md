@@ -4,9 +4,9 @@ Farcaster from your own Snapchain node, for you and your AI agent. No API keys
 from anyone: you furnish the compute. It has three parts:
 
 - **A node.** Snapchain, the software Farcaster's nodes run, set up by its own
-  installer and run in Docker. `paircaster` downloads its snapshot (about
-  800 GB), pausing and resuming where it stopped, and tells you how far the
-  node has got.
+  installer and run in Docker. `paircaster-node` downloads its snapshot
+  (about 800 GB), pausing and resuming where it stopped, and tells you how far
+  the node has got.
 - **A command-line client, `paircaster`.** It reads profiles, casts, threads,
   follows and the network's recent messages from your node, and casts, reacts
   and follows through it. You run it, and so does your agent, through the
